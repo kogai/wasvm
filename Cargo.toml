@@ -1,0 +1,6 @@
+[package]
+name = "experimental-wasmi"
+version = "0.1.0"
+authors = ["Shinichi Kogai <kogai0121@gmail.com>"]
+
+[dependencies]
