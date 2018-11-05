@@ -1,5 +1,5 @@
 #include <stdio.h>
 
-int main() {
-  return 1 + 2;
+int subject(int a, int b) {
+  return a + b;
 }

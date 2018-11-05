@@ -28,6 +28,6 @@ const wasm = `./dist/${process.argv[2]}.wasm`;
 const buffer = fs.readFileSync(wasm);
 WebAssembly.instantiate(buffer, importObj)
   .then(mod => {
-    console.log(mod.instance.exports._main());
+    console.log(mod.instance.exports._subject(2, 4));
   })
   .catch(console.error);

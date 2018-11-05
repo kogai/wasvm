@@ -1,11 +1,10 @@
 EXAMPLES_SRC := $(shell find ./fixtures -type f -name '*.c')
-EXAMPLES_WASM := dist/$(shell basename "$(EXAMPLES_SRC)" .c).wasm
 TRIPLE := wasm32-unknown-unknown
 
-all: $(EXAMPLES_WASM)
+all: dist/*.wasm
 
-$(EXAMPLES_WASM): $(EXAMPLES_SRC)
-	emcc -Oz fixtures/$(shell basename $@ .wasm).c -s WASM=1 -o $(shell basename $@ .wasm).js
+dist/*.wasm: $(EXAMPLES_SRC)
+	emcc -Oz fixtures/$(shell basename $@ .wasm).c -s "EXPORTED_FUNCTIONS=['_subject']" -s WASM=1 -o $(shell basename $@ .wasm).js
 	wasm-gc $(shell basename $@ .wasm).wasm -o $@
 	wasm2wat $@ -o dist/$(shell basename $@ .wasm).wat
 	rm ./$(shell basename $@ .wasm).*

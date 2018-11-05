@@ -1,5 +1,5 @@
 #include <stdio.h>
 
-int main() {
+int subject() {
   return 42;
 }
