@@ -1,5 +1,5 @@
 EXAMPLES_SRC := $(shell find ./fixtures -type f -name '*.c')
-EXAMPLES_WASM := $(shell find ./dist -type f -name '*.wasm')
+EXAMPLES_WASM := dist/$(shell basename "$(EXAMPLES_SRC)" .c).wasm
 TRIPLE := wasm32-unknown-unknown
 
 all: $(EXAMPLES_WASM)
