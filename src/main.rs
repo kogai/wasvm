@@ -1,3 +1,6 @@
+use std::fs;
+
 fn main() {
-    println!("Hello, world!");
+    let buf = fs::read("dist/constant.wasm");
+    println!("{:?}", buf);
 }
