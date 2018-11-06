@@ -1,28 +1,53 @@
 use std::collections::VecDeque;
-use std::fs;
-use std::io;
-use std::io::Read;
 
 #[derive(Debug, PartialEq)]
-enum Value {
+pub enum Value {
     I32(i32),
 }
 
+#[derive(Debug, PartialEq)]
+enum ValueType {
+    I32,
+    // I64,
+    // F32,
+    // F63,
+}
+
+impl ValueType {
+    fn from_byte(code: u8) -> Self {
+        match code {
+            0x7f => ValueType::I32,
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Module {
+    types: Vec<(Vec<ValueType>, Vec<ValueType>)>,
+    func_addresses: Vec<i32>,
+}
+
 #[derive(Debug)]
-struct Vm {
+pub struct Vm {
     bytes: Vec<u8>,
     len: usize,
     bp: usize,
     stack: VecDeque<Value>,
+    module: Module,
 }
 
 impl Vm {
-    fn new(bytes: Vec<u8>) -> Self {
+    pub fn new(bytes: Vec<u8>) -> Self {
         Vm {
             len: bytes.len(),
             bytes,
             bp: 0,
             stack: VecDeque::new(),
+            module: Module {
+                types: vec![],
+                func_addresses: vec![],
+            },
         }
     }
 
@@ -47,7 +72,10 @@ impl Vm {
                     Some(0x60) => {
                         let &_num_of_param = self.next().unwrap();
                         let &_num_of_result = self.next().unwrap();
-                        let &_result_type = self.next().unwrap();
+                        let &result_type = self.next().unwrap();
+                        self.module
+                            .types
+                            .push((vec![], vec![ValueType::from_byte(result_type)]));
                     }
                     _ => {}
                 }
@@ -93,8 +121,12 @@ impl Vm {
                 let &_num_of_param = self.next().unwrap();
                 match self.next() {
                     Some(0x41) => {
+                        // FIXME: Decode expressions properly.
+                        // This implementation may don't make any sense.
                         let &v = self.next().unwrap();
-                        self.stack.push_front(Value::I32(v as i32))
+                        let idx = self.module.func_addresses.len();
+                        self.stack.push_front(Value::I32(v as i32));
+                        self.module.func_addresses.push(idx as i32);
                     }
                     Some(_) | None => unimplemented!(),
                 }
@@ -105,41 +137,65 @@ impl Vm {
             None => {}
         }
     }
+
+    pub fn decode(&mut self) {
+        while self.has_next() {
+            self.decode_section();
+        }
+    }
+
+    pub fn run(&mut self) -> Value {
+        match self.stack.pop_front() {
+            Some(v) => v,
+            _ => Value::I32(0),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io;
+    use std::io::Read;
+    use std::path::Path;
+
+    fn read_wasm<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
+        let mut file = fs::File::open(path)?;
+        let mut tmp = [0; 8];
+        let mut buffer = vec![];
+        let _ = file.read_exact(&mut tmp)?;
+        file.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    }
 
     #[test]
     fn it_can_push_constant() {
-        let mut file = fs::File::open("./dist/constant.wasm").unwrap();
-        let mut tmp = [0; 8];
-        let mut buffer = vec![];
-        let _ = file.read_exact(&mut tmp).unwrap();
-        file.read_to_end(&mut buffer).unwrap();
-
-        let mut vm = Vm::new(buffer);
-        while vm.has_next() {
-            vm.decode_section();
-        }
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.decode();
         assert_eq!(vm.stack.pop_front(), Some(Value::I32(42)));
     }
-}
 
-fn main() -> io::Result<()> {
-    let mut file = fs::File::open("./dist/constant.wasm")?;
-    let mut tmp = [0; 4];
-    let _drop_magic_number = file.read_exact(&mut tmp)?;
-    let _drop_version = file.read_exact(&mut tmp)?;
-
-    let mut buffer = vec![];
-    file.read_to_end(&mut buffer)?;
-    buffer.reverse();
-
-    let mut wasm_bytes = Vm::new(buffer);
-    while wasm_bytes.has_next() {
-        wasm_bytes.decode_section();
+    #[test]
+    fn it_can_organize_modules() {
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.decode();
+        assert_eq!(
+            vm.module,
+            Module {
+                types: vec![(vec![], vec![ValueType::I32])],
+                func_addresses: vec![0]
+            }
+        );
     }
-    Ok(())
+
+    #[test]
+    fn it_can_evaluate_constant() {
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.decode();
+        assert_eq!(vm.run(), Value::I32(42));
+    }
 }

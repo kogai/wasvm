@@ -9,6 +9,10 @@ dist/*.wasm: $(EXAMPLES_SRC)
 	wasm2wat $@ -o dist/$(shell basename $@ .wasm).wat
 	rm ./$(shell basename $@ .wasm).*
 
+.PHONY: run
+run:
+	cargo run --bin main
+
 # Prefer to replace Docker container
 install:
 	packer -S wabt --noconfirm

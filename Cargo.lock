@@ -1,4 +1,4 @@
 [[package]]
-name = "experimental-wasmi"
+name = "wasvm"
 version = "0.1.0"
 
