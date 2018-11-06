@@ -121,8 +121,12 @@ impl Vm {
                 let &_num_of_param = self.next().unwrap();
                 match self.next() {
                     Some(0x41) => {
+                        // FIXME: Decode expressions properly.
+                        // This implementation may don't make any sense.
                         let &v = self.next().unwrap();
-                        self.stack.push_front(Value::I32(v as i32))
+                        let idx = self.module.func_addresses.len();
+                        self.stack.push_front(Value::I32(v as i32));
+                        self.module.func_addresses.push(idx as i32);
                     }
                     Some(_) | None => unimplemented!(),
                 }
