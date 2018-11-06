@@ -1,29 +1,28 @@
+use std::collections::VecDeque;
 use std::fs;
 use std::io;
 use std::io::Read;
 
-#[derive(Debug)]
-enum Section {
-    Type,
-    Function,
-    Export,
+#[derive(Debug, PartialEq)]
+enum Value {
+    I32(i32),
 }
 
 #[derive(Debug)]
-struct Bytes {
+struct Vm {
     bytes: Vec<u8>,
     len: usize,
     bp: usize,
-    sections: Vec<Section>,
+    stack: VecDeque<Value>,
 }
 
-impl Bytes {
+impl Vm {
     fn new(bytes: Vec<u8>) -> Self {
-        Bytes {
+        Vm {
             len: bytes.len(),
-            sections: vec![],
             bytes,
             bp: 0,
+            stack: VecDeque::new(),
         }
     }
 
@@ -32,7 +31,7 @@ impl Bytes {
     }
 
     fn next(&mut self) -> Option<&u8> {
-        let el = self.bytes.get(self.len - 1 - self.bp);
+        let el = self.bytes.get(self.bp);
         self.bp += 1;
         el
     }
@@ -46,9 +45,9 @@ impl Bytes {
                 // FIXME: Should iterate over num_of_type
                 match self.next() {
                     Some(0x60) => {
-                        let &num_of_param = self.next().unwrap();
-                        let &num_of_result = self.next().unwrap();
-                        let &result_type = self.next().unwrap();
+                        let &_num_of_param = self.next().unwrap();
+                        let &_num_of_result = self.next().unwrap();
+                        let &_result_type = self.next().unwrap();
                     }
                     _ => {}
                 }
@@ -94,7 +93,8 @@ impl Bytes {
                 let &_num_of_param = self.next().unwrap();
                 match self.next() {
                     Some(0x41) => {
-                        println!("i32.const instruction with {:?}", self.next().unwrap());
+                        let &v = self.next().unwrap();
+                        self.stack.push_front(Value::I32(v as i32))
                     }
                     Some(_) | None => unimplemented!(),
                 }
@@ -104,6 +104,26 @@ impl Bytes {
             Some(_) => unimplemented!(),
             None => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_can_push_constant() {
+        let mut file = fs::File::open("./dist/constant.wasm").unwrap();
+        let mut tmp = [0; 8];
+        let mut buffer = vec![];
+        let _ = file.read_exact(&mut tmp).unwrap();
+        file.read_to_end(&mut buffer).unwrap();
+
+        let mut vm = Vm::new(buffer);
+        while vm.has_next() {
+            vm.decode_section();
+        }
+        assert_eq!(vm.stack.pop_front(), Some(Value::I32(42)));
     }
 }
 
@@ -117,7 +137,7 @@ fn main() -> io::Result<()> {
     file.read_to_end(&mut buffer)?;
     buffer.reverse();
 
-    let mut wasm_bytes = Bytes::new(buffer);
+    let mut wasm_bytes = Vm::new(buffer);
     while wasm_bytes.has_next() {
         wasm_bytes.decode_section();
     }
