@@ -144,8 +144,11 @@ impl Vm {
         }
     }
 
-    pub fn run(&self) -> Value {
-        unimplemented!();
+    pub fn run(&mut self) -> Value {
+        match self.stack.pop_front() {
+            Some(v) => v,
+            _ => Value::I32(0),
+        }
     }
 }
 
