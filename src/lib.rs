@@ -5,12 +5,36 @@ pub enum Value {
     I32(i32),
 }
 
+#[derive(Debug, PartialEq)]
+enum ValueType {
+    I32,
+    // I64,
+    // F32,
+    // F63,
+}
+
+impl ValueType {
+    fn from_byte(code: u8) -> Self {
+        match code {
+            0x7f => ValueType::I32,
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Module {
+    types: Vec<(Vec<ValueType>, Vec<ValueType>)>,
+    func_addresses: Vec<i32>,
+}
+
 #[derive(Debug)]
 pub struct Vm {
     bytes: Vec<u8>,
     len: usize,
     bp: usize,
     stack: VecDeque<Value>,
+    module: Module,
 }
 
 impl Vm {
@@ -20,6 +44,10 @@ impl Vm {
             bytes,
             bp: 0,
             stack: VecDeque::new(),
+            module: Module {
+                types: vec![],
+                func_addresses: vec![],
+            },
         }
     }
 
@@ -44,7 +72,10 @@ impl Vm {
                     Some(0x60) => {
                         let &_num_of_param = self.next().unwrap();
                         let &_num_of_result = self.next().unwrap();
-                        let &_result_type = self.next().unwrap();
+                        let &result_type = self.next().unwrap();
+                        self.module
+                            .types
+                            .push((vec![], vec![ValueType::from_byte(result_type)]));
                     }
                     _ => {}
                 }
@@ -137,6 +168,20 @@ mod tests {
         let mut vm = Vm::new(wasm);
         vm.decode();
         assert_eq!(vm.stack.pop_front(), Some(Value::I32(42)));
+    }
+
+    #[test]
+    fn it_can_organize_modules() {
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.decode();
+        assert_eq!(
+            vm.module,
+            Module {
+                types: vec![(vec![], vec![ValueType::I32])],
+                func_addresses: vec![0]
+            }
+        );
     }
 
     #[test]
