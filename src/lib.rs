@@ -1,15 +1,12 @@
 use std::collections::VecDeque;
-use std::fs;
-use std::io;
-use std::io::Read;
 
 #[derive(Debug, PartialEq)]
-enum Value {
+pub enum Value {
     I32(i32),
 }
 
 #[derive(Debug)]
-struct Vm {
+pub struct Vm {
     bytes: Vec<u8>,
     len: usize,
     bp: usize,
@@ -17,7 +14,7 @@ struct Vm {
 }
 
 impl Vm {
-    fn new(bytes: Vec<u8>) -> Self {
+    pub fn new(bytes: Vec<u8>) -> Self {
         Vm {
             len: bytes.len(),
             bytes,
@@ -105,41 +102,48 @@ impl Vm {
             None => {}
         }
     }
+
+    pub fn decode(&mut self) {
+        while self.has_next() {
+            self.decode_section();
+        }
+    }
+
+    pub fn run(&self) -> Value {
+        unimplemented!();
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::io;
+    use std::io::Read;
+    use std::path::Path;
+
+    fn read_wasm<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
+        let mut file = fs::File::open(path)?;
+        let mut tmp = [0; 8];
+        let mut buffer = vec![];
+        let _ = file.read_exact(&mut tmp)?;
+        file.read_to_end(&mut buffer)?;
+        Ok(buffer)
+    }
 
     #[test]
     fn it_can_push_constant() {
-        let mut file = fs::File::open("./dist/constant.wasm").unwrap();
-        let mut tmp = [0; 8];
-        let mut buffer = vec![];
-        let _ = file.read_exact(&mut tmp).unwrap();
-        file.read_to_end(&mut buffer).unwrap();
-
-        let mut vm = Vm::new(buffer);
-        while vm.has_next() {
-            vm.decode_section();
-        }
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.decode();
         assert_eq!(vm.stack.pop_front(), Some(Value::I32(42)));
     }
-}
 
-fn main() -> io::Result<()> {
-    let mut file = fs::File::open("./dist/constant.wasm")?;
-    let mut tmp = [0; 4];
-    let _drop_magic_number = file.read_exact(&mut tmp)?;
-    let _drop_version = file.read_exact(&mut tmp)?;
-
-    let mut buffer = vec![];
-    file.read_to_end(&mut buffer)?;
-    buffer.reverse();
-
-    let mut wasm_bytes = Vm::new(buffer);
-    while wasm_bytes.has_next() {
-        wasm_bytes.decode_section();
+    #[test]
+    fn it_can_evaluate_constant() {
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.decode();
+        assert_eq!(vm.run(), Value::I32(42));
     }
-    Ok(())
 }
