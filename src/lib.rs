@@ -1,8 +1,22 @@
 use std::collections::VecDeque;
 
+type FnType = (Vec<ValueType>, Vec<ValueType>);
+
 #[derive(Debug, PartialEq)]
 pub enum Value {
     I32(i32),
+}
+
+#[derive(Debug, PartialEq)]
+enum Op {
+    Const(i32),
+}
+
+#[derive(Debug, PartialEq)]
+struct FunctionInstance {
+    fn_type: FnType,
+    type_idx: u32,
+    body: Vec<Op>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -24,8 +38,21 @@ impl ValueType {
 
 #[derive(Debug, PartialEq)]
 struct Module {
-    types: Vec<(Vec<ValueType>, Vec<ValueType>)>,
+    types: Vec<FnType>,
     func_addresses: Vec<i32>,
+}
+
+#[derive(Debug, PartialEq)]
+struct Store {
+    function_instance: Vec<FunctionInstance>,
+}
+
+impl Store {
+    fn new() -> Self {
+        Store {
+            function_instance: vec![],
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -33,6 +60,7 @@ pub struct Vm {
     bytes: Vec<u8>,
     len: usize,
     bp: usize,
+    store: Store,
     stack: VecDeque<Value>,
     module: Module,
 }
@@ -43,6 +71,7 @@ impl Vm {
             len: bytes.len(),
             bytes,
             bp: 0,
+            store: Store::new(),
             stack: VecDeque::new(),
             module: Module {
                 types: vec![],
@@ -198,4 +227,22 @@ mod tests {
         vm.decode();
         assert_eq!(vm.run(), Value::I32(42));
     }
+
+    #[test]
+    fn it_can_organize_functions() {
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.decode();
+        assert_eq!(
+            vm.store,
+            Store {
+                function_instance: vec![FunctionInstance {
+                    fn_type: (vec![], vec![ValueType::I32]),
+                    type_idx: 0,
+                    body: vec![Op::Const(42)],
+                }]
+            }
+        );
+    }
+
 }
