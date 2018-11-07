@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+mod byte;
 
 type FnType = (Vec<ValueType>, Vec<ValueType>);
 
@@ -14,8 +15,6 @@ enum Op {
 
 #[derive(Debug, PartialEq)]
 struct FunctionInstance {
-    fn_type: FnType,
-    type_idx: u32,
     body: Vec<Op>,
 }
 
@@ -156,6 +155,8 @@ impl Vm {
                         let idx = self.module.func_addresses.len();
                         self.stack.push_front(Value::I32(v as i32));
                         self.module.func_addresses.push(idx as i32);
+                        let body = vec![Op::Const(v as i32)];
+                        self.store.function_instance.push(FunctionInstance { body });
                     }
                     Some(_) | None => unimplemented!(),
                 }
@@ -237,8 +238,6 @@ mod tests {
             vm.store,
             Store {
                 function_instance: vec![FunctionInstance {
-                    fn_type: (vec![], vec![ValueType::I32]),
-                    type_idx: 0,
                     body: vec![Op::Const(42)],
                 }]
             }
