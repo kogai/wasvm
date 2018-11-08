@@ -1,18 +1,32 @@
 #[derive(Debug, PartialEq)]
-enum Code {
+pub enum ValueTypes {
+  I32,
+  // I64,
+  // F32,
+  // F64,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Values {
+  I32(i32),
+  // I64,
+  // F32,
+  // F64,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Code {
   SectionType,
   SectionFunction,
   SectionExport,
   SectionCode,
   ConstI32,
-  ValI32(i32),
-  TypeI32,
-  // I64,
-  // F32,
-  // F63,
-  IdxType(u8),
-  IdxFunction(u8),
+  Value(Values),
+  ValueType(ValueTypes),
   TypeFunction,
+
+  IdxOfType(u8),
+  IdxOfFunction(u8),
   ExportName(String),
 
   ExportDescFunctionIdx,
@@ -32,7 +46,7 @@ impl Code {
       Some(0x3) => SectionFunction,
       Some(0x7) => SectionExport,
       Some(0xa) => SectionCode,
-      Some(0x7f) => TypeI32,
+      Some(0x7f) => ValueType(ValueTypes::I32),
       Some(0x41) => ConstI32,
       Some(0x60) => TypeFunction,
       Some(0x0b) => End,
@@ -55,7 +69,7 @@ impl Code {
 #[derive(Debug, PartialEq)]
 pub struct Byte {
   bytes: Vec<u8>,
-  bytes_decoded: Vec<Code>,
+  pub bytes_decoded: Vec<Code>,
   byte_ptr: usize,
 }
 
@@ -108,7 +122,7 @@ impl Byte {
           let _size_of_section = self.next()?;
           let size_of_type_idx = self.next()?;
           for _ in 0..size_of_type_idx {
-            internal_section.push(Code::IdxType(self.next()?));
+            internal_section.push(Code::IdxOfType(self.next()?));
           }
         }
         Code::SectionExport => {
@@ -127,7 +141,7 @@ impl Byte {
             match export_desc {
               Code::ExportDescFunctionIdx => {
                 internal_section.push(export_desc);
-                internal_section.push(Code::IdxFunction(self.next()?));
+                internal_section.push(Code::IdxOfFunction(self.next()?));
               }
               _ => unimplemented!(),
             }
@@ -145,7 +159,7 @@ impl Byte {
             while !(Code::from_byte(self.peek()) == Code::End) {
               let operation = Code::from_byte(self.next());
               let expressions = match operation {
-                Code::ConstI32 => Code::ValI32(self.next()? as i32),
+                Code::ConstI32 => Code::Value(Values::I32(self.next()? as i32)),
                 _ => unimplemented!(),
               };
               internal_section.push(operation);
@@ -170,19 +184,7 @@ impl Byte {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::fs;
-  use std::io;
-  use std::io::Read;
-  use std::path::Path;
-
-  fn read_wasm<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
-    let mut file = fs::File::open(path)?;
-    let mut tmp = [0; 8];
-    let mut buffer = vec![];
-    let _ = file.read_exact(&mut tmp)?;
-    file.read_to_end(&mut buffer)?;
-    Ok(buffer)
-  }
+  use utils::read_wasm;
 
   #[test]
   fn it_decode() {
@@ -195,16 +197,16 @@ mod tests {
       vec![
         SectionType,
         TypeFunction,
-        TypeI32,
+        ValueType(ValueTypes::I32),
         SectionFunction,
-        IdxType(0),
+        IdxOfType(0),
         SectionExport,
         ExportName("_subject".to_owned()),
         ExportDescFunctionIdx,
-        IdxFunction(0),
+        IdxOfFunction(0),
         SectionCode,
         ConstI32,
-        ValI32(42),
+        Value(Values::I32(42))
       ]
     );
   }
