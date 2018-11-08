@@ -13,7 +13,7 @@ fn main() -> io::Result<()> {
   let mut buffer = vec![];
   file.read_to_end(&mut buffer)?;
 
-  let mut wasm_bytes = wasvm::Vm::new(buffer);
-  wasm_bytes.decode();
+  let mut vm = wasvm::Vm::new(buffer);
+  vm.run();
   Ok(())
 }

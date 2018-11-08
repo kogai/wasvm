@@ -1,153 +1,148 @@
-use std::collections::VecDeque;
+use std::collections::HashMap;
+mod byte;
+mod utils;
 
-#[derive(Debug, PartialEq)]
-pub enum Value {
-    I32(i32),
+#[derive(Debug, PartialEq, Clone)]
+enum Op {
+    Const(i32),
 }
 
 #[derive(Debug, PartialEq)]
-enum ValueType {
-    I32,
-    // I64,
-    // F32,
-    // F63,
+struct FunctionType {
+    parameters: Vec<byte::ValueTypes>,
+    returns: Vec<byte::ValueTypes>,
 }
 
-impl ValueType {
-    fn from_byte(code: u8) -> Self {
-        match code {
-            0x7f => ValueType::I32,
-            _ => unreachable!(),
+#[derive(Debug, PartialEq)]
+struct FunctionInstance {
+    function_type: FunctionType,
+    locals: Vec<byte::Values>,
+    type_idex: u32,
+    body: Vec<Op>,
+}
+
+#[derive(Debug, PartialEq)]
+struct Store {
+    function_instances: HashMap<String, FunctionInstance>,
+}
+
+impl Store {
+    fn new_function_instances(bytecode: &Vec<byte::Code>) -> HashMap<String, FunctionInstance> {
+        let mut bytecode_cursor = 0;
+        let locals = vec![];
+        let mut body = vec![];
+        let mut function_type = FunctionType {
+            parameters: vec![],
+            returns: vec![],
+        };
+        let mut type_idex = 0;
+        let mut key = String::new();
+        let mut function_instance = HashMap::new();
+
+        while match bytecode.get(bytecode_cursor) {
+            Some(byte::Code::SectionCode)
+            | Some(byte::Code::SectionExport)
+            | Some(byte::Code::SectionFunction)
+            | Some(byte::Code::SectionType) => true,
+            _ => false,
+        } {
+            match bytecode.get(bytecode_cursor) {
+                Some(byte::Code::SectionCode) => {
+                    bytecode_cursor += 1;
+                    match bytecode.get(bytecode_cursor) {
+                        Some(byte::Code::ConstI32) => {
+                            bytecode_cursor += 1;
+                            body.push(Op::Const(match bytecode.get(bytecode_cursor) {
+                                Some(&byte::Code::Value(byte::Values::I32(n))) => n,
+                                _ => unreachable!(),
+                            }));
+                            bytecode_cursor += 1;
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                Some(byte::Code::SectionExport) => {
+                    bytecode_cursor += 1;
+                    key = match bytecode.get(bytecode_cursor) {
+                        Some(&byte::Code::ExportName(ref name)) => name.to_owned(),
+                        _ => unreachable!(),
+                    };
+                    bytecode_cursor += 1;
+                    bytecode_cursor += 1;
+                }
+                Some(byte::Code::SectionFunction) => {
+                    bytecode_cursor += 1;
+                    type_idex = match bytecode.get(bytecode_cursor) {
+                        Some(&byte::Code::IdxOfType(n)) => n as u32,
+                        _ => unreachable!(),
+                    };
+                    bytecode_cursor += 1;
+                }
+                Some(byte::Code::SectionType) => {
+                    bytecode_cursor += 1;
+                    if let Some(byte::Code::TypeFunction) = bytecode.get(bytecode_cursor) {
+                        bytecode_cursor += 1;
+                        function_type
+                            .returns
+                            .push(match bytecode.get(bytecode_cursor) {
+                                Some(byte::Code::ValueType(ref t)) => {
+                                    bytecode_cursor += 1;
+                                    t.to_owned()
+                                }
+                                _ => unreachable!(),
+                            });
+                    };
+                }
+                _ => unreachable!(),
+            }
+        }
+        function_instance.insert(
+            key,
+            FunctionInstance {
+                function_type,
+                type_idex,
+                locals,
+                body,
+            },
+        );
+        function_instance
+    }
+
+    fn new(bytecode: Vec<byte::Code>) -> Self {
+        Store {
+            function_instances: Store::new_function_instances(&bytecode),
         }
     }
-}
 
-#[derive(Debug, PartialEq)]
-struct Module {
-    types: Vec<(Vec<ValueType>, Vec<ValueType>)>,
-    func_addresses: Vec<i32>,
+    fn call(&self, key: &str) -> Option<&Vec<Op>> {
+        self.function_instances.get(key).map(|f| &f.body)
+    }
 }
 
 #[derive(Debug)]
 pub struct Vm {
-    bytes: Vec<u8>,
-    len: usize,
-    bp: usize,
-    stack: VecDeque<Value>,
-    module: Module,
+    store: Store,
+    stack: Vec<Op>,
 }
 
 impl Vm {
     pub fn new(bytes: Vec<u8>) -> Self {
+        let mut bytes = byte::Byte::new(bytes);
+        let _ = bytes.decode();
         Vm {
-            len: bytes.len(),
-            bytes,
-            bp: 0,
-            stack: VecDeque::new(),
-            module: Module {
-                types: vec![],
-                func_addresses: vec![],
-            },
+            store: Store::new(bytes.bytes_decoded),
+            stack: vec![],
         }
     }
 
-    fn has_next(&self) -> bool {
-        self.bp < self.len
-    }
-
-    fn next(&mut self) -> Option<&u8> {
-        let el = self.bytes.get(self.bp);
-        self.bp += 1;
-        el
-    }
-
-    fn decode_section(&mut self) {
-        match self.next() {
-            Some(0x1) => {
-                // Type Section
-                let &size_of_section = self.next().unwrap();
-                let &_num_of_type = self.next().unwrap();
-                // FIXME: Should iterate over num_of_type
-                match self.next() {
-                    Some(0x60) => {
-                        let &_num_of_param = self.next().unwrap();
-                        let &_num_of_result = self.next().unwrap();
-                        let &result_type = self.next().unwrap();
-                        self.module
-                            .types
-                            .push((vec![], vec![ValueType::from_byte(result_type)]));
-                    }
-                    _ => {}
+    pub fn run(&mut self) {
+        match self.store.call("_subject") {
+            Some(expressions) => {
+                for expression in expressions.iter() {
+                    self.stack.push(expression.to_owned());
                 }
-                println!("Hit type section, consist of {:?} bytes", &size_of_section);
             }
-            Some(0x3) => {
-                // Function section
-                let &size_of_section = self.next().unwrap();
-                // FIXME: Should iterate over num_of_type_idx
-                let &_num_of_type_idx = self.next().unwrap();
-                let &_type_idx = self.next().unwrap();
-                println!(
-                    "Hit function section, consist of {:?} bytes",
-                    &size_of_section
-                );
-            }
-            Some(0x7) => {
-                // Export section
-                let &size_of_section = self.next().unwrap();
-                // FIXME: Should iterate over num_of_export
-                let &_num_of_export = self.next().unwrap();
-                let &_num_of_name = self.next().unwrap();
-                let mut buf = vec![];
-                for _ in 0.._num_of_name {
-                    let &el = self.next().unwrap();
-                    buf.push(el);
-                }
-
-                let &_export_description = self.next().unwrap(); // == 0x0
-                let &_function_idx = self.next().unwrap();
-                println!(
-                    "Hit export section, consist of {:?} bytes. Function named {:?}",
-                    &size_of_section,
-                    String::from_utf8(buf).unwrap()
-                );
-            }
-            Some(0xa) => {
-                // Code section
-                let &size_of_section = self.next().unwrap();
-                // FIXME: Should iterate over num_of_code
-                let &_num_of_code = self.next().unwrap();
-                let &_size_of_function = self.next().unwrap();
-                let &_num_of_param = self.next().unwrap();
-                match self.next() {
-                    Some(0x41) => {
-                        // FIXME: Decode expressions properly.
-                        // This implementation may don't make any sense.
-                        let &v = self.next().unwrap();
-                        let idx = self.module.func_addresses.len();
-                        self.stack.push_front(Value::I32(v as i32));
-                        self.module.func_addresses.push(idx as i32);
-                    }
-                    Some(_) | None => unimplemented!(),
-                }
-                let &_end = self.next().unwrap();
-                println!("Hit code section, consist of {:?} bytes.", &size_of_section);
-            }
-            Some(_) => unimplemented!(),
-            None => {}
-        }
-    }
-
-    pub fn decode(&mut self) {
-        while self.has_next() {
-            self.decode_section();
-        }
-    }
-
-    pub fn run(&mut self) -> Value {
-        match self.stack.pop_front() {
-            Some(v) => v,
-            _ => Value::I32(0),
+            None => println!("'_subject' did not implemented."),
         }
     }
 }
@@ -155,47 +150,53 @@ impl Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
-    use std::io;
-    use std::io::Read;
-    use std::path::Path;
-
-    fn read_wasm<P: AsRef<Path>>(path: P) -> io::Result<Vec<u8>> {
-        let mut file = fs::File::open(path)?;
-        let mut tmp = [0; 8];
-        let mut buffer = vec![];
-        let _ = file.read_exact(&mut tmp)?;
-        file.read_to_end(&mut buffer)?;
-        Ok(buffer)
-    }
+    use std::iter::FromIterator;
+    use utils::read_wasm;
 
     #[test]
-    fn it_can_push_constant() {
+    fn it_can_organize_functions() {
         let wasm = read_wasm("./dist/constant.wasm").unwrap();
-        let mut vm = Vm::new(wasm);
-        vm.decode();
-        assert_eq!(vm.stack.pop_front(), Some(Value::I32(42)));
-    }
-
-    #[test]
-    fn it_can_organize_modules() {
-        let wasm = read_wasm("./dist/constant.wasm").unwrap();
-        let mut vm = Vm::new(wasm);
-        vm.decode();
+        let vm = Vm::new(wasm);
         assert_eq!(
-            vm.module,
-            Module {
-                types: vec![(vec![], vec![ValueType::I32])],
-                func_addresses: vec![0]
+            vm.store,
+            Store {
+                function_instances: HashMap::from_iter(
+                    vec![(
+                        "_subject".to_owned(),
+                        FunctionInstance {
+                            function_type: FunctionType {
+                                parameters: vec![],
+                                returns: vec![byte::ValueTypes::I32],
+                            },
+                            locals: vec![],
+                            type_idex: 0,
+                            body: vec![Op::Const(42)],
+                        }
+                    )].into_iter()
+                )
             }
         );
     }
+
+    //     #[test]
+    //     fn it_can_organize_modules() {
+    //         let wasm = read_wasm("./dist/constant.wasm").unwrap();
+    //         let mut vm = Vm::new(wasm);
+    //         vm.decode();
+    //         assert_eq!(
+    //             vm.module,
+    //             Module {
+    //                 types: vec![(vec![], vec![ValueType::I32])],
+    //                 func_addresses: vec![0]
+    //             }
+    //         );
+    //     }
 
     #[test]
     fn it_can_evaluate_constant() {
         let wasm = read_wasm("./dist/constant.wasm").unwrap();
         let mut vm = Vm::new(wasm);
-        vm.decode();
-        assert_eq!(vm.run(), Value::I32(42));
+        vm.run();
+        assert_eq!(vm.stack.pop(), Some(Op::Const(42)));
     }
 }
