@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum ValueTypes {
   I32,
   // I64,
@@ -6,7 +6,7 @@ pub enum ValueTypes {
   // F64,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Values {
   I32(i32),
   // I64,
@@ -14,7 +14,7 @@ pub enum Values {
   // F64,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Code {
   SectionType,
   SectionFunction,
@@ -137,10 +137,8 @@ impl Byte {
             internal_section.push(Code::ExportName(
               String::from_utf8(buf).expect("To encode export name has been failured."),
             ));
-            let export_desc = Code::from_byte_to_export_description(self.next());
-            match export_desc {
+            match Code::from_byte_to_export_description(self.next()) {
               Code::ExportDescFunctionIdx => {
-                internal_section.push(export_desc);
                 internal_section.push(Code::IdxOfFunction(self.next()?));
               }
               _ => unimplemented!(),
@@ -202,7 +200,6 @@ mod tests {
         IdxOfType(0),
         SectionExport,
         ExportName("_subject".to_owned()),
-        ExportDescFunctionIdx,
         IdxOfFunction(0),
         SectionCode,
         ConstI32,

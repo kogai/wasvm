@@ -23,14 +23,69 @@ struct FunctionInstance {
 
 #[derive(Debug, PartialEq)]
 struct Store {
-    function_instances: HashMap<u32, FunctionInstance>,
+    function_instances: HashMap<String, FunctionInstance>,
 }
 
 impl Store {
     fn new(bytecode: Vec<byte::Code>) -> Self {
-        Store {
-            function_instances: HashMap::new(),
-        }
+        //     SectionType,
+        //         TypeFunction,
+        //         ValueType(ValueTypes::I32),
+        let _ = bytecode.get(0);
+        let _ = bytecode.get(1);
+        let _ = bytecode.get(2);
+
+        let function_type = FunctionType {
+            parameters: vec![],
+            returns: vec![match bytecode.get(2) {
+                Some(&byte::Code::ValueType(ref t)) => t.to_owned(),
+                _ => unreachable!(),
+            }],
+        };
+
+        //     SectionFunction,
+        //         IdxOfType(0),
+        let _ = bytecode.get(3);
+        let _ = bytecode.get(4);
+        let type_idex = match bytecode.get(4) {
+            Some(&byte::Code::IdxOfType(n)) => n as u32,
+            _ => unreachable!(),
+        };
+
+        //     SectionExport,
+        //         ExportName("_subject".to_owned()),
+        //         IdxOfFunction(0),
+        let _ = bytecode.get(5);
+        let _ = bytecode.get(6);
+        let _ = bytecode.get(7);
+        let key = match bytecode.get(6) {
+            Some(&byte::Code::ExportName(ref name)) => name.to_owned(),
+            _ => unreachable!(),
+        };
+
+        //     SectionCode,
+        //         ConstI32,
+        //         Value(Values::I32(42))
+        let _ = bytecode.get(8);
+        let _ = bytecode.get(9);
+        let _ = bytecode.get(10);
+        let body = vec![Op::Const(match bytecode.get(10) {
+            Some(&byte::Code::Value(byte::Values::I32(n))) => n,
+            _ => unreachable!(),
+        })];
+
+        let locals: Vec<byte::Values> = vec![];
+        let mut function_instances = HashMap::new();
+        function_instances.insert(
+            key,
+            FunctionInstance {
+                function_type,
+                type_idex,
+                locals,
+                body,
+            },
+        );
+        Store { function_instances }
     }
 }
 
@@ -73,7 +128,7 @@ mod tests {
             Store {
                 function_instances: HashMap::from_iter(
                     vec![(
-                        0,
+                        "_subject".to_owned(),
                         FunctionInstance {
                             function_type: FunctionType {
                                 parameters: vec![],
