@@ -27,56 +27,76 @@ struct Store {
 }
 
 impl Store {
-    fn new(bytecode: Vec<byte::Code>) -> Self {
-        //     SectionType,
-        //         TypeFunction,
-        //         ValueType(ValueTypes::I32),
-        let _ = bytecode.get(0);
-        let _ = bytecode.get(1);
-        let _ = bytecode.get(2);
-
-        let function_type = FunctionType {
+    fn new_function_instances(bytecode: &Vec<byte::Code>) -> HashMap<String, FunctionInstance> {
+        let mut bytecode_cursor = 0;
+        let locals = vec![];
+        let mut body = vec![];
+        let mut function_type = FunctionType {
             parameters: vec![],
-            returns: vec![match bytecode.get(2) {
-                Some(&byte::Code::ValueType(ref t)) => t.to_owned(),
+            returns: vec![],
+        };
+        let mut type_idex = 0;
+        let mut key = String::new();
+        let mut function_instance = HashMap::new();
+
+        while match bytecode.get(bytecode_cursor) {
+            Some(byte::Code::SectionCode)
+            | Some(byte::Code::SectionExport)
+            | Some(byte::Code::SectionFunction)
+            | Some(byte::Code::SectionType) => true,
+            _ => false,
+        } {
+            match bytecode.get(bytecode_cursor) {
+                Some(byte::Code::SectionCode) => {
+                    bytecode_cursor += 1;
+                    match bytecode.get(bytecode_cursor) {
+                        Some(byte::Code::ConstI32) => {
+                            bytecode_cursor += 1;
+                            body.push(Op::Const(match bytecode.get(bytecode_cursor) {
+                                Some(&byte::Code::Value(byte::Values::I32(n))) => n,
+                                _ => unreachable!(),
+                            }));
+                            bytecode_cursor += 1;
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                Some(byte::Code::SectionExport) => {
+                    bytecode_cursor += 1;
+                    key = match bytecode.get(bytecode_cursor) {
+                        Some(&byte::Code::ExportName(ref name)) => name.to_owned(),
+                        _ => unreachable!(),
+                    };
+                    bytecode_cursor += 1;
+                    bytecode_cursor += 1;
+                }
+                Some(byte::Code::SectionFunction) => {
+                    bytecode_cursor += 1;
+                    type_idex = match bytecode.get(bytecode_cursor) {
+                        Some(&byte::Code::IdxOfType(n)) => n as u32,
+                        _ => unreachable!(),
+                    };
+                    bytecode_cursor += 1;
+                }
+                Some(byte::Code::SectionType) => {
+                    bytecode_cursor += 1;
+                    if let Some(byte::Code::TypeFunction) = bytecode.get(bytecode_cursor) {
+                        bytecode_cursor += 1;
+                        function_type
+                            .returns
+                            .push(match bytecode.get(bytecode_cursor) {
+                                Some(byte::Code::ValueType(ref t)) => {
+                                    bytecode_cursor += 1;
+                                    t.to_owned()
+                                }
+                                _ => unreachable!(),
+                            });
+                    };
+                }
                 _ => unreachable!(),
-            }],
-        };
-
-        //     SectionFunction,
-        //         IdxOfType(0),
-        let _ = bytecode.get(3);
-        let _ = bytecode.get(4);
-        let type_idex = match bytecode.get(4) {
-            Some(&byte::Code::IdxOfType(n)) => n as u32,
-            _ => unreachable!(),
-        };
-
-        //     SectionExport,
-        //         ExportName("_subject".to_owned()),
-        //         IdxOfFunction(0),
-        let _ = bytecode.get(5);
-        let _ = bytecode.get(6);
-        let _ = bytecode.get(7);
-        let key = match bytecode.get(6) {
-            Some(&byte::Code::ExportName(ref name)) => name.to_owned(),
-            _ => unreachable!(),
-        };
-
-        //     SectionCode,
-        //         ConstI32,
-        //         Value(Values::I32(42))
-        let _ = bytecode.get(8);
-        let _ = bytecode.get(9);
-        let _ = bytecode.get(10);
-        let body = vec![Op::Const(match bytecode.get(10) {
-            Some(&byte::Code::Value(byte::Values::I32(n))) => n,
-            _ => unreachable!(),
-        })];
-
-        let locals: Vec<byte::Values> = vec![];
-        let mut function_instances = HashMap::new();
-        function_instances.insert(
+            }
+        }
+        function_instance.insert(
             key,
             FunctionInstance {
                 function_type,
@@ -85,7 +105,13 @@ impl Store {
                 body,
             },
         );
-        Store { function_instances }
+        function_instance
+    }
+
+    fn new(bytecode: Vec<byte::Code>) -> Self {
+        Store {
+            function_instances: Store::new_function_instances(&bytecode),
+        }
     }
 }
 
