@@ -2,7 +2,7 @@ use std::collections::HashMap;
 mod byte;
 mod utils;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum Op {
     Const(i32),
 }
@@ -113,6 +113,10 @@ impl Store {
             function_instances: Store::new_function_instances(&bytecode),
         }
     }
+
+    fn call(&self, key: &str) -> Option<&Vec<Op>> {
+        self.function_instances.get(key).map(|f| &f.body)
+    }
 }
 
 #[derive(Debug)]
@@ -132,10 +136,14 @@ impl Vm {
     }
 
     pub fn run(&mut self) {
-        // match self.stack.pop_front() {
-        //     Some(v) => v,
-        //     _ => Value::I32(0),
-        // }
+        match self.store.call("_subject") {
+            Some(expressions) => {
+                for expression in expressions.iter() {
+                    self.stack.push(expression.to_owned());
+                }
+            }
+            None => println!("'_subject' did not implemented."),
+        }
     }
 }
 
@@ -171,14 +179,6 @@ mod tests {
     }
 
     //     #[test]
-    //     fn it_can_push_constant() {
-    //         let wasm = read_wasm("./dist/constant.wasm").unwrap();
-    //         let mut vm = Vm::new(wasm);
-    //         vm.decode();
-    //         assert_eq!(vm.stack.pop_front(), Some(Value::I32(42)));
-    //     }
-
-    //     #[test]
     //     fn it_can_organize_modules() {
     //         let wasm = read_wasm("./dist/constant.wasm").unwrap();
     //         let mut vm = Vm::new(wasm);
@@ -192,11 +192,11 @@ mod tests {
     //         );
     //     }
 
-    //     #[test]
-    //     fn it_can_evaluate_constant() {
-    //         let wasm = read_wasm("./dist/constant.wasm").unwrap();
-    //         let mut vm = Vm::new(wasm);
-    //         vm.decode();
-    //         assert_eq!(vm.run(), Value::I32(42));
-    //     }
+    #[test]
+    fn it_can_evaluate_constant() {
+        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.run();
+        assert_eq!(vm.stack.pop(), Some(Op::Const(42)));
+    }
 }
