@@ -64,30 +64,30 @@ mod tests {
     //         );
     //     }
 
-    #[test]
-    fn it_can_evaluate_multiple_fns() {
-        let wasm = read_wasm("./dist/multiple.wasm").unwrap();
-        let mut vm = Vm::new(wasm);
-        // assert_eq!(
-        //     vm.store,
-        //     Store {
-        //         function_instances: HashMap::from_iter(
-        //             vec![(
-        //                 "_subject".to_owned(),
-        //                 FunctionInstance {
-        //                     function_type: FunctionType {
-        //                         parameters: vec![],
-        //                         returns: vec![byte::ValueTypes::I32],
-        //                     },
-        //                     locals: vec![],
-        //                     type_idex: 0,
-        //                     body: vec![Op::Const(42)],
-        //                 }
-        //             )].into_iter()
-        //         )
-        //     }
-        // );
-    }
+    // #[test]
+    // fn it_can_evaluate_multiple_fns() {
+    //     let wasm = read_wasm("./dist/multiple.wasm").unwrap();
+    //     let mut vm = Vm::new(wasm);
+    //     // assert_eq!(
+    //     //     vm.store,
+    //     //     Store {
+    //     //         function_instances: HashMap::from_iter(
+    //     //             vec![(
+    //     //                 "_subject".to_owned(),
+    //     //                 FunctionInstance {
+    //     //                     function_type: FunctionType {
+    //     //                         parameters: vec![],
+    //     //                         returns: vec![byte::ValueTypes::I32],
+    //     //                     },
+    //     //                     locals: vec![],
+    //     //                     type_idex: 0,
+    //     //                     body: vec![Op::Const(42)],
+    //     //                 }
+    //     //             )].into_iter()
+    //     //         )
+    //     //     }
+    //     // );
+    // }
 
     #[test]
     fn it_can_evaluate_constant() {
