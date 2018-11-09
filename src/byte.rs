@@ -1,9 +1,47 @@
+use std::collections::HashMap;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Op {
+  Const(i32),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+struct FunctionType {
+  parameters: Vec<ValueTypes>,
+  returns: Vec<ValueTypes>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct FunctionInstance {
+  function_type: FunctionType,
+  locals: Vec<Values>,
+  type_idex: u32,
+  body: Vec<Op>,
+}
+
+impl FunctionInstance {
+  pub fn call(&self) -> Vec<Op> {
+    self.body.to_owned()
+  }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum ValueTypes {
   I32,
   // I64,
   // F32,
   // F64,
+}
+
+impl ValueTypes {
+  fn from_byte(code: Option<u8>) -> Self {
+    use self::ValueTypes::*;
+    match code {
+      Some(0x7f) => I32,
+      Some(_) => unimplemented!(),
+      _ => unreachable!(),
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -21,13 +59,9 @@ pub enum Code {
   SectionExport,
   SectionCode,
   ConstI32,
-  Value(Values),
+
   ValueType(ValueTypes),
   TypeFunction,
-
-  IdxOfType(u8),
-  IdxOfFunction(u8),
-  ExportName(String),
 
   ExportDescFunctionIdx,
   ExportDescTableIdx,
@@ -51,6 +85,13 @@ impl Code {
       Some(0x60) => TypeFunction,
       Some(0x0b) => End,
       _ => unreachable!(),
+    }
+  }
+
+  fn is_end_of_code(code: Option<u8>) -> bool {
+    match code {
+      Some(0x0b) => true,
+      _ => false,
     }
   }
 
@@ -96,115 +137,193 @@ impl Byte {
     el.map(|&x| x)
   }
 
-  pub fn decode(&mut self) -> Option<()> {
-    while self.has_next() {
-      let section_code = Code::from_byte(self.next());
-      let mut internal_section = vec![];
+  fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
+    let _bin_size_of_section = self.next()?;
+    let count_of_type = self.next()?;
+    let mut function_types = vec![];
+    for _ in 0..count_of_type {
+      let mut parameters = vec![];
+      let mut returns = vec![];
+      let _type_function = Code::from_byte(self.next());
+      let size_of_arity = self.next()?;
+      for _ in 0..size_of_arity {
+        parameters.push(ValueTypes::from_byte(self.next()));
+      }
+      let size_of_result = self.next()?;
+      for _ in 0..size_of_result {
+        returns.push(ValueTypes::from_byte(self.next()));
+      }
+      function_types.push(FunctionType {
+        parameters,
+        returns,
+      })
+    }
+    Some(function_types)
+  }
 
-      match &section_code {
-        Code::SectionType => {
-          let _size_of_section = self.next()?;
-          let size_of_type = self.next()?;
-          for _ in 0..size_of_type {
-            let type_function = Code::from_byte(self.next());
-            internal_section.push(type_function);
-            let size_of_arity = self.next()?;
-            for _ in 0..size_of_arity {
-              internal_section.push(Code::from_byte(self.next()));
+  fn decode_section_export(&mut self) -> Option<Vec<(String, u8)>> {
+    let _bin_size_of_section = self.next()?;
+    let count_of_exports = self.next()?;
+    let mut exports = vec![];
+    for _ in 0..count_of_exports {
+      let size_of_name = self.next()?;
+      let mut buf = vec![];
+      for _ in 0..size_of_name {
+        buf.push(self.next()?);
+      }
+      let key = String::from_utf8(buf).expect("To encode export name has been failured.");
+      let idx_of_fn = match Code::from_byte_to_export_description(self.next()) {
+        Code::ExportDescFunctionIdx => self.next()?,
+        _ => unimplemented!(),
+      };
+      exports.push((key, idx_of_fn));
+    }
+    Some(exports)
+  }
+
+  fn decode_section_code(&mut self) -> Option<Vec<Vec<Op>>> {
+    let _bin_size_of_section = self.next()?;
+    let mut codes = vec![];
+    let count_of_code = self.next()?;
+    for _idx_of_fn in 0..count_of_code {
+      let mut expressions = vec![];
+      let _size_of_function = self.next()?;
+      let size_of_locals = self.next()?;
+      for _ in 0..size_of_locals {
+        unimplemented!();
+      }
+      while !(Code::is_end_of_code(self.peek())) {
+        match Code::from_byte(self.next()) {
+          Code::ConstI32 => {
+            let mut buf: i32 = 0;
+            let mut shift = 0;
+            while !(Code::is_end_of_code(self.peek())) {
+              let n = self.next()?;
+              let num = if n & (0b00000001 << 7) != 0 {
+                n ^ (0b10000000) // If bufleftmost bit is 1, we drop leftmost bit.
+              } else {
+                n
+              } as i32;
+              // buf =      00000000_00000000_10000000_00000000
+              // num =      00000000_00000000_00000000_00000001
+              // num << 7 = 00000000_00000000_00000000_10000000
+              // buf ^ num  00000000_00000000_10000000_10000000
+              buf = buf ^ (num << shift);
+              shift += 7;
             }
-            let size_of_result = self.next()?;
-            for _ in 0..size_of_result {
-              internal_section.push(Code::from_byte(self.next()));
-            }
+            expressions.push(Op::Const(buf));
           }
+          _ => unimplemented!(),
+        };
+      }
+      self.next(); // Drop End code.
+      codes.push(expressions);
+    }
+    Some(codes)
+  }
+
+  fn decode_section_function(&mut self) -> Option<Vec<u32>> {
+    let _bin_size_of_section = self.next()?;
+    let count_of_type_idx = self.next()?;
+    let mut type_indexes = vec![];
+    for _idx_of_fn in 0..count_of_type_idx {
+      type_indexes.push(self.next()? as u32);
+    }
+    Some(type_indexes)
+  }
+
+  pub fn decode(&mut self) -> Option<HashMap<String, FunctionInstance>> {
+    let mut function_instances = HashMap::new();
+    let mut function_types = vec![];
+    let mut index_of_types = vec![];
+    let mut function_key_and_indexes = vec![];
+    let mut list_of_expressions = vec![];
+    while self.has_next() {
+      match Code::from_byte(self.next()) {
+        Code::SectionType => {
+          function_types = self.decode_section_type()?;
         }
         Code::SectionFunction => {
-          let _size_of_section = self.next()?;
-          let size_of_type_idx = self.next()?;
-          for _ in 0..size_of_type_idx {
-            internal_section.push(Code::IdxOfType(self.next()?));
-          }
+          index_of_types = self.decode_section_function()?;
         }
         Code::SectionExport => {
-          let _size_of_section = self.next()?;
-          let size_of_export = self.next()?;
-          for _ in 0..size_of_export {
-            let size_of_name = self.next().unwrap();
-            let mut buf = vec![];
-            for _ in 0..size_of_name {
-              buf.push(self.next()?);
-            }
-            internal_section.push(Code::ExportName(
-              String::from_utf8(buf).expect("To encode export name has been failured."),
-            ));
-            match Code::from_byte_to_export_description(self.next()) {
-              Code::ExportDescFunctionIdx => {
-                internal_section.push(Code::IdxOfFunction(self.next()?));
-              }
-              _ => unimplemented!(),
-            }
-          }
+          function_key_and_indexes = self.decode_section_export()?;
         }
         Code::SectionCode => {
-          let _size_of_section = self.next()?;
-          let size_of_code = self.next()?;
-          for _ in 0..size_of_code {
-            let _size_of_function = self.next()?;
-            let size_of_locals = self.next()?;
-            for _ in 0..size_of_locals {
-              unimplemented!();
-            }
-            while !(Code::from_byte(self.peek()) == Code::End) {
-              let operation = Code::from_byte(self.next());
-              let expressions = match operation {
-                Code::ConstI32 => Code::Value(Values::I32(self.next()? as i32)),
-                _ => unimplemented!(),
-              };
-              internal_section.push(operation);
-              internal_section.push(expressions);
-            }
-            self.next(); // Drop End code.
-          }
+          list_of_expressions = self.decode_section_code()?;
         }
         x => {
           println!("{:?}", x);
           unreachable!();
         }
       };
-
-      self.bytes_decoded.push(section_code);
-      self.bytes_decoded.append(&mut internal_section);
     }
-    Some(())
+    for (key, idx_of_fn) in &function_key_and_indexes {
+      let function_type = function_types.get(*idx_of_fn as usize)?;
+      let locals: Vec<Values> = vec![];
+      let &index_of_type = index_of_types.get(*idx_of_fn as usize)?;
+      let expression = list_of_expressions.get(*idx_of_fn as usize)?;
+      let fnins = FunctionInstance {
+        function_type: function_type.to_owned(),
+        locals,
+        type_idex: index_of_type,
+        body: expression.to_owned(),
+      };
+      function_instances.insert(key.to_owned(), fnins);
+    }
+    Some(function_instances)
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+  use std::iter::FromIterator;
   use utils::read_wasm;
 
   #[test]
-  fn it_decode() {
-    use self::Code::*;
-    let wasm = read_wasm("./dist/constant.wasm").unwrap();
+  fn it_can_decode_cons_u8() {
+    let wasm = read_wasm("./dist/cons8.wasm").unwrap();
     let mut bc = Byte::new(wasm);
-    bc.decode();
     assert_eq!(
-      bc.bytes_decoded,
-      vec![
-        SectionType,
-        TypeFunction,
-        ValueType(ValueTypes::I32),
-        SectionFunction,
-        IdxOfType(0),
-        SectionExport,
-        ExportName("_subject".to_owned()),
-        IdxOfFunction(0),
-        SectionCode,
-        ConstI32,
-        Value(Values::I32(42))
-      ]
+      bc.decode().unwrap(),
+      HashMap::from_iter(
+        vec![(
+          "_subject".to_owned(),
+          FunctionInstance {
+            function_type: FunctionType {
+              parameters: vec![],
+              returns: vec![ValueTypes::I32],
+            },
+            locals: vec![],
+            type_idex: 0,
+            body: vec![Op::Const(42)],
+          }
+        )].into_iter()
+      )
+    );
+  }
+
+  #[test]
+  fn it_can_decode_cons_u16() {
+    let wasm = read_wasm("./dist/cons16.wasm").unwrap();
+    let mut bc = Byte::new(wasm);
+    assert_eq!(
+      bc.decode().unwrap(),
+      HashMap::from_iter(
+        vec![(
+          "_subject".to_owned(),
+          FunctionInstance {
+            function_type: FunctionType {
+              parameters: vec![],
+              returns: vec![ValueTypes::I32],
+            },
+            locals: vec![],
+            type_idex: 0,
+            body: vec![Op::Const(255)],
+          }
+        )].into_iter()
+      )
     );
   }
 }

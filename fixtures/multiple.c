@@ -1,7 +1,7 @@
 int f(int a, int b) {
-  return a - b;
+  return 8 - 16;
 }
 
 int g(int a, int b) {
-  return a + b;
+  return 2 + 4;
 }
