@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn it_can_evaluate_constant() {
-        let wasm = read_wasm("./dist/constant.wasm").unwrap();
+        let wasm = read_wasm("./dist/cons8.wasm").unwrap();
         let mut vm = Vm::new(wasm);
         vm.run();
         assert_eq!(vm.stack.pop(), Some(byte::Op::Const(42)));

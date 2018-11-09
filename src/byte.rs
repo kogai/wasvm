@@ -88,6 +88,13 @@ impl Code {
     }
   }
 
+  fn is_end_of_code(code: Option<u8>) -> bool {
+    match code {
+      Some(0x0b) => true,
+      _ => false,
+    }
+  }
+
   fn from_byte_to_export_description(code: Option<u8>) -> Self {
     use self::Code::*;
     match code {
@@ -185,9 +192,23 @@ impl Byte {
       for _ in 0..size_of_locals {
         unimplemented!();
       }
-      while !(Code::from_byte(self.peek()) == Code::End) {
+      while !(Code::is_end_of_code(self.peek())) {
         match Code::from_byte(self.next()) {
-          Code::ConstI32 => expressions.push(Op::Const(self.next()? as i32)),
+          Code::ConstI32 => {
+            let mut buf: i32 = 0;
+            let mut shift = 0;
+            while !(Code::is_end_of_code(self.peek())) {
+              let n = self.next()?;
+              let num = if n & (0b00000001 << 7) != 0 {
+                n ^ (0b10000000) // If bufleftmost bit is 1, we drop leftmost bit.
+              } else {
+                n
+              } as i32;
+              buf = buf ^ (num << shift);
+              shift += 7;
+            }
+            expressions.push(Op::Const(buf));
+          }
           _ => unimplemented!(),
         };
       }
@@ -257,8 +278,8 @@ mod tests {
   use utils::read_wasm;
 
   #[test]
-  fn it_decode() {
-    let wasm = read_wasm("./dist/constant.wasm").unwrap();
+  fn it_can_decode_cons_u8() {
+    let wasm = read_wasm("./dist/cons8.wasm").unwrap();
     let mut bc = Byte::new(wasm);
     assert_eq!(
       bc.decode().unwrap(),
@@ -273,6 +294,29 @@ mod tests {
             locals: vec![],
             type_idex: 0,
             body: vec![Op::Const(42)],
+          }
+        )].into_iter()
+      )
+    );
+  }
+
+  #[test]
+  fn it_can_decode_cons_u16() {
+    let wasm = read_wasm("./dist/cons16.wasm").unwrap();
+    let mut bc = Byte::new(wasm);
+    assert_eq!(
+      bc.decode().unwrap(),
+      HashMap::from_iter(
+        vec![(
+          "_subject".to_owned(),
+          FunctionInstance {
+            function_type: FunctionType {
+              parameters: vec![],
+              returns: vec![ValueTypes::I32],
+            },
+            locals: vec![],
+            type_idex: 0,
+            body: vec![Op::Const(255)],
           }
         )].into_iter()
       )
