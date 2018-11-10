@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
   Const(i32),
-  GetLocal(u32),
+  GetLocal(usize),
   Add,
 }
 
@@ -22,7 +22,7 @@ pub struct FunctionInstance {
 }
 
 impl FunctionInstance {
-  pub fn call(&self, _arguments: Vec<Values>) -> Vec<Op> {
+  pub fn call(&self) -> Vec<Op> {
     self.body.to_owned()
   }
 }
@@ -222,7 +222,7 @@ impl Byte {
           }
           Code::GetLocal => {
             // NOTE: It might be need to decode as LEB128 integer, too.
-            expressions.push(Op::GetLocal(self.next()? as u32));
+            expressions.push(Op::GetLocal(self.next()? as usize));
           }
           Code::Add => {
             expressions.push(Op::Add);

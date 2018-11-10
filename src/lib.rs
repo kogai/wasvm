@@ -10,14 +10,15 @@ struct Store {
 }
 
 impl Store {
-    fn call(&self, key: &str, arguments: Vec<Values>) -> Option<Vec<Op>> {
-        self.function_instances.get(key).map(|f| f.call(arguments))
+    fn call(&self, key: &str) -> Option<Vec<Op>> {
+        self.function_instances.get(key).map(|f| f.call())
     }
 }
 
 #[derive(Debug, PartialEq)]
 struct Frame {
     locals: Vec<Values>,
+    return_ptr: usize,
 }
 
 #[derive(Debug, PartialEq)]
@@ -29,9 +30,38 @@ enum StackEntry {
 }
 
 #[derive(Debug)]
+struct Stack {
+    entries: Vec<StackEntry>,
+    stack_ptr: usize,
+}
+
+impl Stack {
+    fn new(stack_size: usize) -> Self {
+        let mut entries = Vec::with_capacity(stack_size);
+        unsafe {
+            entries.set_len(stack_size);
+        };
+        Stack {
+            entries,
+            stack_ptr: 0,
+        }
+    }
+
+    fn push(&mut self, entry: StackEntry) {
+        self.entries[self.stack_ptr] = entry;
+        self.stack_ptr += 1;
+    }
+
+    fn pop(&mut self) -> Option<&StackEntry> {
+        self.stack_ptr -= 1;
+        self.entries.get(self.stack_ptr)
+    }
+}
+
+#[derive(Debug)]
 pub struct Vm {
     store: Store,
-    stack: Vec<StackEntry>,
+    stack: Stack,
 }
 
 impl Vm {
@@ -42,21 +72,48 @@ impl Vm {
             .expect("Instantiate function has been failured.");
         Vm {
             store: Store { function_instances },
-            stack: vec![],
+            stack: Stack::new(2048),
         }
     }
 
-    fn pop(&mut self) -> Option<StackEntry> {
-        unimplemented!();
-    }
-
     pub fn run(&mut self, arguments: Vec<Values>) {
-        match self.store.call("_subject", arguments) {
+        // let frame = Frame {
+        //     locals: Vec<Values>,
+        //     return_ptr: usize,
+        // };
+        match self.store.call("_subject") {
             Some(expressions) => {
-                // for expression in expressions.iter() {
-                //     self.stack.push(expression.to_owned());
-                // }
-                unimplemented!();
+                for expression in expressions.iter() {
+                    match expression {
+                        Op::GetLocal(idx) => self.stack.push(StackEntry::Value(
+                            arguments
+                                .get(*idx)
+                                .map(|v| v.to_owned())
+                                .expect(format!("GetLocal({}) has been failured.", idx).as_str()),
+                        )),
+                        Op::Add => {
+                            let left = match self
+                                .stack
+                                .pop()
+                                .expect(format!("Left-operand does not exists.").as_str())
+                            {
+                                StackEntry::Value(Values::I32(l)) => *l,
+                                _ => unimplemented!(),
+                            };
+                            let right = match self
+                                .stack
+                                .pop()
+                                .expect(format!("Right-operand does not exists.").as_str())
+                            {
+                                StackEntry::Value(Values::I32(l)) => *l,
+                                _ => unimplemented!(),
+                            };
+                            self.stack
+                                .push(StackEntry::Value(Values::I32(left + right)));
+                        }
+                        Op::Const(n) => self.stack.push(StackEntry::Value(Values::I32(*n))),
+                    };
+                }
             }
             None => println!("'_subject' did not implemented."),
         }
@@ -112,14 +169,14 @@ mod tests {
         let wasm = read_wasm("./dist/cons8.wasm").unwrap();
         let mut vm = Vm::new(wasm);
         vm.run(vec![]);
-        assert_eq!(vm.pop(), Some(StackEntry::Value(Values::I32(42))));
+        assert_eq!(vm.stack.pop(), Some(&StackEntry::Value(Values::I32(42))));
     }
 
     #[test]
     fn it_can_evaluate_add() {
         let wasm = read_wasm("./dist/add.wasm").unwrap();
         let mut vm = Vm::new(wasm);
-        vm.run(vec![]);
-        assert_eq!(vm.pop(), Some(StackEntry::Value(Values::I32(42))));
+        vm.run(vec![Values::I32(3), Values::I32(4)]);
+        assert_eq!(vm.stack.pop(), Some(&StackEntry::Value(Values::I32(7))));
     }
 }
