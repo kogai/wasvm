@@ -28,6 +28,7 @@ impl FunctionInstance {
   }
 
   pub fn find(&self, key: &str) -> bool {
+    // FIXME: When using function_index, we might get exported function by O(1).
     match &self.export_name {
       Some(name) => name.as_str() == key,
       _ => false,
@@ -303,7 +304,6 @@ impl Byte {
         x => unreachable!("{:?}", x),
       };
     }
-    println!("{:?}", list_of_expressions);
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
 
     for idx_of_fn in 0..list_of_expressions.len() {
@@ -331,7 +331,6 @@ impl Byte {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::iter::FromIterator;
   use utils::read_wasm;
 
   macro_rules! test_decode {
