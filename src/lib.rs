@@ -126,23 +126,30 @@ mod tests {
     use utils::read_wasm;
 
     macro_rules! test_eval {
-        ($file_name:expr, $call_arguments: expr, $expect_value: expr) => {
-            let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
-            let mut vm = Vm::new(wasm);
-            vm.run($call_arguments);
-            assert_eq!(vm.stack.pop(), Some(&StackEntry::Value($expect_value)));
+        ($fn_name:ident, $file_name:expr, $call_arguments: expr, $expect_value: expr) => {
+            #[test]
+            fn $fn_name() {
+                let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
+                let mut vm = Vm::new(wasm);
+                vm.run($call_arguments);
+                assert_eq!(vm.stack.pop(), Some(&StackEntry::Value($expect_value)));
+            }
         };
     }
 
-    #[test]
-    fn it_can_evaluate_cons8() {
-        test_eval!("cons8", vec![], Values::I32(42));
-    }
-
-    #[test]
-    fn it_can_evaluate_add() {
-        test_eval!("add", vec![Values::I32(3), Values::I32(4)], Values::I32(7));
-    }
+    test_eval!(evaluate_cons8, "cons8", vec![], Values::I32(42));
+    test_eval!(
+        evaluate_add,
+        "add",
+        vec![Values::I32(3), Values::I32(4)],
+        Values::I32(7)
+    );
+    test_eval!(
+        evaluate_add_five,
+        "add_five",
+        vec![Values::I32(3), Values::I32(4)],
+        Values::I32(17)
+    );
 
     //     #[test]
     //     fn it_can_organize_modules() {

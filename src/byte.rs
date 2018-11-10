@@ -296,89 +296,101 @@ mod tests {
   use utils::read_wasm;
 
   macro_rules! test_decode {
-    ($file_name:expr, $fn_insts: expr) => {
-      let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
-      let mut bc = Byte::new(wasm);
-      assert_eq!(
-        bc.decode().unwrap(),
-        HashMap::from_iter($fn_insts.into_iter())
-      );
+    ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
+      #[test]
+      fn $fn_name() {
+        let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
+        let mut bc = Byte::new(wasm);
+        assert_eq!(
+          bc.decode().unwrap(),
+          HashMap::from_iter($fn_insts.into_iter())
+        );
+      }
     };
   }
 
-  #[test]
-  fn it_can_decode_cons8() {
-    test_decode!(
-      "cons8",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::Const(42)],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_cons8,
+    "cons8",
+    vec![(
+      "_subject".to_owned(),
+      FunctionInstance {
+        function_type: FunctionType {
+          parameters: vec![],
+          returns: vec![ValueTypes::I32],
+        },
+        locals: vec![],
+        type_idex: 0,
+        body: vec![Op::Const(42)],
+      }
+    )]
+  );
 
-  #[test]
-  fn it_can_decode_cons16() {
-    test_decode!(
-      "cons16",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::Const(255)],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_cons16,
+    "cons16",
+    vec![(
+      "_subject".to_owned(),
+      FunctionInstance {
+        function_type: FunctionType {
+          parameters: vec![],
+          returns: vec![ValueTypes::I32],
+        },
+        locals: vec![],
+        type_idex: 0,
+        body: vec![Op::Const(255)],
+      }
+    )]
+  );
 
-  #[test]
-  fn it_can_decode_locals() {
-    test_decode!(
-      "locals",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![ValueTypes::I32],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::GetLocal(0)],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_locals,
+    "locals",
+    vec![(
+      "_subject".to_owned(),
+      FunctionInstance {
+        function_type: FunctionType {
+          parameters: vec![ValueTypes::I32],
+          returns: vec![ValueTypes::I32],
+        },
+        locals: vec![],
+        type_idex: 0,
+        body: vec![Op::GetLocal(0)],
+      }
+    )]
+  );
 
-  #[test]
-  fn it_can_decode_add() {
-    test_decode!(
-      "add",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![ValueTypes::I32, ValueTypes::I32],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_add,
+    "add",
+    vec![(
+      "_subject".to_owned(),
+      FunctionInstance {
+        function_type: FunctionType {
+          parameters: vec![ValueTypes::I32, ValueTypes::I32],
+          returns: vec![ValueTypes::I32],
+        },
+        locals: vec![],
+        type_idex: 0,
+        body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
+      }
+    )]
+  );
+
+  test_decode!(
+    decode_add_five,
+    "add_five",
+    vec![(
+      "_subject".to_owned(),
+      FunctionInstance {
+        function_type: FunctionType {
+          parameters: vec![ValueTypes::I32, ValueTypes::I32],
+          returns: vec![ValueTypes::I32],
+        },
+        locals: vec![],
+        type_idex: 0,
+        body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
+      }
+    )]
+  );
 }
