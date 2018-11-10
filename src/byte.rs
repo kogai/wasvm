@@ -1,3 +1,5 @@
+use std::ops::Add;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
   Const(i32),
@@ -61,6 +63,18 @@ pub enum Values {
   // I64,
   // F32,
   // F64,
+}
+
+impl Add for Values {
+  type Output = Values;
+
+  fn add(self, other: Self) -> Self {
+    use self::Values::*;
+    match (self, other) {
+      (I32(l), I32(r)) => I32(l + r),
+      _ => unimplemented!(),
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Clone)]

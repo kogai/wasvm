@@ -5,30 +5,25 @@ use byte::{FunctionInstance, Op, Values};
 #[derive(Debug, PartialEq)]
 struct Store {
     function_instances: Vec<FunctionInstance>,
+    current_frame: Option<Frame>,
 }
 
 impl Store {
-    fn call(&self, key: &str) -> Option<Vec<Op>> {
-        let xxx = self
-            .function_instances
-            .iter()
-            .find(|f| f.find(key))
-            .map(|f| f.call());
-        xxx
+    fn call(&self, fn_idx: usize) -> Option<&FunctionInstance> {
+        self.function_instances.get(fn_idx)
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct Frame {
     locals: Vec<Values>,
     return_ptr: usize,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 enum StackEntry {
-    // Op(Op),
     Value(Values),
-    // Label,
+    Label(Vec<Op>),
     Frame(Frame),
 }
 
@@ -36,6 +31,7 @@ enum StackEntry {
 struct Stack {
     entries: Vec<StackEntry>,
     stack_ptr: usize,
+    is_empty: bool,
 }
 
 impl Stack {
@@ -47,6 +43,7 @@ impl Stack {
         Stack {
             entries,
             stack_ptr: 0,
+            is_empty: false,
         }
     }
 
@@ -56,8 +53,20 @@ impl Stack {
     }
 
     fn pop(&mut self) -> Option<&StackEntry> {
-        self.stack_ptr -= 1;
-        self.entries.get(self.stack_ptr)
+        if self.stack_ptr == 0 {
+            self.is_empty = true;
+            None
+        } else {
+            self.stack_ptr -= 1;
+            self.entries.get(self.stack_ptr)
+        }
+    }
+
+    fn pop_value(&mut self) -> &Values {
+        match self.pop() {
+            Some(StackEntry::Value(v)) => v,
+            x => unreachable!(format!("Expect to popp value but got {:?}", x).as_str()),
+        }
     }
 }
 
@@ -74,59 +83,100 @@ impl Vm {
             .decode()
             .expect("Instantiate function has been failured.");
         Vm {
-            store: Store { function_instances },
+            store: Store {
+                function_instances,
+                current_frame: None,
+            },
             stack: Stack::new(2048),
         }
     }
 
-    pub fn run(&mut self, arguments: Vec<Values>) {
-        // let frame = Frame {
-        //     locals: Vec<Values>,
-        //     return_ptr: usize,
-        // };
-        match self.store.call("_subject") {
-            Some(expressions) => {
-                for expression in expressions.iter() {
-                    match expression {
-                        Op::GetLocal(idx) => {
-                            let argument = arguments
-                                .get(*idx)
-                                .map(|v| v.to_owned())
-                                .expect(format!("GetLocal({}) has been failured.", idx).as_str());
-                            self.stack.push(StackEntry::Value(argument));
-                        }
-                        Op::SetLocal(idx) => {
-                            unimplemented!();
-                        }
-                        Op::Call(idx) => {
-                            unimplemented!();
-                        }
-                        Op::Add => {
-                            let left = match self
-                                .stack
-                                .pop()
-                                .expect(format!("Left-operand does not exists.").as_str())
-                            {
-                                StackEntry::Value(Values::I32(l)) => *l,
-                                _ => unimplemented!(),
-                            };
-                            let right = match self
-                                .stack
-                                .pop()
-                                .expect(format!("Right-operand does not exists.").as_str())
-                            {
-                                StackEntry::Value(Values::I32(l)) => *l,
-                                _ => unimplemented!(),
-                            };
-                            self.stack
-                                .push(StackEntry::Value(Values::I32(left + right)));
-                        }
-                        Op::Const(n) => self.stack.push(StackEntry::Value(Values::I32(*n))),
-                    };
+    fn call(&mut self, fn_idx: usize, arguments: Vec<Values>) {
+        let frame = StackEntry::Frame(Frame {
+            locals: arguments,
+            return_ptr: self.stack.stack_ptr,
+        });
+        let fn_instance = self.store.call(fn_idx);
+        let expressions = fn_instance.map(|f| f.call()).unwrap_or(vec![]);
+        let label = StackEntry::Label(expressions);
+
+        self.stack.push(label);
+        self.stack.push(frame);
+    }
+
+    fn evaluate_instructions(&mut self, expressions: Vec<Op>) -> Option<()> {
+        let current_frame = self.store.current_frame.clone()?;
+        for expression in expressions.iter() {
+            match expression {
+                Op::GetLocal(idx) => {
+                    let argument = current_frame
+                        .locals
+                        .get(*idx)
+                        .map(|v| v.to_owned())
+                        .expect(format!("GetLocal({}) has been failured.", idx).as_str());
+                    self.stack.push(StackEntry::Value(argument));
                 }
-            }
-            None => println!("'_subject' did not implemented."),
+                Op::SetLocal(idx) => {
+                    unimplemented!();
+                }
+                Op::Call(idx) => {
+                    let operand = self
+                        .stack
+                        .pop()
+                        .expect(format!("Left-operand does not exists.").as_str());
+                    let function = self.store.function_instances.get(*idx);
+                    // let frame = StackEntry::Frame(Frame {
+                    //     locals: arguments,
+                    //     return_ptr: self.stack.stack_ptr,
+                    // });
+                    println!("{:?}", function);
+                    unimplemented!();
+                }
+                Op::Add => {
+                    let left = self.stack.pop_value().clone();
+                    let right = self.stack.pop_value().clone();
+                    let result = StackEntry::Value(left + right);
+                    self.stack.push(result);
+                }
+                Op::Const(n) => {
+                    self.stack.push(StackEntry::Value(Values::I32(*n)));
+                }
+            };
         }
+        Some(())
+    }
+
+    fn evaluate(&mut self) {
+        let mut result = None;
+        while !self.stack.is_empty {
+            let popped = self.stack.pop().map(|v| v.to_owned());
+            match popped {
+                Some(StackEntry::Value(v)) => {
+                    result = Some(StackEntry::Value(v));
+                    break;
+                }
+                Some(StackEntry::Label(expressions)) => {
+                    self.evaluate_instructions(expressions);
+                }
+                Some(StackEntry::Frame(frame)) => {
+                    self.store.current_frame = Some(frame.to_owned());
+                }
+                None => unreachable!("Invalid popping stack."),
+            }
+        }
+        self.stack
+            .push(result.expect("Call stack may return with null value"));
+    }
+
+    pub fn run(&mut self, arguments: Vec<Values>) {
+        let start_idx = self
+            .store
+            .function_instances
+            .iter()
+            .position(|f| f.find("_subject"))
+            .expect("Main function did not found.");
+        self.call(start_idx, arguments);
+        self.evaluate();
     }
 }
 
