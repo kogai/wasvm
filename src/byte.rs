@@ -4,6 +4,7 @@ use std::collections::HashMap;
 pub enum Op {
   Const(i32),
   GetLocal(u32),
+  Add,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -65,6 +66,7 @@ pub enum Code {
   TypeFunction,
 
   GetLocal,
+  Add,
 
   ExportDescFunctionIdx,
   ExportDescTableIdx,
@@ -87,6 +89,7 @@ impl Code {
       Some(0x41) => ConstI32,
       Some(0x60) => TypeFunction,
       Some(0x20) => GetLocal,
+      Some(0x6a) => Add,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
@@ -221,6 +224,9 @@ impl Byte {
             // NOTE: It might be need to decode as LEB128 integer, too.
             expressions.push(Op::GetLocal(self.next()? as u32));
           }
+          Code::Add => {
+            expressions.push(Op::Add);
+          }
           _ => unimplemented!(),
         };
       }
@@ -352,6 +358,25 @@ mod tests {
           locals: vec![],
           type_idex: 0,
           body: vec![Op::GetLocal(0)],
+        }
+      )]
+    );
+  }
+
+  #[test]
+  fn it_can_decode_add() {
+    test_decode!(
+      "add",
+      vec![(
+        "_subject".to_owned(),
+        FunctionInstance {
+          function_type: FunctionType {
+            parameters: vec![ValueTypes::I32, ValueTypes::I32],
+            returns: vec![ValueTypes::I32],
+          },
+          locals: vec![],
+          type_idex: 0,
+          body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
         }
       )]
     );
