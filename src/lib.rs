@@ -5,7 +5,6 @@ use byte::{FunctionInstance, Op, Values};
 #[derive(Debug, PartialEq)]
 struct Store {
     function_instances: Vec<FunctionInstance>,
-    current_frame: Option<Frame>,
 }
 
 impl Store {
@@ -31,6 +30,7 @@ enum StackEntry {
 struct Stack {
     entries: Vec<StackEntry>,
     stack_ptr: usize,
+    frame_ptr: usize,
     is_empty: bool,
 }
 
@@ -43,8 +43,21 @@ impl Stack {
         Stack {
             entries,
             stack_ptr: 0,
+            frame_ptr: 0,
             is_empty: false,
         }
+    }
+
+    fn increase(&mut self, count: usize) {
+        self.stack_ptr += count;
+    }
+
+    fn get(&self, ptr: usize) -> Option<StackEntry> {
+        self.entries.get(ptr).map(|e| e.to_owned())
+    }
+
+    fn set(&mut self, ptr: usize, entry: StackEntry) {
+        self.entries[ptr] = entry;
     }
 
     fn push(&mut self, entry: StackEntry) {
@@ -83,54 +96,29 @@ impl Vm {
             .decode()
             .expect("Instantiate function has been failured.");
         Vm {
-            store: Store {
-                function_instances,
-                current_frame: None,
-            },
+            store: Store { function_instances },
             stack: Stack::new(2048),
         }
     }
 
-    fn call(&mut self, fn_idx: usize, arguments: Vec<Values>) {
-        let frame = StackEntry::Frame(Frame {
-            locals: arguments,
-            return_ptr: self.stack.stack_ptr,
-        });
-        let fn_instance = self.store.call(fn_idx);
-        let expressions = fn_instance.map(|f| f.call()).unwrap_or(vec![]);
-        let label = StackEntry::Label(expressions);
-
-        self.stack.push(label);
-        self.stack.push(frame);
-    }
-
     fn evaluate_instructions(&mut self, expressions: Vec<Op>) -> Option<()> {
-        let current_frame = self.store.current_frame.clone()?;
         for expression in expressions.iter() {
             match expression {
                 Op::GetLocal(idx) => {
-                    let argument = current_frame
-                        .locals
-                        .get(*idx)
-                        .map(|v| v.to_owned())
-                        .expect(format!("GetLocal({}) has been failured.", idx).as_str());
-                    self.stack.push(StackEntry::Value(argument));
+                    let stack_ptr = self.stack.stack_ptr;
+                    let frame_ptr = self.stack.frame_ptr;
+                    let offset = stack_ptr - frame_ptr;
+                    let value = self.stack.get(*idx + frame_ptr)?;
+                    self.stack.push(value);
                 }
                 Op::SetLocal(idx) => {
-                    unimplemented!();
+                    let value = self.stack.pop().map(|s| s.to_owned())?;
+                    let frame_ptr = self.stack.frame_ptr;
+                    self.stack.set(*idx + frame_ptr, value);
                 }
                 Op::Call(idx) => {
-                    let operand = self
-                        .stack
-                        .pop()
-                        .expect(format!("Left-operand does not exists.").as_str());
-                    let function = self.store.function_instances.get(*idx);
-                    // let frame = StackEntry::Frame(Frame {
-                    //     locals: arguments,
-                    //     return_ptr: self.stack.stack_ptr,
-                    // });
-                    println!("{:?}", function);
-                    unimplemented!();
+                    let operand = self.stack.pop_value().clone();
+                    self.call(*idx, vec![operand]);
                 }
                 Op::Add => {
                     let left = self.stack.pop_value().clone();
@@ -146,6 +134,19 @@ impl Vm {
         Some(())
     }
 
+    fn call(&mut self, fn_idx: usize, arguments: Vec<Values>) {
+        let frame = StackEntry::Frame(Frame {
+            locals: arguments,
+            return_ptr: self.stack.stack_ptr,
+        });
+        let fn_instance = self.store.call(fn_idx);
+        let expressions = fn_instance.map(|f| f.call()).unwrap_or(vec![]);
+        let label = StackEntry::Label(expressions);
+
+        self.stack.push(label);
+        self.stack.push(frame);
+    }
+
     fn evaluate(&mut self) {
         let mut result = None;
         while !self.stack.is_empty {
@@ -159,7 +160,8 @@ impl Vm {
                     self.evaluate_instructions(expressions);
                 }
                 Some(StackEntry::Frame(frame)) => {
-                    self.store.current_frame = Some(frame.to_owned());
+                    self.stack.frame_ptr = frame.return_ptr;
+                    self.stack.increase(frame.locals.len());
                 }
                 None => unreachable!("Invalid popping stack."),
             }
