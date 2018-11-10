@@ -85,12 +85,19 @@ impl Vm {
             Some(expressions) => {
                 for expression in expressions.iter() {
                     match expression {
-                        Op::GetLocal(idx) => self.stack.push(StackEntry::Value(
-                            arguments
+                        Op::GetLocal(idx) => {
+                            let argument = arguments
                                 .get(*idx)
                                 .map(|v| v.to_owned())
-                                .expect(format!("GetLocal({}) has been failured.", idx).as_str()),
-                        )),
+                                .expect(format!("GetLocal({}) has been failured.", idx).as_str());
+                            self.stack.push(StackEntry::Value(argument));
+                        }
+                        Op::SetLocal(idx) => {
+                            unimplemented!();
+                        }
+                        Op::Call(idx) => {
+                            unimplemented!();
+                        }
                         Op::Add => {
                             let left = match self
                                 .stack

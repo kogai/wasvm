@@ -4,7 +4,9 @@ use std::collections::HashMap;
 pub enum Op {
   Const(i32),
   GetLocal(usize),
+  SetLocal(usize),
   Add,
+  Call(usize),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -40,7 +42,7 @@ impl ValueTypes {
     use self::ValueTypes::*;
     match code {
       Some(0x7f) => I32,
-      Some(_) => unimplemented!(),
+      Some(x) => unimplemented!("ValueTypes of {} does not implemented yet.", x),
       _ => unreachable!(),
     }
   }
@@ -66,6 +68,7 @@ pub enum Code {
   TypeFunction,
 
   GetLocal,
+  SetLocal,
   Add,
 
   ExportDescFunctionIdx,
@@ -73,6 +76,7 @@ pub enum Code {
   ExportDescMemIdx,
   ExportDescGlobalIdx,
 
+  Call,
   End,
 }
 
@@ -89,7 +93,9 @@ impl Code {
       Some(0x41) => ConstI32,
       Some(0x60) => TypeFunction,
       Some(0x20) => GetLocal,
+      Some(0x21) => SetLocal,
       Some(0x6a) => Add,
+      Some(0x10) => Call,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
@@ -195,9 +201,12 @@ impl Byte {
     for _idx_of_fn in 0..count_of_code {
       let mut expressions = vec![];
       let _size_of_function = self.next()?;
-      let size_of_locals = self.next()?;
+      let size_of_locals = self.next()? as usize;
+      // FIXME:
+      let mut locals: Vec<ValueTypes> = Vec::with_capacity(size_of_locals);
       for _ in 0..size_of_locals {
-        unimplemented!();
+        let _ = self.next();
+        locals.push(ValueTypes::from_byte(self.next()));
       }
       while !(Code::is_end_of_code(self.peek())) {
         match Code::from_byte(self.next()) {
@@ -206,8 +215,11 @@ impl Byte {
             let mut shift = 0;
             while !(Code::is_end_of_code(self.peek())) {
               let n = self.next()?;
-              let num = if n & (0b00000001 << 7) != 0 {
-                n ^ (0b10000000) // If bufleftmost bit is 1, we drop leftmost bit.
+              // n     = 0b11111111
+              // _     = 0b10000000
+              // n & _ = 0b10000000
+              let num = if (n & 0b10000000) != 0 {
+                n ^ (0b10000000) // If leftmost bit is 1, we drop it.
               } else {
                 n
               } as i32;
@@ -224,10 +236,20 @@ impl Byte {
             // NOTE: It might be need to decode as LEB128 integer, too.
             expressions.push(Op::GetLocal(self.next()? as usize));
           }
+          Code::SetLocal => {
+            expressions.push(Op::SetLocal(self.next()? as usize));
+          }
           Code::Add => {
             expressions.push(Op::Add);
           }
-          _ => unimplemented!(),
+          Code::Call => {
+            expressions.push(Op::Call(self.next()? as usize));
+          }
+          x => unimplemented!(
+            "Code {:x?} does not supported yet. Current expressions -> {:?}",
+            x,
+            expressions
+          ),
         };
       }
       self.next(); // Drop End code.
@@ -266,12 +288,10 @@ impl Byte {
         Code::SectionCode => {
           list_of_expressions = self.decode_section_code()?;
         }
-        x => {
-          println!("{:?}", x);
-          unreachable!();
-        }
+        x => unreachable!("{:?}", x),
       };
     }
+    println!("{:?}", list_of_expressions);
     for (key, idx_of_fn) in &function_key_and_indexes {
       let function_type = function_types.get(*idx_of_fn as usize)?;
       let locals: Vec<Values> = vec![];
@@ -299,6 +319,7 @@ mod tests {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
       #[test]
       fn $fn_name() {
+        use Op::*;
         let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
         let mut bc = Byte::new(wasm);
         assert_eq!(
@@ -321,7 +342,7 @@ mod tests {
         },
         locals: vec![],
         type_idex: 0,
-        body: vec![Op::Const(42)],
+        body: vec![Const(42)],
       }
     )]
   );
@@ -338,7 +359,7 @@ mod tests {
         },
         locals: vec![],
         type_idex: 0,
-        body: vec![Op::Const(255)],
+        body: vec![Const(255)],
       }
     )]
   );
@@ -355,7 +376,7 @@ mod tests {
         },
         locals: vec![],
         type_idex: 0,
-        body: vec![Op::GetLocal(0)],
+        body: vec![GetLocal(0)],
       }
     )]
   );
@@ -372,7 +393,7 @@ mod tests {
         },
         locals: vec![],
         type_idex: 0,
-        body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
+        body: vec![GetLocal(1), GetLocal(0), Add],
       }
     )]
   );
@@ -388,8 +409,16 @@ mod tests {
           returns: vec![ValueTypes::I32],
         },
         locals: vec![],
-        type_idex: 0,
-        body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
+        type_idex: 1,
+        body: vec![
+          GetLocal(0),
+          Call(0),
+          SetLocal(2),
+          GetLocal(1),
+          Call(0),
+          GetLocal(2),
+          Add
+        ],
       }
     )]
   );
