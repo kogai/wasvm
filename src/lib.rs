@@ -125,6 +125,25 @@ mod tests {
     use super::*;
     use utils::read_wasm;
 
+    macro_rules! test_eval {
+        ($file_name:expr, $call_arguments: expr, $expect_value: expr) => {
+            let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
+            let mut vm = Vm::new(wasm);
+            vm.run($call_arguments);
+            assert_eq!(vm.stack.pop(), Some(&StackEntry::Value($expect_value)));
+        };
+    }
+
+    #[test]
+    fn it_can_evaluate_cons8() {
+        test_eval!("cons8", vec![], Values::I32(42));
+    }
+
+    #[test]
+    fn it_can_evaluate_add() {
+        test_eval!("add", vec![Values::I32(3), Values::I32(4)], Values::I32(7));
+    }
+
     //     #[test]
     //     fn it_can_organize_modules() {
     //         let wasm = read_wasm("./dist/constant.wasm").unwrap();
@@ -138,45 +157,4 @@ mod tests {
     //             }
     //         );
     //     }
-
-    // #[test]
-    // fn it_can_evaluate_multiple_fns() {
-    //     let wasm = read_wasm("./dist/multiple.wasm").unwrap();
-    //     let mut vm = Vm::new(wasm);
-    //     // assert_eq!(
-    //     //     vm.store,
-    //     //     Store {
-    //     //         function_instances: HashMap::from_iter(
-    //     //             vec![(
-    //     //                 "_subject".to_owned(),
-    //     //                 FunctionInstance {
-    //     //                     function_type: FunctionType {
-    //     //                         parameters: vec![],
-    //     //                         returns: vec![byte::ValueTypes::I32],
-    //     //                     },
-    //     //                     locals: vec![],
-    //     //                     type_idex: 0,
-    //     //                     body: vec![Op::Const(42)],
-    //     //                 }
-    //     //             )].into_iter()
-    //     //         )
-    //     //     }
-    //     // );
-    // }
-
-    #[test]
-    fn it_can_evaluate_cons8() {
-        let wasm = read_wasm("./dist/cons8.wasm").unwrap();
-        let mut vm = Vm::new(wasm);
-        vm.run(vec![]);
-        assert_eq!(vm.stack.pop(), Some(&StackEntry::Value(Values::I32(42))));
-    }
-
-    #[test]
-    fn it_can_evaluate_add() {
-        let wasm = read_wasm("./dist/add.wasm").unwrap();
-        let mut vm = Vm::new(wasm);
-        vm.run(vec![Values::I32(3), Values::I32(4)]);
-        assert_eq!(vm.stack.pop(), Some(&StackEntry::Value(Values::I32(7))));
-    }
 }
