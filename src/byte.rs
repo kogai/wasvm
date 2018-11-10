@@ -3,6 +3,7 @@ use std::collections::HashMap;
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
   Const(i32),
+  GetLocal(u32),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -63,6 +64,8 @@ pub enum Code {
   ValueType(ValueTypes),
   TypeFunction,
 
+  GetLocal,
+
   ExportDescFunctionIdx,
   ExportDescTableIdx,
   ExportDescMemIdx,
@@ -83,8 +86,9 @@ impl Code {
       Some(0x7f) => ValueType(ValueTypes::I32),
       Some(0x41) => ConstI32,
       Some(0x60) => TypeFunction,
+      Some(0x20) => GetLocal,
       Some(0x0b) => End,
-      _ => unreachable!(),
+      x => unreachable!("Code {:x?} does not supported yet.", x),
     }
   }
 
@@ -213,6 +217,10 @@ impl Byte {
             }
             expressions.push(Op::Const(buf));
           }
+          Code::GetLocal => {
+            // NOTE: It might be need to decode as LEB128 integer, too.
+            expressions.push(Op::GetLocal(self.next()? as u32));
+          }
           _ => unimplemented!(),
         };
       }
@@ -321,6 +329,29 @@ mod tests {
             locals: vec![],
             type_idex: 0,
             body: vec![Op::Const(255)],
+          }
+        )].into_iter()
+      )
+    );
+  }
+
+  #[test]
+  fn it_can_decode_locals() {
+    let wasm = read_wasm("./dist/locals.wasm").unwrap();
+    let mut bc = Byte::new(wasm);
+    assert_eq!(
+      bc.decode().unwrap(),
+      HashMap::from_iter(
+        vec![(
+          "_subject".to_owned(),
+          FunctionInstance {
+            function_type: FunctionType {
+              parameters: vec![ValueTypes::I32],
+              returns: vec![ValueTypes::I32],
+            },
+            locals: vec![],
+            type_idex: 0,
+            body: vec![Op::GetLocal(0)],
           }
         )].into_iter()
       )
