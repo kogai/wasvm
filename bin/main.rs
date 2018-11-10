@@ -14,6 +14,6 @@ fn main() -> io::Result<()> {
   file.read_to_end(&mut buffer)?;
 
   let mut vm = wasvm::Vm::new(buffer);
-  vm.run();
+  vm.run(vec![]);
   Ok(())
 }

@@ -1,7 +1,7 @@
 mod byte;
 mod utils;
 
-use byte::{FunctionInstance, Op};
+use byte::{FunctionInstance, Op, Values};
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
@@ -10,15 +10,28 @@ struct Store {
 }
 
 impl Store {
-    fn call(&self, key: &str) -> Option<Vec<Op>> {
-        self.function_instances.get(key).map(|f| f.call())
+    fn call(&self, key: &str, arguments: Vec<Values>) -> Option<Vec<Op>> {
+        self.function_instances.get(key).map(|f| f.call(arguments))
     }
+}
+
+#[derive(Debug, PartialEq)]
+struct Frame {
+    locals: Vec<Values>,
+}
+
+#[derive(Debug, PartialEq)]
+enum StackEntry {
+    // Op(Op),
+    Value(Values),
+    // Label,
+    Frame(Frame),
 }
 
 #[derive(Debug)]
 pub struct Vm {
     store: Store,
-    stack: Vec<byte::Op>,
+    stack: Vec<StackEntry>,
 }
 
 impl Vm {
@@ -33,12 +46,17 @@ impl Vm {
         }
     }
 
-    pub fn run(&mut self) {
-        match self.store.call("_subject") {
+    fn pop(&mut self) -> Option<StackEntry> {
+        unimplemented!();
+    }
+
+    pub fn run(&mut self, arguments: Vec<Values>) {
+        match self.store.call("_subject", arguments) {
             Some(expressions) => {
-                for expression in expressions.iter() {
-                    self.stack.push(expression.to_owned());
-                }
+                // for expression in expressions.iter() {
+                //     self.stack.push(expression.to_owned());
+                // }
+                unimplemented!();
             }
             None => println!("'_subject' did not implemented."),
         }
@@ -90,10 +108,18 @@ mod tests {
     // }
 
     #[test]
-    fn it_can_evaluate_constant() {
+    fn it_can_evaluate_cons8() {
         let wasm = read_wasm("./dist/cons8.wasm").unwrap();
         let mut vm = Vm::new(wasm);
-        vm.run();
-        assert_eq!(vm.stack.pop(), Some(byte::Op::Const(42)));
+        vm.run(vec![]);
+        assert_eq!(vm.pop(), Some(StackEntry::Value(Values::I32(42))));
+    }
+
+    #[test]
+    fn it_can_evaluate_add() {
+        let wasm = read_wasm("./dist/add.wasm").unwrap();
+        let mut vm = Vm::new(wasm);
+        vm.run(vec![]);
+        assert_eq!(vm.pop(), Some(StackEntry::Value(Values::I32(42))));
     }
 }

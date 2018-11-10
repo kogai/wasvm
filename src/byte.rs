@@ -22,7 +22,7 @@ pub struct FunctionInstance {
 }
 
 impl FunctionInstance {
-  pub fn call(&self) -> Vec<Op> {
+  pub fn call(&self, _arguments: Vec<Values>) -> Vec<Op> {
     self.body.to_owned()
   }
 }
