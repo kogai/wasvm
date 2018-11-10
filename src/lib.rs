@@ -1,17 +1,20 @@
 mod byte;
 mod utils;
-
 use byte::{FunctionInstance, Op, Values};
-use std::collections::HashMap;
 
 #[derive(Debug, PartialEq)]
 struct Store {
-    function_instances: HashMap<String, FunctionInstance>,
+    function_instances: Vec<FunctionInstance>,
 }
 
 impl Store {
     fn call(&self, key: &str) -> Option<Vec<Op>> {
-        self.function_instances.get(key).map(|f| f.call())
+        let xxx = self
+            .function_instances
+            .iter()
+            .find(|f| f.find(key))
+            .map(|f| f.call());
+        xxx
     }
 }
 
