@@ -4,6 +4,7 @@ use std::collections::HashMap;
 pub enum Op {
   Const(i32),
   GetLocal(u32),
+  Add,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -65,6 +66,7 @@ pub enum Code {
   TypeFunction,
 
   GetLocal,
+  Add,
 
   ExportDescFunctionIdx,
   ExportDescTableIdx,
@@ -87,6 +89,7 @@ impl Code {
       Some(0x41) => ConstI32,
       Some(0x60) => TypeFunction,
       Some(0x20) => GetLocal,
+      Some(0x6a) => Add,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
@@ -221,6 +224,9 @@ impl Byte {
             // NOTE: It might be need to decode as LEB128 integer, too.
             expressions.push(Op::GetLocal(self.next()? as u32));
           }
+          Code::Add => {
+            expressions.push(Op::Add);
+          }
           _ => unimplemented!(),
         };
       }
@@ -289,72 +295,90 @@ mod tests {
   use std::iter::FromIterator;
   use utils::read_wasm;
 
+  macro_rules! test_decode {
+    ($file_name:expr, $fn_insts: expr) => {
+      let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
+      let mut bc = Byte::new(wasm);
+      assert_eq!(
+        bc.decode().unwrap(),
+        HashMap::from_iter($fn_insts.into_iter())
+      );
+    };
+  }
+
   #[test]
-  fn it_can_decode_cons_u8() {
-    let wasm = read_wasm("./dist/cons8.wasm").unwrap();
-    let mut bc = Byte::new(wasm);
-    assert_eq!(
-      bc.decode().unwrap(),
-      HashMap::from_iter(
-        vec![(
-          "_subject".to_owned(),
-          FunctionInstance {
-            function_type: FunctionType {
-              parameters: vec![],
-              returns: vec![ValueTypes::I32],
-            },
-            locals: vec![],
-            type_idex: 0,
-            body: vec![Op::Const(42)],
-          }
-        )].into_iter()
-      )
+  fn it_can_decode_cons8() {
+    test_decode!(
+      "cons8",
+      vec![(
+        "_subject".to_owned(),
+        FunctionInstance {
+          function_type: FunctionType {
+            parameters: vec![],
+            returns: vec![ValueTypes::I32],
+          },
+          locals: vec![],
+          type_idex: 0,
+          body: vec![Op::Const(42)],
+        }
+      )]
     );
   }
 
   #[test]
-  fn it_can_decode_cons_u16() {
-    let wasm = read_wasm("./dist/cons16.wasm").unwrap();
-    let mut bc = Byte::new(wasm);
-    assert_eq!(
-      bc.decode().unwrap(),
-      HashMap::from_iter(
-        vec![(
-          "_subject".to_owned(),
-          FunctionInstance {
-            function_type: FunctionType {
-              parameters: vec![],
-              returns: vec![ValueTypes::I32],
-            },
-            locals: vec![],
-            type_idex: 0,
-            body: vec![Op::Const(255)],
-          }
-        )].into_iter()
-      )
+  fn it_can_decode_cons16() {
+    test_decode!(
+      "cons16",
+      vec![(
+        "_subject".to_owned(),
+        FunctionInstance {
+          function_type: FunctionType {
+            parameters: vec![],
+            returns: vec![ValueTypes::I32],
+          },
+          locals: vec![],
+          type_idex: 0,
+          body: vec![Op::Const(255)],
+        }
+      )]
     );
   }
 
   #[test]
   fn it_can_decode_locals() {
-    let wasm = read_wasm("./dist/locals.wasm").unwrap();
-    let mut bc = Byte::new(wasm);
-    assert_eq!(
-      bc.decode().unwrap(),
-      HashMap::from_iter(
-        vec![(
-          "_subject".to_owned(),
-          FunctionInstance {
-            function_type: FunctionType {
-              parameters: vec![ValueTypes::I32],
-              returns: vec![ValueTypes::I32],
-            },
-            locals: vec![],
-            type_idex: 0,
-            body: vec![Op::GetLocal(0)],
-          }
-        )].into_iter()
-      )
+    test_decode!(
+      "locals",
+      vec![(
+        "_subject".to_owned(),
+        FunctionInstance {
+          function_type: FunctionType {
+            parameters: vec![ValueTypes::I32],
+            returns: vec![ValueTypes::I32],
+          },
+          locals: vec![],
+          type_idex: 0,
+          body: vec![Op::GetLocal(0)],
+        }
+      )]
+    );
+  }
+
+  #[test]
+  fn it_can_decode_add() {
+    test_decode!(
+      "add",
+      vec![(
+        "_subject".to_owned(),
+        FunctionInstance {
+          function_type: FunctionType {
+            parameters: vec![ValueTypes::I32, ValueTypes::I32],
+            returns: vec![ValueTypes::I32],
+          },
+          locals: vec![],
+          type_idex: 0,
+          body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
+        }
+      )]
     );
   }
 }
