@@ -16,6 +16,7 @@ impl Store {
 #[derive(Debug, PartialEq, Clone)]
 struct Frame {
     locals: Vec<Values>,
+    function_idx: usize,
     return_ptr: usize,
 }
 
@@ -65,6 +66,7 @@ impl Stack {
         self.stack_ptr += 1;
     }
 
+    // TODO: Return with ownership
     fn pop(&mut self) -> Option<&StackEntry> {
         if self.stack_ptr == 0 {
             self.is_empty = true;
@@ -198,10 +200,18 @@ mod tests {
             }
         };
     }
+    #[test]
+    fn stack_ptr() {
+        let mut stack = Stack::new(4);
+        stack.push(StackEntry::Value(Values::I32(1)));
+        stack.set(2, StackEntry::Value(Values::I32(2)));
+        assert_eq!(stack.pop(), Some(&StackEntry::Value(Values::I32(1))));
+        assert_eq!(stack.get(2), Some(StackEntry::Value(Values::I32(2))));
+    }
 
     test_eval!(evaluate_cons8, "cons8", vec![], Values::I32(42));
     test_eval!(
-        evaluate_add,
+        evaluate_add_simple,
         "add",
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(7)

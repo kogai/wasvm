@@ -19,14 +19,14 @@ struct FunctionType {
 pub struct FunctionInstance {
   export_name: Option<String>,
   function_type: FunctionType,
-  locals: Vec<Values>,
+  locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Vec<Op>,
 }
 
 impl FunctionInstance {
-  pub fn call(&self) -> Vec<Op> {
-    self.body.to_owned()
+  pub fn call(&self) -> (Vec<Op>, Vec<ValueTypes>) {
+    (self.body.to_owned(), self.locals.to_owned())
   }
 
   pub fn find(&self, key: &str) -> bool {
@@ -72,7 +72,7 @@ impl Add for Values {
     use self::Values::*;
     match (self, other) {
       (I32(l), I32(r)) => I32(l + r),
-      _ => unimplemented!(),
+      // _ => unimplemented!(),
     }
   }
 }
@@ -240,18 +240,18 @@ impl Byte {
     Some(exports)
   }
 
-  fn decode_section_code(&mut self) -> Option<Vec<Vec<Op>>> {
+  fn decode_section_code(&mut self) -> Option<Vec<(Vec<Op>, Vec<ValueTypes>)>> {
     let _bin_size_of_section = self.next()?;
     let mut codes = vec![];
     let count_of_code = self.next()?;
     for _idx_of_fn in 0..count_of_code {
       let mut expressions = vec![];
       let _size_of_function = self.next()?;
-      let size_of_locals = self.next()? as usize;
+      let count_of_locals = self.next()? as usize;
       // FIXME:
-      let mut locals: Vec<ValueTypes> = Vec::with_capacity(size_of_locals);
-      for _ in 0..size_of_locals {
-        let _ = self.next();
+      let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
+      for _ in 0..count_of_locals {
+        let _idx = self.next(); // NOTE: Index of local varibale type?
         locals.push(ValueTypes::from_byte(self.next()));
       }
       while !(Code::is_end_of_code(self.peek())) {
@@ -281,7 +281,7 @@ impl Byte {
       }
 
       self.next(); // Drop End code.
-      codes.push(expressions);
+      codes.push((expressions, locals));
     }
     Some(codes)
   }
@@ -326,13 +326,12 @@ impl Byte {
         .find(|(_, idx)| idx == &idx_of_fn)
         .map(|(key, _)| key.to_owned());
       let function_type = function_types.get(idx_of_fn)?;
-      let locals: Vec<Values> = vec![];
       let &index_of_type = index_of_types.get(idx_of_fn)?;
-      let expression = list_of_expressions.get(idx_of_fn)?;
+      let (expression, locals) = list_of_expressions.get(idx_of_fn)?;
       let fnins = FunctionInstance {
         export_name,
         function_type: function_type.to_owned(),
-        locals,
+        locals: locals.to_owned(),
         type_idex: index_of_type,
         body: expression.to_owned(),
       };
@@ -439,7 +438,7 @@ mod tests {
           parameters: vec![ValueTypes::I32, ValueTypes::I32],
           returns: vec![ValueTypes::I32],
         },
-        locals: vec![],
+        locals: vec![ValueTypes::I32],
         type_idex: 1,
         body: vec![
           GetLocal(0),
