@@ -125,11 +125,29 @@ impl Sub for Values {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Code {
+enum SecionCode {
   SectionType,
   SectionFunction,
   SectionExport,
   SectionCode,
+}
+
+impl SecionCode {
+  fn from_byte(code: Option<u8>) -> Self {
+    use self::SecionCode::*;
+
+    match code {
+      Some(0x1) => SectionType,
+      Some(0x3) => SectionFunction,
+      Some(0x7) => SectionExport,
+      Some(0xa) => SectionCode,
+      x => unreachable!("SectionCode {:x?} does not supported yet.", x),
+    }
+  }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Code {
   ConstI32,
 
   ValueType(ValueTypes), // TODO: COnside to align 8bit
@@ -166,10 +184,6 @@ impl Code {
 
     match code {
       // TODO: Separate function which decoding sections.
-      Some(0x1) => SectionType,
-      Some(0x3) => SectionFunction,
-      Some(0x7) => SectionExport,
-      Some(0xa) => SectionCode,
       Some(0x7f) => ValueType(ValueTypes::I32),
       Some(0x41) => ConstI32,
       Some(0x60) => TypeFunction,
@@ -368,20 +382,19 @@ impl Byte {
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
     while self.has_next() {
-      match Code::from_byte(self.next()) {
-        Code::SectionType => {
+      match SecionCode::from_byte(self.next()) {
+        SecionCode::SectionType => {
           function_types = self.decode_section_type()?;
         }
-        Code::SectionFunction => {
+        SecionCode::SectionFunction => {
           index_of_types = self.decode_section_function()?;
         }
-        Code::SectionExport => {
+        SecionCode::SectionExport => {
           function_key_and_indexes = self.decode_section_export()?;
         }
-        Code::SectionCode => {
+        SecionCode::SectionCode => {
           list_of_expressions = self.decode_section_code()?;
         }
-        x => unreachable!("{:?}", x),
       };
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
