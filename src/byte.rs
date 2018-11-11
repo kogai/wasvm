@@ -11,6 +11,7 @@ pub enum Op {
   Equal,
   NotEqual,
   LessThans,
+  LessThanUnsign,
   GraterThans,
   Select,
 }
@@ -150,9 +151,12 @@ pub enum Code {
   Equal,
   NotEqual,
   LessThans,
+  LessThanUnsign,
   // LessThanEquals,
   GraterThans,
   // GraterThanEquals,
+  If,
+  Else,
   End,
 }
 
@@ -161,6 +165,7 @@ impl Code {
     use self::Code::*;
 
     match code {
+      // TODO: Separate function which decoding sections.
       Some(0x1) => SectionType,
       Some(0x3) => SectionFunction,
       Some(0x7) => SectionExport,
@@ -176,8 +181,11 @@ impl Code {
       Some(0x46) => Equal,
       Some(0x47) => NotEqual,
       Some(0x48) => LessThans,
+      Some(0x49) => LessThanUnsign,
       Some(0x4a) => GraterThans,
       Some(0x1b) => Select,
+      Some(0x4) => If,
+      Some(0x5) => Else,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
@@ -327,6 +335,7 @@ impl Byte {
           Code::Equal => expressions.push(Op::Equal),
           Code::NotEqual => expressions.push(Op::NotEqual),
           Code::LessThans => expressions.push(Op::LessThans),
+          Code::LessThanUnsign => expressions.push(Op::LessThanUnsign),
           Code::GraterThans => expressions.push(Op::GraterThans),
           Code::Select => expressions.push(Op::Select),
           x => unimplemented!(
