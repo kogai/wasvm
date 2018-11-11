@@ -22,6 +22,7 @@ struct Frame {
 
 #[derive(Debug, PartialEq, Clone)]
 enum StackEntry {
+    Empty,
     Value(Values),
     Label(Vec<Op>),
     Frame(Frame),
@@ -37,10 +38,7 @@ struct Stack {
 
 impl Stack {
     fn new(stack_size: usize) -> Self {
-        let mut entries = Vec::with_capacity(stack_size);
-        unsafe {
-            entries.set_len(stack_size);
-        };
+        let entries = vec![StackEntry::Empty; stack_size];
         Stack {
             entries,
             stack_ptr: 0,
@@ -173,7 +171,7 @@ impl Vm {
                     self.stack.increase(locals.len());
                     self.stack.push(label);
                 }
-                None => unreachable!("Invalid popping stack."),
+                Some(StackEntry::Empty) | None => unreachable!("Invalid popping stack."),
             }
         }
         self.stack
