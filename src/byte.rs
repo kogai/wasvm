@@ -1,10 +1,12 @@
-use std::collections::HashMap;
+use std::ops::Add;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
   Const(i32),
-  GetLocal(u32),
+  GetLocal(usize),
+  SetLocal(usize),
   Add,
+  Call(usize),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -15,15 +17,24 @@ struct FunctionType {
 
 #[derive(Debug, PartialEq)]
 pub struct FunctionInstance {
+  export_name: Option<String>,
   function_type: FunctionType,
-  locals: Vec<Values>,
+  locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Vec<Op>,
 }
 
 impl FunctionInstance {
-  pub fn call(&self) -> Vec<Op> {
-    self.body.to_owned()
+  pub fn call(&self) -> (Vec<Op>, Vec<ValueTypes>) {
+    (self.body.to_owned(), self.locals.to_owned())
+  }
+
+  pub fn find(&self, key: &str) -> bool {
+    // FIXME: When using function_index, we might get exported function by O(1).
+    match &self.export_name {
+      Some(name) => name.as_str() == key,
+      _ => false,
+    }
   }
 }
 
@@ -40,7 +51,7 @@ impl ValueTypes {
     use self::ValueTypes::*;
     match code {
       Some(0x7f) => I32,
-      Some(_) => unimplemented!(),
+      Some(x) => unimplemented!("ValueTypes of {} does not implemented yet.", x),
       _ => unreachable!(),
     }
   }
@@ -52,6 +63,18 @@ pub enum Values {
   // I64,
   // F32,
   // F64,
+}
+
+impl Add for Values {
+  type Output = Values;
+
+  fn add(self, other: Self) -> Self {
+    use self::Values::*;
+    match (self, other) {
+      (I32(l), I32(r)) => I32(l + r),
+      // _ => unimplemented!(),
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -66,6 +89,7 @@ pub enum Code {
   TypeFunction,
 
   GetLocal,
+  SetLocal,
   Add,
 
   ExportDescFunctionIdx,
@@ -73,6 +97,7 @@ pub enum Code {
   ExportDescMemIdx,
   ExportDescGlobalIdx,
 
+  Call,
   End,
 }
 
@@ -89,7 +114,9 @@ impl Code {
       Some(0x41) => ConstI32,
       Some(0x60) => TypeFunction,
       Some(0x20) => GetLocal,
+      Some(0x21) => SetLocal,
       Some(0x6a) => Add,
+      Some(0x10) => Call,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
@@ -144,6 +171,31 @@ impl Byte {
     el.map(|&x| x)
   }
 
+  // TODO: Make this function parametarized to be able to recieve i32/i64/f32/f64
+  fn decode_leb128(&mut self) -> Option<i32> {
+    let mut buf: i32 = 0;
+    let mut shift = 0;
+
+    // Check whether leftmost bit is 1 or 0
+    // n     = 0b11111111 = 0b01111111
+    // _     = 0b10000000 = 0b10000000
+    // n & _ = 0b10000000 = 0b00000000
+    while (self.peek()? & 0b10000000) != 0 {
+      let num = (self.next()? ^ (0b10000000)) as i32; // If leftmost bit is 1, we drop it.
+
+      // buf =      00000000_00000000_10000000_00000000
+      // num =      00000000_00000000_00000000_00000001
+      // num << 7 = 00000000_00000000_00000000_10000000
+      // buf ^ num  00000000_00000000_10000000_10000000
+      buf = buf ^ (num << shift);
+      shift += 7;
+    }
+    let num = (self.next()?) as i32;
+    buf = buf ^ (num << shift);
+
+    Some(buf)
+  }
+
   fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
     let _bin_size_of_section = self.next()?;
     let count_of_type = self.next()?;
@@ -168,7 +220,7 @@ impl Byte {
     Some(function_types)
   }
 
-  fn decode_section_export(&mut self) -> Option<Vec<(String, u8)>> {
+  fn decode_section_export(&mut self) -> Option<Vec<(String, usize)>> {
     let _bin_size_of_section = self.next()?;
     let count_of_exports = self.next()?;
     let mut exports = vec![];
@@ -183,55 +235,53 @@ impl Byte {
         Code::ExportDescFunctionIdx => self.next()?,
         _ => unimplemented!(),
       };
-      exports.push((key, idx_of_fn));
+      exports.push((key, idx_of_fn as usize));
     }
     Some(exports)
   }
 
-  fn decode_section_code(&mut self) -> Option<Vec<Vec<Op>>> {
+  fn decode_section_code(&mut self) -> Option<Vec<(Vec<Op>, Vec<ValueTypes>)>> {
     let _bin_size_of_section = self.next()?;
     let mut codes = vec![];
     let count_of_code = self.next()?;
     for _idx_of_fn in 0..count_of_code {
       let mut expressions = vec![];
       let _size_of_function = self.next()?;
-      let size_of_locals = self.next()?;
-      for _ in 0..size_of_locals {
-        unimplemented!();
+      let count_of_locals = self.next()? as usize;
+      // FIXME:
+      let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
+      for _ in 0..count_of_locals {
+        let _idx = self.next(); // NOTE: Index of local varibale type?
+        locals.push(ValueTypes::from_byte(self.next()));
       }
       while !(Code::is_end_of_code(self.peek())) {
         match Code::from_byte(self.next()) {
           Code::ConstI32 => {
-            let mut buf: i32 = 0;
-            let mut shift = 0;
-            while !(Code::is_end_of_code(self.peek())) {
-              let n = self.next()?;
-              let num = if n & (0b00000001 << 7) != 0 {
-                n ^ (0b10000000) // If bufleftmost bit is 1, we drop leftmost bit.
-              } else {
-                n
-              } as i32;
-              // buf =      00000000_00000000_10000000_00000000
-              // num =      00000000_00000000_00000000_00000001
-              // num << 7 = 00000000_00000000_00000000_10000000
-              // buf ^ num  00000000_00000000_10000000_10000000
-              buf = buf ^ (num << shift);
-              shift += 7;
-            }
-            expressions.push(Op::Const(buf));
+            expressions.push(Op::Const(self.decode_leb128()?));
           }
           Code::GetLocal => {
             // NOTE: It might be need to decode as LEB128 integer, too.
-            expressions.push(Op::GetLocal(self.next()? as u32));
+            expressions.push(Op::GetLocal(self.next()? as usize));
+          }
+          Code::SetLocal => {
+            expressions.push(Op::SetLocal(self.next()? as usize));
           }
           Code::Add => {
             expressions.push(Op::Add);
           }
-          _ => unimplemented!(),
+          Code::Call => {
+            expressions.push(Op::Call(self.next()? as usize));
+          }
+          x => unimplemented!(
+            "Code {:x?} does not supported yet. Current expressions -> {:?}",
+            x,
+            expressions
+          ),
         };
       }
+
       self.next(); // Drop End code.
-      codes.push(expressions);
+      codes.push((expressions, locals));
     }
     Some(codes)
   }
@@ -246,8 +296,7 @@ impl Byte {
     Some(type_indexes)
   }
 
-  pub fn decode(&mut self) -> Option<HashMap<String, FunctionInstance>> {
-    let mut function_instances = HashMap::new();
+  pub fn decode(&mut self) -> Option<Vec<FunctionInstance>> {
     let mut function_types = vec![];
     let mut index_of_types = vec![];
     let mut function_key_and_indexes = vec![];
@@ -266,24 +315,27 @@ impl Byte {
         Code::SectionCode => {
           list_of_expressions = self.decode_section_code()?;
         }
-        x => {
-          println!("{:?}", x);
-          unreachable!();
-        }
+        x => unreachable!("{:?}", x),
       };
     }
-    for (key, idx_of_fn) in &function_key_and_indexes {
-      let function_type = function_types.get(*idx_of_fn as usize)?;
-      let locals: Vec<Values> = vec![];
-      let &index_of_type = index_of_types.get(*idx_of_fn as usize)?;
-      let expression = list_of_expressions.get(*idx_of_fn as usize)?;
+    let mut function_instances = Vec::with_capacity(list_of_expressions.len());
+
+    for idx_of_fn in 0..list_of_expressions.len() {
+      let export_name = function_key_and_indexes
+        .iter()
+        .find(|(_, idx)| idx == &idx_of_fn)
+        .map(|(key, _)| key.to_owned());
+      let function_type = function_types.get(idx_of_fn)?;
+      let &index_of_type = index_of_types.get(idx_of_fn)?;
+      let (expression, locals) = list_of_expressions.get(idx_of_fn)?;
       let fnins = FunctionInstance {
+        export_name,
         function_type: function_type.to_owned(),
-        locals,
+        locals: locals.to_owned(),
         type_idex: index_of_type,
         body: expression.to_owned(),
       };
-      function_instances.insert(key.to_owned(), fnins);
+      function_instances.push(fnins);
     }
     Some(function_instances)
   }
@@ -292,93 +344,112 @@ impl Byte {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use std::iter::FromIterator;
   use utils::read_wasm;
 
   macro_rules! test_decode {
-    ($file_name:expr, $fn_insts: expr) => {
-      let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
-      let mut bc = Byte::new(wasm);
-      assert_eq!(
-        bc.decode().unwrap(),
-        HashMap::from_iter($fn_insts.into_iter())
-      );
+    ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
+      #[test]
+      fn $fn_name() {
+        use Op::*;
+        let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
+        let mut bc = Byte::new(wasm);
+        assert_eq!(bc.decode().unwrap(), $fn_insts);
+      }
     };
   }
 
-  #[test]
-  fn it_can_decode_cons8() {
-    test_decode!(
-      "cons8",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::Const(42)],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_cons8,
+    "cons8",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![Const(42)],
+    }]
+  );
 
-  #[test]
-  fn it_can_decode_cons16() {
-    test_decode!(
-      "cons16",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::Const(255)],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_cons16,
+    "cons16",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![Const(255)],
+    }]
+  );
 
-  #[test]
-  fn it_can_decode_locals() {
-    test_decode!(
-      "locals",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![ValueTypes::I32],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::GetLocal(0)],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_locals,
+    "locals",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![GetLocal(0)],
+    }]
+  );
 
-  #[test]
-  fn it_can_decode_add() {
-    test_decode!(
-      "add",
-      vec![(
-        "_subject".to_owned(),
-        FunctionInstance {
-          function_type: FunctionType {
-            parameters: vec![ValueTypes::I32, ValueTypes::I32],
-            returns: vec![ValueTypes::I32],
-          },
-          locals: vec![],
-          type_idex: 0,
-          body: vec![Op::GetLocal(1), Op::GetLocal(0), Op::Add],
-        }
-      )]
-    );
-  }
+  test_decode!(
+    decode_add,
+    "add",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32, ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![GetLocal(1), GetLocal(0), Add],
+    }]
+  );
+
+  test_decode!(
+    decode_add_five,
+    "add_five",
+    vec![
+      FunctionInstance {
+        export_name: None,
+        function_type: FunctionType {
+          parameters: vec![ValueTypes::I32],
+          returns: vec![ValueTypes::I32],
+        },
+        locals: vec![],
+        type_idex: 0,
+        body: vec![GetLocal(0), Const(5), Add],
+      },
+      FunctionInstance {
+        export_name: Some("_subject".to_owned()),
+        function_type: FunctionType {
+          parameters: vec![ValueTypes::I32, ValueTypes::I32],
+          returns: vec![ValueTypes::I32],
+        },
+        locals: vec![ValueTypes::I32],
+        type_idex: 1,
+        body: vec![
+          GetLocal(0),
+          Call(0),
+          SetLocal(2),
+          GetLocal(1),
+          Call(0),
+          GetLocal(2),
+          Add
+        ],
+      }
+    ]
+  );
 }

@@ -10,5 +10,5 @@ matrix:
       rust: 1.30.0
 notifications:
   email:
-    on_success: never
+    on_success: change
     on_failure: change
