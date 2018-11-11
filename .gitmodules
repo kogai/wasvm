@@ -1,0 +1,3 @@
+[submodule "webassembly-examples"]
+	path = webassembly-examples
+	url = git@github.com:mdn/webassembly-examples.git
