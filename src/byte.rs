@@ -8,6 +8,8 @@ pub enum Op {
   Add,
   Sub,
   Call(usize),
+  Lts,
+  Select,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -112,6 +114,8 @@ pub enum Code {
   ExportDescGlobalIdx,
 
   Call,
+  Lts,
+  Select,
   End,
 }
 
@@ -132,6 +136,8 @@ impl Code {
       Some(0x6a) => Add,
       Some(0x6b) => Sub,
       Some(0x10) => Call,
+      Some(0x48) => Lts,
+      Some(0x1b) => Select,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
@@ -289,6 +295,12 @@ impl Byte {
           }
           Code::Call => {
             expressions.push(Op::Call(self.next()? as usize));
+          }
+          Code::Lts => {
+            expressions.push(Op::Lts);
+          }
+          Code::Select => {
+            expressions.push(Op::Select);
           }
           x => unimplemented!(
             "Code {:x?} does not supported yet. Current expressions -> {:?}",
@@ -484,5 +496,20 @@ mod tests {
         ],
       }
     ]
+  );
+
+  test_decode!(
+    decode_if,
+    "if",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![GetLocal(0), Const(100), GetLocal(0), Const(10), Lts, Select],
+    }]
   );
 }

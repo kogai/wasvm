@@ -134,6 +134,12 @@ impl Vm {
                 Op::Const(n) => {
                     self.stack.push(StackEntry::Value(Values::I32(*n)));
                 }
+                Op::Select => {
+                    unimplemented!();
+                }
+                Op::Lts => {
+                    unimplemented!();
+                }
             };
         }
         let return_value = self.stack.pop_value().to_owned();
