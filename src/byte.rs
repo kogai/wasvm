@@ -6,6 +6,7 @@ pub enum Op {
   GetLocal(usize),
   SetLocal(usize),
   Add,
+  Sub,
   Call(usize),
 }
 
@@ -415,6 +416,21 @@ mod tests {
       locals: vec![],
       type_idex: 0,
       body: vec![GetLocal(1), GetLocal(0), Add],
+    }]
+  );
+
+  test_decode!(
+    decode_sub,
+    "sub",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![GetLocal(1), Const(100), Sub],
     }]
   );
 

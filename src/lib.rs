@@ -125,6 +125,9 @@ impl Vm {
                     let result = StackEntry::Value(left.clone() + right.clone());
                     self.stack.push(result);
                 }
+                Op::Sub => {
+                    unimplemented!();
+                }
                 Op::Const(n) => {
                     self.stack.push(StackEntry::Value(Values::I32(*n)));
                 }
@@ -221,6 +224,7 @@ mod tests {
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(7)
     );
+    test_eval!(evaluate_sub, "sub", vec![Values::I32(10)], Values::I32(90));
     test_eval!(
         evaluate_add_five,
         "add_five",
