@@ -21,6 +21,12 @@ struct Frame {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+enum Label {
+    Body,
+    If,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 enum StackEntry {
     Empty,
     Value(Values),
@@ -134,6 +140,44 @@ impl Vm {
                 Op::Const(n) => {
                     self.stack.push(StackEntry::Value(Values::I32(*n)));
                 }
+                Op::Select => {
+                    let cond = &self.stack.pop_value().clone();
+                    let false_br = self.stack.pop_value().clone();
+                    let true_br = self.stack.pop_value().clone();
+                    if cond.is_truthy() {
+                        self.stack.push(StackEntry::Value(true_br));
+                    } else {
+                        self.stack.push(StackEntry::Value(false_br));
+                    }
+                }
+                Op::LessThans => {
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.lt(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
+                Op::GraterThans => {
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.gt(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
+                Op::Equal => {
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.eq(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
+                Op::NotEqual => {
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.neq(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
             };
         }
         let return_value = self.stack.pop_value().to_owned();
@@ -233,5 +277,55 @@ mod tests {
         "add_five",
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(17)
+    );
+    test_eval!(
+        evaluate_if_lt_1,
+        "if_lt",
+        vec![Values::I32(10)],
+        Values::I32(15)
+    );
+    test_eval!(
+        evaluate_if_lt_2,
+        "if_lt",
+        vec![Values::I32(9)],
+        Values::I32(19)
+    );
+    test_eval!(
+        evaluate_if_lt_3,
+        "if_lt",
+        vec![Values::I32(11)],
+        Values::I32(26)
+    );
+
+    test_eval!(
+        evaluate_if_gt_1,
+        "if_gt",
+        vec![Values::I32(10)],
+        Values::I32(15)
+    );
+    test_eval!(
+        evaluate_if_gt_2,
+        "if_gt",
+        vec![Values::I32(15)],
+        Values::I32(25)
+    );
+    test_eval!(
+        evaluate_if_gt_3,
+        "if_gt",
+        vec![Values::I32(5)],
+        Values::I32(20)
+    );
+
+    test_eval!(
+        evaluate_if_eq_1,
+        "if_eq",
+        vec![Values::I32(10)],
+        Values::I32(15)
+    );
+    test_eval!(
+        evaluate_if_eq_2,
+        "if_eq",
+        vec![Values::I32(11)],
+        Values::I32(21)
     );
 }
