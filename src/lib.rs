@@ -21,6 +21,12 @@ struct Frame {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+enum Label {
+    Body,
+    If,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 enum StackEntry {
     Empty,
     Value(Values),
@@ -135,10 +141,21 @@ impl Vm {
                     self.stack.push(StackEntry::Value(Values::I32(*n)));
                 }
                 Op::Select => {
-                    unimplemented!();
+                    let cond = &self.stack.pop_value().clone();
+                    let false_br = self.stack.pop_value().clone();
+                    let true_br = self.stack.pop_value().clone();
+                    if cond.is_truthy() {
+                        self.stack.push(StackEntry::Value(true_br));
+                    } else {
+                        self.stack.push(StackEntry::Value(false_br));
+                    }
                 }
                 Op::Lts => {
-                    unimplemented!();
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.lt(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
             };
         }
@@ -240,4 +257,6 @@ mod tests {
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(17)
     );
+    test_eval!(evaluate_if_1, "if", vec![Values::I32(3)], Values::I32(3));
+    test_eval!(evaluate_if_2, "if", vec![Values::I32(11)], Values::I32(100));
 }

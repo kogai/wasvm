@@ -68,6 +68,19 @@ pub enum Values {
   // F64,
 }
 
+impl Values {
+  pub fn lt(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => l < r,
+    }
+  }
+  pub fn is_truthy(&self) -> bool {
+    match &self {
+      Values::I32(n) => *n > 0,
+    }
+  }
+}
+
 impl Add for Values {
   type Output = Values;
 
@@ -415,21 +428,6 @@ mod tests {
       locals: vec![],
       type_idex: 0,
       body: vec![Const(255)],
-    }]
-  );
-
-  test_decode!(
-    decode_locals,
-    "locals",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![GetLocal(0)],
     }]
   );
 
