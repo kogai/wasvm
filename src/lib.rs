@@ -150,14 +150,14 @@ impl Vm {
                         self.stack.push(StackEntry::Value(false_br));
                     }
                 }
-                Op::LessThans | Op::LessThanUnsign => {
+                Op::LessThanSign | Op::LessThanUnsign => {
                     let right = &self.stack.pop_value().clone();
                     let left = &self.stack.pop_value().clone();
                     let cond = left.lt(right);
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
-                Op::GraterThans => {
+                Op::GreaterThanSign | Op::GreaterThanUnsign => {
                     let right = &self.stack.pop_value().clone();
                     let left = &self.stack.pop_value().clone();
                     let cond = left.gt(right);
@@ -177,6 +177,9 @@ impl Vm {
                     let cond = left.neq(right);
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
+                Op::If | Op::Else => {
+                    unimplemented!();
                 }
             };
         }
