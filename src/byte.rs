@@ -8,7 +8,10 @@ pub enum Op {
   Add,
   Sub,
   Call(usize),
-  Lts,
+  Equal,
+  NotEqual,
+  LessThans,
+  GraterThans,
   Select,
 }
 
@@ -113,7 +116,7 @@ pub enum Code {
   SectionCode,
   ConstI32,
 
-  ValueType(ValueTypes),
+  ValueType(ValueTypes), // TODO: COnside to align 8bit
   TypeFunction,
 
   GetLocal,
@@ -127,8 +130,14 @@ pub enum Code {
   ExportDescGlobalIdx,
 
   Call,
-  Lts,
   Select,
+
+  Equal,
+  NotEqual,
+  LessThans,
+  // LessThanEquals,
+  GraterThans,
+  // GraterThanEquals,
   End,
 }
 
@@ -149,7 +158,10 @@ impl Code {
       Some(0x6a) => Add,
       Some(0x6b) => Sub,
       Some(0x10) => Call,
-      Some(0x48) => Lts,
+      Some(0x46) => Equal,
+      Some(0x47) => NotEqual,
+      Some(0x48) => LessThans,
+      Some(0x4a) => GraterThans,
       Some(0x1b) => Select,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
@@ -290,31 +302,18 @@ impl Byte {
       }
       while !(Code::is_end_of_code(self.peek())) {
         match Code::from_byte(self.next()) {
-          Code::ConstI32 => {
-            expressions.push(Op::Const(self.decode_leb128()?));
-          }
-          Code::GetLocal => {
-            // NOTE: It might be need to decode as LEB128 integer, too.
-            expressions.push(Op::GetLocal(self.next()? as usize));
-          }
-          Code::SetLocal => {
-            expressions.push(Op::SetLocal(self.next()? as usize));
-          }
-          Code::Add => {
-            expressions.push(Op::Add);
-          }
-          Code::Sub => {
-            expressions.push(Op::Sub);
-          }
-          Code::Call => {
-            expressions.push(Op::Call(self.next()? as usize));
-          }
-          Code::Lts => {
-            expressions.push(Op::Lts);
-          }
-          Code::Select => {
-            expressions.push(Op::Select);
-          }
+          Code::ConstI32 => expressions.push(Op::Const(self.decode_leb128()?)),
+          // NOTE: It might be need to decode as LEB128 integer, too.
+          Code::GetLocal => expressions.push(Op::GetLocal(self.next()? as usize)),
+          Code::SetLocal => expressions.push(Op::SetLocal(self.next()? as usize)),
+          Code::Add => expressions.push(Op::Add),
+          Code::Sub => expressions.push(Op::Sub),
+          Code::Call => expressions.push(Op::Call(self.next()? as usize)),
+          Code::Equal => expressions.push(Op::Equal),
+          Code::NotEqual => expressions.push(Op::NotEqual),
+          Code::LessThans => expressions.push(Op::LessThans),
+          Code::GraterThans => expressions.push(Op::GraterThans),
+          Code::Select => expressions.push(Op::Select),
           x => unimplemented!(
             "Code {:x?} does not supported yet. Current expressions -> {:?}",
             x,
@@ -507,7 +506,33 @@ mod tests {
       },
       locals: vec![],
       type_idex: 0,
-      body: vec![GetLocal(0), Const(100), GetLocal(0), Const(10), Lts, Select],
+      body: vec![
+        GetLocal(0),
+        Const(15),
+        GetLocal(0),
+        Const(10),
+        Add,
+        Const(35),
+        GetLocal(0),
+        Const(25),
+        Add,
+        GetLocal(0),
+        Const(20),
+        Equal,
+        Select,
+        GetLocal(0),
+        Const(20),
+        GraterThans,
+        Select,
+        GetLocal(0),
+        Const(10),
+        Equal,
+        Select,
+        GetLocal(0),
+        Const(10),
+        LessThans,
+        Select,
+      ],
     }]
   );
 }

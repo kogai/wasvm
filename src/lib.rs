@@ -150,12 +150,21 @@ impl Vm {
                         self.stack.push(StackEntry::Value(false_br));
                     }
                 }
-                Op::Lts => {
+                Op::LessThans => {
                     let right = &self.stack.pop_value().clone();
                     let left = &self.stack.pop_value().clone();
                     let cond = left.lt(right);
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
+                Op::Equal => {
+                    unimplemented!();
+                }
+                Op::NotEqual => {
+                    unimplemented!();
+                }
+                Op::GraterThans => {
+                    unimplemented!();
                 }
             };
         }
@@ -257,6 +266,11 @@ mod tests {
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(17)
     );
-    test_eval!(evaluate_if_1, "if", vec![Values::I32(3)], Values::I32(3));
-    test_eval!(evaluate_if_2, "if", vec![Values::I32(11)], Values::I32(100));
+    test_eval!(evaluate_if_1, "if", vec![Values::I32(5)], Values::I32(5));
+    test_eval!(evaluate_if_2, "if", vec![Values::I32(10)], Values::I32(10));
+    test_eval!(evaluate_if_3, "if", vec![Values::I32(15)], Values::I32(25));
+    test_eval!(evaluate_if_4, "if", vec![Values::I32(20)], Values::I32(35));
+    test_eval!(evaluate_if_5, "if", vec![Values::I32(30)], Values::I32(50));
+    test_eval!(evaluate_if_6, "if", vec![Values::I32(35)], Values::I32(60));
+    test_eval!(evaluate_if_7, "if", vec![Values::I32(40)], Values::I32(70));
 }
