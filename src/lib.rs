@@ -120,13 +120,16 @@ impl Vm {
                     self.evaluate();
                 }
                 Op::Add => {
-                    let left = self.stack.pop_value().clone();
                     let right = self.stack.pop_value().clone();
-                    let result = StackEntry::Value(left.clone() + right.clone());
+                    let left = self.stack.pop_value().clone();
+                    let result = StackEntry::Value(left + right);
                     self.stack.push(result);
                 }
                 Op::Sub => {
-                    unimplemented!();
+                    let right = self.stack.pop_value().clone();
+                    let left = self.stack.pop_value().clone();
+                    let result = StackEntry::Value(left - right);
+                    self.stack.push(result);
                 }
                 Op::Const(n) => {
                     self.stack.push(StackEntry::Value(Values::I32(*n)));
