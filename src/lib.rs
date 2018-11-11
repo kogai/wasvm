@@ -120,9 +120,15 @@ impl Vm {
                     self.evaluate();
                 }
                 Op::Add => {
-                    let left = self.stack.pop_value().clone();
                     let right = self.stack.pop_value().clone();
-                    let result = StackEntry::Value(left.clone() + right.clone());
+                    let left = self.stack.pop_value().clone();
+                    let result = StackEntry::Value(left + right);
+                    self.stack.push(result);
+                }
+                Op::Sub => {
+                    let right = self.stack.pop_value().clone();
+                    let left = self.stack.pop_value().clone();
+                    let result = StackEntry::Value(left - right);
                     self.stack.push(result);
                 }
                 Op::Const(n) => {
@@ -214,7 +220,6 @@ mod tests {
         assert_eq!(stack.pop(), Some(&StackEntry::Value(Values::I32(1))));
         assert_eq!(stack.get(2), Some(StackEntry::Value(Values::I32(2))));
     }
-
     test_eval!(evaluate_cons8, "cons8", vec![], Values::I32(42));
     test_eval!(
         evaluate_add_simple,
@@ -222,24 +227,11 @@ mod tests {
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(7)
     );
+    test_eval!(evaluate_sub, "sub", vec![Values::I32(10)], Values::I32(90));
     test_eval!(
         evaluate_add_five,
         "add_five",
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(17)
     );
-
-    //     #[test]
-    //     fn it_can_organize_modules() {
-    //         let wasm = read_wasm("./dist/constant.wasm").unwrap();
-    //         let mut vm = Vm::new(wasm);
-    //         vm.decode();
-    //         assert_eq!(
-    //             vm.module,
-    //             Module {
-    //                 types: vec![(vec![], vec![ValueType::I32])],
-    //                 func_addresses: vec![0]
-    //             }
-    //         );
-    //     }
 }

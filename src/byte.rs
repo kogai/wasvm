@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Sub};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
@@ -6,6 +6,7 @@ pub enum Op {
   GetLocal(usize),
   SetLocal(usize),
   Add,
+  Sub,
   Call(usize),
 }
 
@@ -77,6 +78,18 @@ impl Add for Values {
   }
 }
 
+impl Sub for Values {
+  type Output = Values;
+
+  fn sub(self, other: Self) -> Self {
+    use self::Values::*;
+    match (self, other) {
+      (I32(l), I32(r)) => I32(l - r),
+      // _ => unimplemented!(),
+    }
+  }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {
   SectionType,
@@ -91,6 +104,7 @@ pub enum Code {
   GetLocal,
   SetLocal,
   Add,
+  Sub,
 
   ExportDescFunctionIdx,
   ExportDescTableIdx,
@@ -116,6 +130,7 @@ impl Code {
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
       Some(0x6a) => Add,
+      Some(0x6b) => Sub,
       Some(0x10) => Call,
       Some(0x0b) => End,
       x => unreachable!("Code {:x?} does not supported yet.", x),
@@ -269,6 +284,9 @@ impl Byte {
           Code::Add => {
             expressions.push(Op::Add);
           }
+          Code::Sub => {
+            expressions.push(Op::Sub);
+          }
           Code::Call => {
             expressions.push(Op::Call(self.next()? as usize));
           }
@@ -415,6 +433,21 @@ mod tests {
       locals: vec![],
       type_idex: 0,
       body: vec![GetLocal(1), GetLocal(0), Add],
+    }]
+  );
+
+  test_decode!(
+    decode_sub,
+    "sub",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![Const(100), GetLocal(0), Sub],
     }]
   );
 
