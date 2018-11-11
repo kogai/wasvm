@@ -77,6 +77,21 @@ impl Values {
       (Values::I32(l), Values::I32(r)) => l < r,
     }
   }
+  pub fn gt(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => l > r,
+    }
+  }
+  pub fn eq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => l == r,
+    }
+  }
+  pub fn neq(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => l != r,
+    }
+  }
   pub fn is_truthy(&self) -> bool {
     match &self {
       Values::I32(n) => *n > 0,
@@ -496,8 +511,8 @@ mod tests {
   );
 
   test_decode!(
-    decode_if,
-    "if",
+    decode_if_lt,
+    "if_lt",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -508,22 +523,12 @@ mod tests {
       type_idex: 0,
       body: vec![
         GetLocal(0),
-        Const(15),
-        GetLocal(0),
         Const(10),
         Add,
-        Const(35),
+        Const(15),
         GetLocal(0),
-        Const(25),
+        Const(15),
         Add,
-        GetLocal(0),
-        Const(20),
-        Equal,
-        Select,
-        GetLocal(0),
-        Const(20),
-        GraterThans,
-        Select,
         GetLocal(0),
         Const(10),
         Equal,
@@ -532,6 +537,59 @@ mod tests {
         Const(10),
         LessThans,
         Select,
+      ],
+    }]
+  );
+  test_decode!(
+    decode_if_gt,
+    "if_gt",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![
+        GetLocal(0),
+        Const(10),
+        Add,
+        Const(15),
+        GetLocal(0),
+        Const(15),
+        Add,
+        GetLocal(0),
+        Const(10),
+        Equal,
+        Select,
+        GetLocal(0),
+        Const(10),
+        GraterThans,
+        Select,
+      ],
+    }]
+  );
+  test_decode!(
+    decode_if_eq,
+    "if_eq",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![
+        Const(5),
+        Const(10),
+        GetLocal(0),
+        Const(10),
+        Equal,
+        Select,
+        GetLocal(0),
+        Add,
       ],
     }]
   );

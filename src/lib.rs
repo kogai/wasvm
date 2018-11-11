@@ -157,14 +157,26 @@ impl Vm {
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
+                Op::GraterThans => {
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.gt(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
                 Op::Equal => {
-                    unimplemented!();
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.eq(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
                 Op::NotEqual => {
-                    unimplemented!();
-                }
-                Op::GraterThans => {
-                    unimplemented!();
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.neq(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
             };
         }
@@ -266,11 +278,54 @@ mod tests {
         vec![Values::I32(3), Values::I32(4)],
         Values::I32(17)
     );
-    test_eval!(evaluate_if_1, "if", vec![Values::I32(5)], Values::I32(5));
-    test_eval!(evaluate_if_2, "if", vec![Values::I32(10)], Values::I32(10));
-    test_eval!(evaluate_if_3, "if", vec![Values::I32(15)], Values::I32(25));
-    test_eval!(evaluate_if_4, "if", vec![Values::I32(20)], Values::I32(35));
-    test_eval!(evaluate_if_5, "if", vec![Values::I32(30)], Values::I32(50));
-    test_eval!(evaluate_if_6, "if", vec![Values::I32(35)], Values::I32(60));
-    test_eval!(evaluate_if_7, "if", vec![Values::I32(40)], Values::I32(70));
+    test_eval!(
+        evaluate_if_lt_1,
+        "if_lt",
+        vec![Values::I32(10)],
+        Values::I32(15)
+    );
+    test_eval!(
+        evaluate_if_lt_2,
+        "if_lt",
+        vec![Values::I32(9)],
+        Values::I32(19)
+    );
+    test_eval!(
+        evaluate_if_lt_3,
+        "if_lt",
+        vec![Values::I32(11)],
+        Values::I32(26)
+    );
+
+    test_eval!(
+        evaluate_if_gt_1,
+        "if_gt",
+        vec![Values::I32(10)],
+        Values::I32(15)
+    );
+    test_eval!(
+        evaluate_if_gt_2,
+        "if_gt",
+        vec![Values::I32(15)],
+        Values::I32(25)
+    );
+    test_eval!(
+        evaluate_if_gt_3,
+        "if_gt",
+        vec![Values::I32(5)],
+        Values::I32(20)
+    );
+
+    test_eval!(
+        evaluate_if_eq_1,
+        "if_eq",
+        vec![Values::I32(10)],
+        Values::I32(15)
+    );
+    test_eval!(
+        evaluate_if_eq_2,
+        "if_eq",
+        vec![Values::I32(11)],
+        Values::I32(21)
+    );
 }
