@@ -1,4 +1,4 @@
-mod byte;
+pub mod byte;
 mod utils;
 use byte::{FunctionInstance, Op, Values};
 
@@ -14,7 +14,7 @@ impl Store {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct Frame {
+pub struct Frame {
     locals: Vec<Values>,
     function_idx: usize,
     return_ptr: usize,
@@ -27,7 +27,7 @@ enum Label {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-enum StackEntry {
+pub enum StackEntry {
     Empty,
     Value(Values),
     Label(Vec<Op>),
@@ -35,7 +35,7 @@ enum StackEntry {
 }
 
 #[derive(Debug)]
-struct Stack {
+pub struct Stack {
     entries: Vec<StackEntry>,
     stack_ptr: usize, // Start from 1
     frame_ptr: Vec<usize>,
@@ -71,7 +71,7 @@ impl Stack {
     }
 
     // TODO: Return with ownership
-    fn pop(&mut self) -> Option<&StackEntry> {
+    pub fn pop(&mut self) -> Option<&StackEntry> {
         if self.stack_ptr == 0 {
             self.is_empty = true;
             None
@@ -92,7 +92,7 @@ impl Stack {
 #[derive(Debug)]
 pub struct Vm {
     store: Store,
-    stack: Stack,
+    pub stack: Stack,
 }
 
 impl Vm {
@@ -150,14 +150,14 @@ impl Vm {
                         self.stack.push(StackEntry::Value(false_br));
                     }
                 }
-                Op::LessThans => {
+                Op::LessThanSign | Op::LessThanUnsign => {
                     let right = &self.stack.pop_value().clone();
                     let left = &self.stack.pop_value().clone();
                     let cond = left.lt(right);
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
-                Op::GraterThans => {
+                Op::GreaterThanSign | Op::GreaterThanUnsign => {
                     let right = &self.stack.pop_value().clone();
                     let left = &self.stack.pop_value().clone();
                     let cond = left.gt(right);
@@ -177,6 +177,9 @@ impl Vm {
                     let cond = left.neq(right);
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
+                Op::If | Op::Else => {
+                    unimplemented!();
                 }
             };
         }

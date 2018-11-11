@@ -10,8 +10,12 @@ pub enum Op {
   Call(usize),
   Equal,
   NotEqual,
-  LessThans,
-  GraterThans,
+  LessThanSign,
+  LessThanUnsign,
+  GreaterThanSign,
+  GreaterThanUnsign,
+  If,
+  Else,
   Select,
 }
 
@@ -124,11 +128,29 @@ impl Sub for Values {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Code {
+enum SecionCode {
   SectionType,
   SectionFunction,
   SectionExport,
   SectionCode,
+}
+
+impl SecionCode {
+  fn from_byte(code: Option<u8>) -> Self {
+    use self::SecionCode::*;
+
+    match code {
+      Some(0x1) => SectionType,
+      Some(0x3) => SectionFunction,
+      Some(0x7) => SectionExport,
+      Some(0xa) => SectionCode,
+      x => unreachable!("SectionCode {:x?} does not supported yet.", x),
+    }
+  }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Code {
   ConstI32,
 
   ValueType(ValueTypes), // TODO: COnside to align 8bit
@@ -149,10 +171,13 @@ pub enum Code {
 
   Equal,
   NotEqual,
-  LessThans,
+  LessThanSign,
+  LessThanUnsign,
   // LessThanEquals,
-  GraterThans,
-  // GraterThanEquals,
+  GreaterThanSign,
+  // GreaterThanEquals,
+  If,
+  Else,
   End,
 }
 
@@ -161,24 +186,23 @@ impl Code {
     use self::Code::*;
 
     match code {
-      Some(0x1) => SectionType,
-      Some(0x3) => SectionFunction,
-      Some(0x7) => SectionExport,
-      Some(0xa) => SectionCode,
-      Some(0x7f) => ValueType(ValueTypes::I32),
-      Some(0x41) => ConstI32,
-      Some(0x60) => TypeFunction,
+      Some(0x0b) => End,
+      Some(0x1b) => Select,
+      Some(0x4) => If,
+      Some(0x5) => Else,
+      Some(0x10) => Call,
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
-      Some(0x6a) => Add,
-      Some(0x6b) => Sub,
-      Some(0x10) => Call,
+      Some(0x41) => ConstI32,
       Some(0x46) => Equal,
       Some(0x47) => NotEqual,
-      Some(0x48) => LessThans,
-      Some(0x4a) => GraterThans,
-      Some(0x1b) => Select,
-      Some(0x0b) => End,
+      Some(0x48) => LessThanSign,
+      Some(0x49) => LessThanUnsign,
+      Some(0x4a) => GreaterThanSign,
+      Some(0x60) => TypeFunction,
+      Some(0x6a) => Add,
+      Some(0x6b) => Sub,
+      Some(0x7f) => ValueType(ValueTypes::I32),
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
   }
@@ -326,9 +350,12 @@ impl Byte {
           Code::Call => expressions.push(Op::Call(self.next()? as usize)),
           Code::Equal => expressions.push(Op::Equal),
           Code::NotEqual => expressions.push(Op::NotEqual),
-          Code::LessThans => expressions.push(Op::LessThans),
-          Code::GraterThans => expressions.push(Op::GraterThans),
+          Code::LessThanSign => expressions.push(Op::LessThanSign),
+          Code::LessThanUnsign => expressions.push(Op::LessThanUnsign),
+          Code::GreaterThanSign => expressions.push(Op::GreaterThanSign),
           Code::Select => expressions.push(Op::Select),
+          Code::If => expressions.push(Op::If),
+          Code::Else => expressions.push(Op::Else),
           x => unimplemented!(
             "Code {:x?} does not supported yet. Current expressions -> {:?}",
             x,
@@ -359,20 +386,19 @@ impl Byte {
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
     while self.has_next() {
-      match Code::from_byte(self.next()) {
-        Code::SectionType => {
+      match SecionCode::from_byte(self.next()) {
+        SecionCode::SectionType => {
           function_types = self.decode_section_type()?;
         }
-        Code::SectionFunction => {
+        SecionCode::SectionFunction => {
           index_of_types = self.decode_section_function()?;
         }
-        Code::SectionExport => {
+        SecionCode::SectionExport => {
           function_key_and_indexes = self.decode_section_export()?;
         }
-        Code::SectionCode => {
+        SecionCode::SectionCode => {
           list_of_expressions = self.decode_section_code()?;
         }
-        x => unreachable!("{:?}", x),
       };
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
@@ -535,7 +561,7 @@ mod tests {
         Select,
         GetLocal(0),
         Const(10),
-        LessThans,
+        LessThanSign,
         Select,
       ],
     }]
@@ -565,7 +591,7 @@ mod tests {
         Select,
         GetLocal(0),
         Const(10),
-        GraterThans,
+        GreaterThanSign,
         Select,
       ],
     }]
