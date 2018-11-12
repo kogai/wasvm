@@ -17,6 +17,7 @@ pub enum Op {
   If,
   Else,
   Select,
+  TypeI32,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -186,11 +187,11 @@ impl Code {
     use self::Code::*;
 
     match code {
-      Some(0x0b) => End,
-      Some(0x1b) => Select,
       Some(0x4) => If,
       Some(0x5) => Else,
+      Some(0x0b) => End,
       Some(0x10) => Call,
+      Some(0x1b) => Select,
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
       Some(0x41) => ConstI32,
@@ -325,12 +326,46 @@ impl Byte {
     Some(exports)
   }
 
+  fn decode_section_code_internal(&mut self) -> Option<Vec<Op>> {
+    let mut expressions = vec![];
+    while !(Code::is_end_of_code(self.peek())) {
+      match Code::from_byte(self.next()) {
+        Code::ConstI32 => expressions.push(Op::Const(self.decode_leb128()?)),
+        // NOTE: It might be need to decode as LEB128 integer, too.
+        Code::GetLocal => expressions.push(Op::GetLocal(self.next()? as usize)),
+        Code::SetLocal => expressions.push(Op::SetLocal(self.next()? as usize)),
+        Code::Add => expressions.push(Op::Add),
+        Code::Sub => expressions.push(Op::Sub),
+        Code::Call => expressions.push(Op::Call(self.next()? as usize)),
+        Code::Equal => expressions.push(Op::Equal),
+        Code::NotEqual => expressions.push(Op::NotEqual),
+        Code::LessThanSign => expressions.push(Op::LessThanSign),
+        Code::LessThanUnsign => expressions.push(Op::LessThanUnsign),
+        Code::GreaterThanSign => expressions.push(Op::GreaterThanSign),
+        Code::Select => expressions.push(Op::Select),
+        Code::If => {
+          expressions.push(Op::If);
+          expressions.append(&mut self.decode_section_code_internal()?);
+        }
+        Code::Else => expressions.push(Op::Else),
+        Code::ValueType(ValueTypes::I32) => expressions.push(Op::TypeI32),
+        Code::End => unimplemented!(),
+        x => unimplemented!(
+          "Code {:x?} does not supported yet. Current expressions -> {:?}",
+          x,
+          expressions
+        ),
+      };
+    }
+    self.next(); // Drop End code.
+    Some(expressions)
+  }
+
   fn decode_section_code(&mut self) -> Option<Vec<(Vec<Op>, Vec<ValueTypes>)>> {
     let _bin_size_of_section = self.next()?;
     let mut codes = vec![];
     let count_of_code = self.next()?;
     for _idx_of_fn in 0..count_of_code {
-      let mut expressions = vec![];
       let _size_of_function = self.next()?;
       let count_of_locals = self.next()? as usize;
       // FIXME:
@@ -339,32 +374,7 @@ impl Byte {
         let _idx = self.next(); // NOTE: Index of local varibale type?
         locals.push(ValueTypes::from_byte(self.next()));
       }
-      while !(Code::is_end_of_code(self.peek())) {
-        match Code::from_byte(self.next()) {
-          Code::ConstI32 => expressions.push(Op::Const(self.decode_leb128()?)),
-          // NOTE: It might be need to decode as LEB128 integer, too.
-          Code::GetLocal => expressions.push(Op::GetLocal(self.next()? as usize)),
-          Code::SetLocal => expressions.push(Op::SetLocal(self.next()? as usize)),
-          Code::Add => expressions.push(Op::Add),
-          Code::Sub => expressions.push(Op::Sub),
-          Code::Call => expressions.push(Op::Call(self.next()? as usize)),
-          Code::Equal => expressions.push(Op::Equal),
-          Code::NotEqual => expressions.push(Op::NotEqual),
-          Code::LessThanSign => expressions.push(Op::LessThanSign),
-          Code::LessThanUnsign => expressions.push(Op::LessThanUnsign),
-          Code::GreaterThanSign => expressions.push(Op::GreaterThanSign),
-          Code::Select => expressions.push(Op::Select),
-          Code::If => expressions.push(Op::If),
-          Code::Else => expressions.push(Op::Else),
-          x => unimplemented!(
-            "Code {:x?} does not supported yet. Current expressions -> {:?}",
-            x,
-            expressions
-          ),
-        };
-      }
-
-      self.next(); // Drop End code.
+      let expressions = self.decode_section_code_internal()?;
       codes.push((expressions, locals));
     }
     Some(codes)
@@ -504,36 +514,16 @@ mod tests {
   test_decode!(
     decode_add_five,
     "add_five",
-    vec![
-      FunctionInstance {
-        export_name: None,
-        function_type: FunctionType {
-          parameters: vec![ValueTypes::I32],
-          returns: vec![ValueTypes::I32],
-        },
-        locals: vec![],
-        type_idex: 0,
-        body: vec![GetLocal(0), Const(5), Add],
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32, ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
       },
-      FunctionInstance {
-        export_name: Some("_subject".to_owned()),
-        function_type: FunctionType {
-          parameters: vec![ValueTypes::I32, ValueTypes::I32],
-          returns: vec![ValueTypes::I32],
-        },
-        locals: vec![ValueTypes::I32],
-        type_idex: 1,
-        body: vec![
-          GetLocal(0),
-          Call(0),
-          SetLocal(2),
-          GetLocal(1),
-          Call(0),
-          GetLocal(2),
-          Add
-        ],
-      }
-    ]
+      locals: vec![],
+      type_idex: 0,
+      body: vec![GetLocal(0), Const(10), Add, GetLocal(1), Add],
+    }]
   );
 
   test_decode!(
@@ -545,24 +535,30 @@ mod tests {
         parameters: vec![ValueTypes::I32],
         returns: vec![ValueTypes::I32],
       },
-      locals: vec![],
+      locals: vec![ValueTypes::I32],
       type_idex: 0,
       body: vec![
         GetLocal(0),
         Const(10),
+        LessThanSign,
+        If,
+        TypeI32,
+        GetLocal(0),
+        Const(10),
         Add,
-        Const(15),
+        Else,
         GetLocal(0),
         Const(15),
         Add,
+        SetLocal(1),
         GetLocal(0),
         Const(10),
         Equal,
-        Select,
-        GetLocal(0),
-        Const(10),
-        LessThanSign,
-        Select,
+        If,
+        TypeI32,
+        Const(15),
+        Else,
+        GetLocal(1),
       ],
     }]
   );
@@ -575,24 +571,30 @@ mod tests {
         parameters: vec![ValueTypes::I32],
         returns: vec![ValueTypes::I32],
       },
-      locals: vec![],
+      locals: vec![ValueTypes::I32],
       type_idex: 0,
       body: vec![
         GetLocal(0),
         Const(10),
+        GreaterThanSign,
+        If,
+        TypeI32,
+        GetLocal(0),
+        Const(10),
         Add,
-        Const(15),
+        Else,
         GetLocal(0),
         Const(15),
         Add,
+        SetLocal(1),
         GetLocal(0),
         Const(10),
         Equal,
-        Select,
-        GetLocal(0),
-        Const(10),
-        GreaterThanSign,
-        Select,
+        If,
+        TypeI32,
+        Const(15),
+        Else,
+        GetLocal(1),
       ],
     }]
   );
@@ -608,12 +610,14 @@ mod tests {
       locals: vec![],
       type_idex: 0,
       body: vec![
-        Const(5),
-        Const(10),
         GetLocal(0),
         Const(10),
         Equal,
-        Select,
+        If,
+        TypeI32,
+        Const(5),
+        Else,
+        Const(10),
         GetLocal(0),
         Add,
       ],

@@ -178,7 +178,7 @@ impl Vm {
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
-                Op::If | Op::Else => {
+                Op::If | Op::Else | Op::TypeI32 => {
                     unimplemented!();
                 }
             };
