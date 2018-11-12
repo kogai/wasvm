@@ -18,6 +18,7 @@ pub enum Op {
   Else,
   Select,
   TypeI32,
+  End,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -349,7 +350,6 @@ impl Byte {
         }
         Code::Else => expressions.push(Op::Else),
         Code::ValueType(ValueTypes::I32) => expressions.push(Op::TypeI32),
-        Code::End => unimplemented!(),
         x => unimplemented!(
           "Code {:x?} does not supported yet. Current expressions -> {:?}",
           x,
@@ -358,6 +358,7 @@ impl Byte {
       };
     }
     self.next(); // Drop End code.
+    expressions.push(Op::End);
     Some(expressions)
   }
 
@@ -374,7 +375,8 @@ impl Byte {
         let _idx = self.next(); // NOTE: Index of local varibale type?
         locals.push(ValueTypes::from_byte(self.next()));
       }
-      let expressions = self.decode_section_code_internal()?;
+      let mut expressions = self.decode_section_code_internal()?;
+      expressions.pop(); // Drop redundant End code.
       codes.push((expressions, locals));
     }
     Some(codes)
@@ -559,6 +561,8 @@ mod tests {
         Const(15),
         Else,
         GetLocal(1),
+        End,
+        End,
       ],
     }]
   );
@@ -595,6 +599,8 @@ mod tests {
         Const(15),
         Else,
         GetLocal(1),
+        End,
+        End,
       ],
     }]
   );
@@ -618,6 +624,7 @@ mod tests {
         Const(5),
         Else,
         Const(10),
+        End,
         GetLocal(0),
         Add,
       ],

@@ -21,16 +21,58 @@ pub struct Frame {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-enum Label {
-    Body,
-    If,
+pub enum Label {
+    Body(Vec<Op>),
+    If(Vec<Op>, Vec<Op>),
+}
+
+impl Label {
+    fn is_end(x: Option<&Op>) -> bool {
+        match x {
+            Some(Op::End) => true,
+            _ => false,
+        }
+    }
+
+    fn from_expressions(ops: Vec<Op>) -> Vec<Self> {
+        let mut idx = 0;
+        let mut labels: Vec<Self> = vec![];
+        let mut expressions = vec![];
+        while !(idx >= ops.len()) {
+            let op = ops.get(idx).expect("Index of operations out of range");
+            idx += 1;
+            if let Op::If = op {
+                let mut if_expressions = vec![];
+                let mut else_expressions = vec![];
+                let mut is_if_instructions = true;
+                while !Label::is_end(ops.get(idx + 1)) {
+                    let op = ops.get(idx).expect("Index of operations out of range");
+                    idx += 1;
+                    is_if_instructions = is_if_instructions && match op {
+                        Op::Else => false,
+                        _ => true,
+                    };
+                    if is_if_instructions {
+                        if_expressions.push(op.to_owned());
+                    } else {
+                        else_expressions.push(op.to_owned());
+                    }
+                }
+                labels.push(Label::If(if_expressions, else_expressions));
+            } else {
+                expressions.push(op.to_owned());
+            }
+        }
+        labels.push(Label::Body(expressions));
+        labels
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum StackEntry {
     Empty,
     Value(Values),
-    Label(Vec<Op>),
+    Label(Label),
     Frame(Frame),
 }
 
@@ -178,7 +220,7 @@ impl Vm {
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
-                Op::If | Op::Else | Op::TypeI32 => {
+                Op::If | Op::Else | Op::TypeI32 | Op::End => {
                     unimplemented!();
                 }
             };
@@ -208,9 +250,14 @@ impl Vm {
                     result = Some(StackEntry::Value(v));
                     break;
                 }
-                Some(StackEntry::Label(expressions)) => {
-                    self.evaluate_instructions(expressions);
-                }
+                Some(StackEntry::Label(label)) => match label {
+                    Label::Body(expressions) => {
+                        self.evaluate_instructions(expressions);
+                    }
+                    Label::If(ops1, ops2) => {
+                        unimplemented!();
+                    }
+                },
                 Some(StackEntry::Frame(frame)) => {
                     let _offset = frame.locals.len();
                     self.stack.frame_ptr.push(frame.return_ptr);
@@ -220,9 +267,12 @@ impl Vm {
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    let label = StackEntry::Label(expressions);
-                    self.stack.increase(locals.len());
-                    self.stack.push(label);
+                    for label in Label::from_expressions(expressions).into_iter() {
+                        println!("{:?}", label);
+                        let label = StackEntry::Label(label);
+                        self.stack.increase(locals.len());
+                        self.stack.push(label);
+                    }
                 }
                 Some(StackEntry::Empty) | None => unreachable!("Invalid popping stack."),
             }
