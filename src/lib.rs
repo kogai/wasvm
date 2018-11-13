@@ -1,6 +1,8 @@
 pub mod byte;
 mod utils;
 use byte::{FunctionInstance, Op, Values};
+use std::collections::LinkedList;
+use std::iter::FromIterator;
 
 #[derive(Debug, PartialEq)]
 struct Store {
@@ -22,88 +24,87 @@ pub struct Frame {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Ops {
-    body: Vec<Op>,
+    body: LinkedList<Op>,
     ptr: usize,
 }
 
 impl Ops {
     fn new(body: Vec<Op>) -> Self {
-        println!("{:?}", body);
-        Ops { body, ptr: 0 }
+        Ops {
+            body: LinkedList::from_iter(body.into_iter()),
+            ptr: 0,
+        }
     }
 
     fn is_next_end(&self) -> bool {
-        self.body.len() == self.ptr + 1
+        self.body.is_empty()
     }
 
     fn is_next_stop(&self) -> bool {
-        if self.is_next_end() {
-            return true;
-        }
-        match self.body.get(self.ptr + 1) {
+        self.is_next_end() || match self.peek() {
             Some(Op::End) | Some(Op::Else) | Some(Op::If) => true,
             _ => false,
         }
     }
 
-    fn pop_next(&mut self) -> Op {
-        let op = self
-            .body
-            .get(self.ptr)
-            .expect("Index of operations out of range");
-        self.ptr += 1;
-        op.clone()
+    fn peek(&self) -> Option<&Op> {
+        self.body.front()
     }
 
-    fn collect_ops_internal(&mut self) -> Vec<Op> {
+    fn pop_next(&mut self) -> Op {
+        self.body
+            .pop_front()
+            .expect("Index of operations out of range")
+            .clone()
+    }
+
+    fn collect_ops_internal(&mut self) -> Label {
         let mut expressions: Vec<Op> = vec![];
         while !self.is_next_stop() {
             expressions.push(self.pop_next());
         }
-        if self.is_next_end() {
-            expressions
-        } else {
-            self.pop_next();
-            expressions
-        }
-    }
-
-    fn collect_ops(&mut self) -> Vec<Label> {
-        let mut labels = vec![];
-        let expressions = self.collect_ops_internal();
-        let label = match self.pop_next() {
-            Op::End => Label::Body(expressions),
-            Op::If => {
-                let if_clause = self.collect_ops_internal();
+        println!("{:?} {:?}", expressions, &self.peek());
+        match &self.peek().cloned() {
+            Some(Op::If) => {
                 self.pop_next();
-                let else_clause = self.collect_ops_internal();
-                if else_clause.len() == 0 {
-                    Label::If(if_clause, None)
-                } else {
-                    Label::If(if_clause, Some(else_clause))
-                }
+                Label::Body(expressions)
             }
+            Some(Op::Else) => {
+                self.pop_next();
+                // Label::If(expressions)
+                unimplemented!();
+            }
+            Some(Op::End) => {
+                unimplemented!();
+            }
+            None => Label::Body(expressions),
             x => unreachable!(
                 "Unexpected operation [{:?}] poopped.\n{:?}",
                 x, &expressions
             ),
-        };
-        labels.push(label);
-        println!("{:?}", labels);
-        if self.is_next_stop() {
-            labels
-        } else {
-            let mut more_labels = self.collect_ops();
-            labels.append(&mut more_labels);
-            labels
         }
+        // if self.is_next_end() {
+        //     Label::Body(expressions)
+        // } else {
+        //     unimplemented!();
+        //     // expressions
+        // }
+    }
+
+    fn collect_ops(&mut self) -> Vec<Label> {
+        let mut labels = vec![];
+        while !self.is_next_end() {
+            let label = self.collect_ops_internal();
+            labels.push(label);
+        }
+        labels
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Label {
     Body(Vec<Op>),
-    If(Vec<Op>, Option<Vec<Op>>),
+    If(Box<Label>, Option<Box<Label>>),
 }
 
 impl Label {
@@ -337,9 +338,11 @@ impl Vm {
                         // self.evaluate_instructions(expressions);
                         unimplemented!();
                     }
-                    Label::If(ops1, ops2) => {
+                    Label::If(_iops1, _ops2) => {
                         unimplemented!();
-                    }
+                    } // Label::Else(ops1) => {
+                      //     unimplemented!();
+                      // }
                 },
                 Some(StackEntry::Frame(frame)) => {
                     let _offset = frame.locals.len();
