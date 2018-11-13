@@ -21,9 +21,89 @@ pub struct Frame {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct Ops {
+    body: Vec<Op>,
+    ptr: usize,
+}
+
+impl Ops {
+    fn new(body: Vec<Op>) -> Self {
+        println!("{:?}", body);
+        Ops { body, ptr: 0 }
+    }
+
+    fn is_next_end(&self) -> bool {
+        self.body.len() == self.ptr + 1
+    }
+
+    fn is_next_stop(&self) -> bool {
+        if self.is_next_end() {
+            return true;
+        }
+        match self.body.get(self.ptr + 1) {
+            Some(Op::End) | Some(Op::Else) | Some(Op::If) => true,
+            _ => false,
+        }
+    }
+
+    fn pop_next(&mut self) -> Op {
+        let op = self
+            .body
+            .get(self.ptr)
+            .expect("Index of operations out of range");
+        self.ptr += 1;
+        op.clone()
+    }
+
+    fn collect_ops_internal(&mut self) -> Vec<Op> {
+        let mut expressions: Vec<Op> = vec![];
+        while !self.is_next_stop() {
+            expressions.push(self.pop_next());
+        }
+        if self.is_next_end() {
+            expressions
+        } else {
+            self.pop_next();
+            expressions
+        }
+    }
+
+    fn collect_ops(&mut self) -> Vec<Label> {
+        let mut labels = vec![];
+        let expressions = self.collect_ops_internal();
+        let label = match self.pop_next() {
+            Op::End => Label::Body(expressions),
+            Op::If => {
+                let if_clause = self.collect_ops_internal();
+                self.pop_next();
+                let else_clause = self.collect_ops_internal();
+                if else_clause.len() == 0 {
+                    Label::If(if_clause, None)
+                } else {
+                    Label::If(if_clause, Some(else_clause))
+                }
+            }
+            x => unreachable!(
+                "Unexpected operation [{:?}] poopped.\n{:?}",
+                x, &expressions
+            ),
+        };
+        labels.push(label);
+        println!("{:?}", labels);
+        if self.is_next_stop() {
+            labels
+        } else {
+            let mut more_labels = self.collect_ops();
+            labels.append(&mut more_labels);
+            labels
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Label {
     Body(Vec<Op>),
-    If(Vec<Op>, Vec<Op>),
+    If(Vec<Op>, Option<Vec<Op>>),
 }
 
 impl Label {
@@ -35,36 +115,38 @@ impl Label {
     }
 
     fn from_expressions(ops: Vec<Op>) -> Vec<Self> {
-        let mut idx = 0;
-        let mut labels: Vec<Self> = vec![];
-        let mut expressions = vec![];
-        while !(idx >= ops.len()) {
-            let op = ops.get(idx).expect("Index of operations out of range");
-            idx += 1;
-            if let Op::If = op {
-                let mut if_expressions = vec![];
-                let mut else_expressions = vec![];
-                let mut is_if_instructions = true;
-                while !Label::is_end(ops.get(idx + 1)) {
-                    let op = ops.get(idx).expect("Index of operations out of range");
-                    idx += 1;
-                    is_if_instructions = is_if_instructions && match op {
-                        Op::Else => false,
-                        _ => true,
-                    };
-                    if is_if_instructions {
-                        if_expressions.push(op.to_owned());
-                    } else {
-                        else_expressions.push(op.to_owned());
-                    }
-                }
-                labels.push(Label::If(if_expressions, else_expressions));
-            } else {
-                expressions.push(op.to_owned());
-            }
-        }
-        labels.push(Label::Body(expressions));
-        labels
+        // let mut idx = 0;
+        // let mut labels: Vec<Self> = vec![];
+        // let mut expressions = vec![];
+        // while !(idx >= ops.len()) {
+        //     let op = ops.get(idx).expect("Index of operations out of range");
+        //     idx += 1;
+        //     if let Op::If = op {
+        //         let mut if_expressions = vec![];
+        //         let mut else_expressions = vec![];
+        //         let mut is_if_instructions = true;
+        //         while !Label::is_end(ops.get(idx + 1)) {
+        //             let op = ops.get(idx).expect("Index of operations out of range");
+        //             idx += 1;
+        //             is_if_instructions = is_if_instructions && match op {
+        //                 Op::Else => false,
+        //                 _ => true,
+        //             };
+        //             if is_if_instructions {
+        //                 if_expressions.push(op.to_owned());
+        //             } else {
+        //                 else_expressions.push(op.to_owned());
+        //             }
+        //         }
+        //         println!("{:?}", else_expressions);
+        //         labels.push(Label::If(if_expressions, else_expressions));
+        //     } else {
+        //         expressions.push(op.to_owned());
+        //     }
+        // }
+        // labels.push(Label::Body(expressions));
+        // labels
+        unimplemented!();
     }
 }
 
@@ -252,7 +334,8 @@ impl Vm {
                 }
                 Some(StackEntry::Label(label)) => match label {
                     Label::Body(expressions) => {
-                        self.evaluate_instructions(expressions);
+                        // self.evaluate_instructions(expressions);
+                        unimplemented!();
                     }
                     Label::If(ops1, ops2) => {
                         unimplemented!();
@@ -267,7 +350,9 @@ impl Vm {
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    for label in Label::from_expressions(expressions).into_iter() {
+                    let mut ops = Ops::new(expressions);
+                    let labels = ops.collect_ops();
+                    for label in labels.into_iter() {
                         println!("{:?}", label);
                         let label = StackEntry::Label(label);
                         self.stack.increase(locals.len());
