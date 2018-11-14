@@ -14,11 +14,10 @@ pub enum Op {
   LessThanUnsign,
   GreaterThanSign,
   GreaterThanUnsign,
-  If,
-  Else,
+  If(Vec<Op>),
+  Else(Vec<Op>),
   Select,
   TypeI32,
-  End,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -211,6 +210,7 @@ impl Code {
 
   fn is_end_of_code(code: Option<u8>) -> bool {
     match code {
+      // Some(0x4) | Some(0x5) | Some(0x0b) => true,
       Some(0x0b) => true,
       _ => false,
     }
@@ -345,10 +345,19 @@ impl Byte {
         Code::GreaterThanSign => expressions.push(Op::GreaterThanSign),
         Code::Select => expressions.push(Op::Select),
         Code::If => {
-          expressions.push(Op::If);
-          expressions.append(&mut self.decode_section_code_internal()?);
+          let if_insts = self.decode_section_code_internal()?;
+          let else_insts = self.decode_section_code_internal()?;
+          expressions.push(Op::If(if_insts));
+          if !else_insts.is_empty() {
+            expressions.push(Op::Else(else_insts));
+          }
         }
-        Code::Else => expressions.push(Op::Else),
+        Code::Else => {
+          return Some(expressions);
+        }
+        Code::End => {
+          return Some(expressions);
+        }
         Code::ValueType(ValueTypes::I32) => expressions.push(Op::TypeI32),
         x => unimplemented!(
           "Code {:x?} does not supported yet. Current expressions -> {:?}",
@@ -358,7 +367,6 @@ impl Byte {
       };
     }
     self.next(); // Drop End code.
-    expressions.push(Op::End);
     Some(expressions)
   }
 
@@ -376,7 +384,6 @@ impl Byte {
         locals.push(ValueTypes::from_byte(self.next()));
       }
       let mut expressions = self.decode_section_code_internal()?;
-      expressions.pop(); // Drop redundant End code.
       codes.push((expressions, locals));
     }
     Some(codes)
@@ -543,26 +550,18 @@ mod tests {
         GetLocal(0),
         Const(10),
         LessThanSign,
-        If,
-        TypeI32,
-        GetLocal(0),
-        Const(10),
-        Add,
-        Else,
-        GetLocal(0),
-        Const(15),
-        Add,
-        SetLocal(1),
-        GetLocal(0),
-        Const(10),
-        Equal,
-        If,
-        TypeI32,
-        Const(15),
-        Else,
-        GetLocal(1),
-        End,
-        End,
+        If(vec![TypeI32, GetLocal(0), Const(10), Add,]),
+        Else(vec![
+          GetLocal(0),
+          Const(15),
+          Add,
+          SetLocal(1),
+          GetLocal(0),
+          Const(10),
+          Equal,
+          If(vec![TypeI32, Const(15),]),
+          Else(vec![GetLocal(1),]),
+        ]),
       ],
     }]
   );
@@ -581,26 +580,18 @@ mod tests {
         GetLocal(0),
         Const(10),
         GreaterThanSign,
-        If,
-        TypeI32,
-        GetLocal(0),
-        Const(10),
-        Add,
-        Else,
-        GetLocal(0),
-        Const(15),
-        Add,
-        SetLocal(1),
-        GetLocal(0),
-        Const(10),
-        Equal,
-        If,
-        TypeI32,
-        Const(15),
-        Else,
-        GetLocal(1),
-        End,
-        End,
+        If(vec![TypeI32, GetLocal(0), Const(10), Add,]),
+        Else(vec![
+          GetLocal(0),
+          Const(15),
+          Add,
+          SetLocal(1),
+          GetLocal(0),
+          Const(10),
+          Equal,
+          If(vec![TypeI32, Const(15),]),
+          Else(vec![GetLocal(1),]),
+        ]),
       ],
     }]
   );
@@ -619,12 +610,8 @@ mod tests {
         GetLocal(0),
         Const(10),
         Equal,
-        If,
-        TypeI32,
-        Const(5),
-        Else,
-        Const(10),
-        End,
+        If(vec![TypeI32, Const(5),]),
+        Else(vec![Const(10),]),
         GetLocal(0),
         Add,
       ],

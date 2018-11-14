@@ -1,8 +1,8 @@
 pub mod byte;
 mod utils;
 use byte::{FunctionInstance, Op, Values};
-use std::collections::LinkedList;
-use std::iter::FromIterator;
+// use std::collections::LinkedList;
+// use std::iter::FromIterator;
 
 #[derive(Debug, PartialEq)]
 struct Store {
@@ -23,139 +23,10 @@ pub struct Frame {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Ops {
-    body: LinkedList<Op>,
-    ptr: usize,
-}
-
-impl Ops {
-    fn new(body: Vec<Op>) -> Self {
-        Ops {
-            body: LinkedList::from_iter(body.into_iter()),
-            ptr: 0,
-        }
-    }
-
-    fn is_next_end(&self) -> bool {
-        self.body.is_empty()
-    }
-
-    fn is_next_stop(&self) -> bool {
-        self.is_next_end() || match self.peek() {
-            Some(Op::End) | Some(Op::Else) | Some(Op::If) => true,
-            _ => false,
-        }
-    }
-
-    fn peek(&self) -> Option<&Op> {
-        self.body.front()
-    }
-
-    fn pop_next(&mut self) -> Op {
-        self.body
-            .pop_front()
-            .expect("Index of operations out of range")
-            .clone()
-    }
-
-    fn collect_ops_internal(&mut self) -> Label {
-        let mut expressions: Vec<Op> = vec![];
-        while !self.is_next_stop() {
-            expressions.push(self.pop_next());
-        }
-        println!("{:?} {:?}", expressions, &self.peek());
-        match &self.peek().cloned() {
-            Some(Op::If) => {
-                self.pop_next();
-                Label::Body(expressions)
-            }
-            Some(Op::Else) => {
-                self.pop_next();
-                // Label::If(expressions)
-                unimplemented!();
-            }
-            Some(Op::End) => {
-                unimplemented!();
-            }
-            None => Label::Body(expressions),
-            x => unreachable!(
-                "Unexpected operation [{:?}] poopped.\n{:?}",
-                x, &expressions
-            ),
-        }
-        // if self.is_next_end() {
-        //     Label::Body(expressions)
-        // } else {
-        //     unimplemented!();
-        //     // expressions
-        // }
-    }
-
-    fn collect_ops(&mut self) -> Vec<Label> {
-        let mut labels = vec![];
-        while !self.is_next_end() {
-            let label = self.collect_ops_internal();
-            labels.push(label);
-        }
-        labels
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Label {
-    Body(Vec<Op>),
-    If(Box<Label>, Option<Box<Label>>),
-}
-
-impl Label {
-    fn is_end(x: Option<&Op>) -> bool {
-        match x {
-            Some(Op::End) => true,
-            _ => false,
-        }
-    }
-
-    fn from_expressions(ops: Vec<Op>) -> Vec<Self> {
-        // let mut idx = 0;
-        // let mut labels: Vec<Self> = vec![];
-        // let mut expressions = vec![];
-        // while !(idx >= ops.len()) {
-        //     let op = ops.get(idx).expect("Index of operations out of range");
-        //     idx += 1;
-        //     if let Op::If = op {
-        //         let mut if_expressions = vec![];
-        //         let mut else_expressions = vec![];
-        //         let mut is_if_instructions = true;
-        //         while !Label::is_end(ops.get(idx + 1)) {
-        //             let op = ops.get(idx).expect("Index of operations out of range");
-        //             idx += 1;
-        //             is_if_instructions = is_if_instructions && match op {
-        //                 Op::Else => false,
-        //                 _ => true,
-        //             };
-        //             if is_if_instructions {
-        //                 if_expressions.push(op.to_owned());
-        //             } else {
-        //                 else_expressions.push(op.to_owned());
-        //             }
-        //         }
-        //         println!("{:?}", else_expressions);
-        //         labels.push(Label::If(if_expressions, else_expressions));
-        //     } else {
-        //         expressions.push(op.to_owned());
-        //     }
-        // }
-        // labels.push(Label::Body(expressions));
-        // labels
-        unimplemented!();
-    }
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub enum StackEntry {
     Empty,
     Value(Values),
-    Label(Label),
+    Label(Vec<Op>),
     Frame(Frame),
 }
 
@@ -303,7 +174,14 @@ impl Vm {
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
-                Op::If | Op::Else | Op::TypeI32 | Op::End => {
+                Op::If(_ops) => {
+                    unimplemented!();
+                }
+                Op::Else(_ops) => {
+                    unimplemented!();
+                }
+                // Op::If | Op::Else | Op::TypeI32 | Op::End => {
+                Op::TypeI32 => {
                     unimplemented!();
                 }
             };
@@ -333,17 +211,19 @@ impl Vm {
                     result = Some(StackEntry::Value(v));
                     break;
                 }
-                Some(StackEntry::Label(label)) => match label {
-                    Label::Body(expressions) => {
-                        // self.evaluate_instructions(expressions);
-                        unimplemented!();
-                    }
-                    Label::If(_iops1, _ops2) => {
-                        unimplemented!();
-                    } // Label::Else(ops1) => {
-                      //     unimplemented!();
-                      // }
-                },
+                Some(StackEntry::Label(label)) => {
+                    // match label {
+                    unimplemented!();
+                    // Label::Body(expressions) => {
+                    //     // self.evaluate_instructions(expressions);
+                    //     unimplemented!();
+                    // }
+                    // Label::If(_iops1, _ops2) => {
+                    //     unimplemented!();
+                    // } // Label::Else(ops1) => {
+                    // }
+                    // };
+                }
                 Some(StackEntry::Frame(frame)) => {
                     let _offset = frame.locals.len();
                     self.stack.frame_ptr.push(frame.return_ptr);
@@ -353,14 +233,15 @@ impl Vm {
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    let mut ops = Ops::new(expressions);
-                    let labels = ops.collect_ops();
-                    for label in labels.into_iter() {
-                        println!("{:?}", label);
-                        let label = StackEntry::Label(label);
-                        self.stack.increase(locals.len());
-                        self.stack.push(label);
-                    }
+                    // let mut ops = Ops::new(expressions);
+                    // let labels = ops.collect_ops();
+                    // for label in labels.into_iter() {
+                    //     println!("{:?}", label);
+                    //     let label = StackEntry::Label(label);
+                    //     self.stack.increase(locals.len());
+                    //     self.stack.push(label);
+                    // }
+                    unimplemented!();
                 }
                 Some(StackEntry::Empty) | None => unreachable!("Invalid popping stack."),
             }
