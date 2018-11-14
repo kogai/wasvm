@@ -14,8 +14,7 @@ pub enum Op {
   LessThanUnsign,
   GreaterThanSign,
   GreaterThanUnsign,
-  If(Vec<Op>),
-  Else(Vec<Op>),
+  If(Vec<Op>, Option<Vec<Op>>),
   Select,
   TypeI32,
 }
@@ -347,10 +346,14 @@ impl Byte {
         Code::If => {
           let if_insts = self.decode_section_code_internal()?;
           let else_insts = self.decode_section_code_internal()?;
-          expressions.push(Op::If(if_insts));
-          if !else_insts.is_empty() {
-            expressions.push(Op::Else(else_insts));
-          }
+          expressions.push(Op::If(
+            if_insts,
+            if else_insts.is_empty() {
+              None
+            } else {
+              Some(else_insts)
+            },
+          ));
         }
         Code::Else => {
           return Some(expressions);
@@ -550,18 +553,19 @@ mod tests {
         GetLocal(0),
         Const(10),
         LessThanSign,
-        If(vec![TypeI32, GetLocal(0), Const(10), Add,]),
-        Else(vec![
-          GetLocal(0),
-          Const(15),
-          Add,
-          SetLocal(1),
-          GetLocal(0),
-          Const(10),
-          Equal,
-          If(vec![TypeI32, Const(15),]),
-          Else(vec![GetLocal(1),]),
-        ]),
+        If(
+          vec![TypeI32, GetLocal(0), Const(10), Add,],
+          Some(vec![
+            GetLocal(0),
+            Const(15),
+            Add,
+            SetLocal(1),
+            GetLocal(0),
+            Const(10),
+            Equal,
+            If(vec![TypeI32, Const(15),], Some(vec![GetLocal(1),])),
+          ])
+        ),
       ],
     }]
   );
@@ -580,18 +584,19 @@ mod tests {
         GetLocal(0),
         Const(10),
         GreaterThanSign,
-        If(vec![TypeI32, GetLocal(0), Const(10), Add,]),
-        Else(vec![
-          GetLocal(0),
-          Const(15),
-          Add,
-          SetLocal(1),
-          GetLocal(0),
-          Const(10),
-          Equal,
-          If(vec![TypeI32, Const(15),]),
-          Else(vec![GetLocal(1),]),
-        ]),
+        If(
+          vec![TypeI32, GetLocal(0), Const(10), Add,],
+          Some(vec![
+            GetLocal(0),
+            Const(15),
+            Add,
+            SetLocal(1),
+            GetLocal(0),
+            Const(10),
+            Equal,
+            If(vec![TypeI32, Const(15),], Some(vec![GetLocal(1),])),
+          ])
+        ),
       ],
     }]
   );
@@ -610,8 +615,7 @@ mod tests {
         GetLocal(0),
         Const(10),
         Equal,
-        If(vec![TypeI32, Const(5),]),
-        Else(vec![Const(10),]),
+        If(vec![TypeI32, Const(5)], Some(vec![Const(10),])),
         GetLocal(0),
         Add,
       ],

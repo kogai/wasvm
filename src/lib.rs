@@ -103,7 +103,7 @@ impl Vm {
         }
     }
 
-    fn evaluate_instructions(&mut self, expressions: Vec<Op>) -> Option<()> {
+    fn evaluate_instructions(&mut self, expressions: &Vec<Op>) -> Option<()> {
         for expression in expressions.iter() {
             match expression {
                 Op::GetLocal(idx) => {
@@ -174,18 +174,25 @@ impl Vm {
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
-                Op::If(_ops) => {
-                    unimplemented!();
+                Op::If(if_ops, else_ops) => {
+                    let cond = &self.stack.pop_value().clone();
+                    let (_return_type, if_insts) = if_ops.split_first()?;
+                    if cond.is_truthy() {
+                        self.evaluate_instructions(&if_insts.to_vec());
+                    } else {
+                        if let Some(ops) = else_ops {
+                            self.evaluate_instructions(ops);
+                        }
+                    }
                 }
-                Op::Else(_ops) => {
-                    unimplemented!();
-                }
-                // Op::If | Op::Else | Op::TypeI32 | Op::End => {
-                Op::TypeI32 => {
-                    unimplemented!();
-                }
+                Op::TypeI32 => unreachable!(),
             };
         }
+        Some(())
+    }
+
+    fn evaluate_frame(&mut self, instructions: &Vec<Op>) -> Option<()> {
+        let _ = self.evaluate_instructions(instructions);
         let return_value = self.stack.pop_value().to_owned();
         let frame_ptr = self.stack.frame_ptr.pop().map(|f| f.to_owned())?;
         self.stack.stack_ptr = frame_ptr;
@@ -211,18 +218,8 @@ impl Vm {
                     result = Some(StackEntry::Value(v));
                     break;
                 }
-                Some(StackEntry::Label(label)) => {
-                    // match label {
-                    unimplemented!();
-                    // Label::Body(expressions) => {
-                    //     // self.evaluate_instructions(expressions);
-                    //     unimplemented!();
-                    // }
-                    // Label::If(_iops1, _ops2) => {
-                    //     unimplemented!();
-                    // } // Label::Else(ops1) => {
-                    // }
-                    // };
+                Some(StackEntry::Label(expressions)) => {
+                    self.evaluate_frame(&expressions);
                 }
                 Some(StackEntry::Frame(frame)) => {
                     let _offset = frame.locals.len();
@@ -233,15 +230,9 @@ impl Vm {
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    // let mut ops = Ops::new(expressions);
-                    // let labels = ops.collect_ops();
-                    // for label in labels.into_iter() {
-                    //     println!("{:?}", label);
-                    //     let label = StackEntry::Label(label);
-                    //     self.stack.increase(locals.len());
-                    //     self.stack.push(label);
-                    // }
-                    unimplemented!();
+                    let label = StackEntry::Label(expressions);
+                    self.stack.increase(locals.len());
+                    self.stack.push(label);
                 }
                 Some(StackEntry::Empty) | None => unreachable!("Invalid popping stack."),
             }
