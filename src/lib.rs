@@ -180,8 +180,8 @@ impl Vm {
                     if cond.is_truthy() {
                         self.evaluate_instructions(&if_insts.to_vec());
                     } else {
-                        if let Some(ops) = else_ops {
-                            self.evaluate_instructions(ops);
+                        if !else_ops.is_empty() {
+                            self.evaluate_instructions(else_ops);
                         }
                     }
                 }

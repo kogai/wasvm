@@ -14,7 +14,7 @@ pub enum Op {
   LessThanUnsign,
   GreaterThanSign,
   GreaterThanUnsign,
-  If(Vec<Op>, Option<Vec<Op>>),
+  If(Vec<Op>, Vec<Op>),
   Select,
   TypeI32,
 }
@@ -555,7 +555,7 @@ mod tests {
         LessThanSign,
         If(
           vec![TypeI32, GetLocal(0), Const(10), Add,],
-          Some(vec![
+          vec![
             GetLocal(0),
             Const(15),
             Add,
@@ -563,8 +563,8 @@ mod tests {
             GetLocal(0),
             Const(10),
             Equal,
-            If(vec![TypeI32, Const(15),], Some(vec![GetLocal(1),])),
-          ])
+            If(vec![TypeI32, Const(15),], vec![GetLocal(1)]),
+          ]
         ),
       ],
     }]
@@ -586,7 +586,7 @@ mod tests {
         GreaterThanSign,
         If(
           vec![TypeI32, GetLocal(0), Const(10), Add,],
-          Some(vec![
+          vec![
             GetLocal(0),
             Const(15),
             Add,
@@ -594,8 +594,8 @@ mod tests {
             GetLocal(0),
             Const(10),
             Equal,
-            If(vec![TypeI32, Const(15),], Some(vec![GetLocal(1),])),
-          ])
+            If(vec![TypeI32, Const(15)], vec![GetLocal(1)]),
+          ]
         ),
       ],
     }]
@@ -615,8 +615,49 @@ mod tests {
         GetLocal(0),
         Const(10),
         Equal,
-        If(vec![TypeI32, Const(5)], Some(vec![Const(10),])),
+        If(vec![TypeI32, Const(5)], vec![Const(10)]),
         GetLocal(0),
+        Add,
+      ],
+    }]
+  );
+  test_decode!(
+    decode_count,
+    "count",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![ValueTypes::I32],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![ValueTypes::I32],
+      type_idex: 0,
+      body: vec![
+        GetLocal(0),
+        Const(0),
+        If(vec![Const(0), Return], vec![]),
+        GetLocal(0),
+        Const(-1),
+        Add,
+        TeeLocal(1),
+        GetLocal(0),
+        Const(-1),
+        Add,
+        I32Mul,
+        GetLocal(0),
+        Add,
+        GetLocal(1),
+        I64ExtendUnsignI32
+        GetLocal(0),
+        Const(-2),
+        Add,
+        I64ExtendUnsignI32
+        I64Mul,
+        I64Const(8589934591),
+        I64And,
+        I64Const(1),
+        I64ShiftRightUnsign,
+        I32WrapI64,
         Add,
       ],
     }]
