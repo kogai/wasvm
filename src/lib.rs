@@ -1,6 +1,8 @@
 pub mod byte;
 mod utils;
 use byte::{FunctionInstance, Op, Values};
+// use std::collections::LinkedList;
+// use std::iter::FromIterator;
 
 #[derive(Debug, PartialEq)]
 struct Store {
@@ -18,12 +20,6 @@ pub struct Frame {
     locals: Vec<Values>,
     function_idx: usize,
     return_ptr: usize,
-}
-
-#[derive(Debug, PartialEq, Clone)]
-enum Label {
-    Body,
-    If,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -107,7 +103,7 @@ impl Vm {
         }
     }
 
-    fn evaluate_instructions(&mut self, expressions: Vec<Op>) -> Option<()> {
+    fn evaluate_instructions(&mut self, expressions: &Vec<Op>) -> Option<()> {
         for expression in expressions.iter() {
             match expression {
                 Op::GetLocal(idx) => {
@@ -178,11 +174,25 @@ impl Vm {
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
-                Op::If | Op::Else => {
-                    unimplemented!();
+                Op::If(if_ops, else_ops) => {
+                    let cond = &self.stack.pop_value().clone();
+                    let (_return_type, if_insts) = if_ops.split_first()?;
+                    if cond.is_truthy() {
+                        self.evaluate_instructions(&if_insts.to_vec());
+                    } else {
+                        if let Some(ops) = else_ops {
+                            self.evaluate_instructions(ops);
+                        }
+                    }
                 }
+                Op::TypeI32 => unreachable!(),
             };
         }
+        Some(())
+    }
+
+    fn evaluate_frame(&mut self, instructions: &Vec<Op>) -> Option<()> {
+        let _ = self.evaluate_instructions(instructions);
         let return_value = self.stack.pop_value().to_owned();
         let frame_ptr = self.stack.frame_ptr.pop().map(|f| f.to_owned())?;
         self.stack.stack_ptr = frame_ptr;
@@ -209,7 +219,7 @@ impl Vm {
                     break;
                 }
                 Some(StackEntry::Label(expressions)) => {
-                    self.evaluate_instructions(expressions);
+                    self.evaluate_frame(&expressions);
                 }
                 Some(StackEntry::Frame(frame)) => {
                     let _offset = frame.locals.len();

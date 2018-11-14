@@ -3,8 +3,8 @@ TRIPLE := wasm32-unknown-unknown
 
 all: dist/*.wasm
 
-dist/%.wasm: fixtures/%.c 
-	emcc -Oz fixtures/$(shell basename $<) -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $< .c).js
+dist/%.wasm: fixtures/%.c
+	emcc -O3 -g0 fixtures/$(shell basename $<) -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $< .c).js
 	wasm-gc $(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wasm
 	wasm2wat dist/$(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wat
 	rm ./$(shell basename $< .c).*
