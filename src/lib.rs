@@ -121,19 +121,19 @@ impl Vm {
                     self.call(*idx, vec![operand]);
                     self.evaluate();
                 }
-                Op::Add => {
+                Op::I32Add => {
                     let right = self.stack.pop_value().clone();
                     let left = self.stack.pop_value().clone();
                     let result = StackEntry::Value(left + right);
                     self.stack.push(result);
                 }
-                Op::Sub => {
+                Op::I32Sub => {
                     let right = self.stack.pop_value().clone();
                     let left = self.stack.pop_value().clone();
                     let result = StackEntry::Value(left - right);
                     self.stack.push(result);
                 }
-                Op::Const(n) => {
+                Op::I32Const(n) => {
                     self.stack.push(StackEntry::Value(Values::I32(*n)));
                 }
                 Op::Select => {
@@ -185,7 +185,16 @@ impl Vm {
                         }
                     }
                 }
-                Op::TypeI32 => unreachable!(),
+                Op::I64ExtendUnsignI32
+                | Op::I64Const(_)
+                | Op::TeeLocal(_)
+                | Op::I64Mul
+                | Op::I64And
+                | Op::I64ShiftRightUnsign
+                | Op::I32Mul
+                | Op::I32WrapI64
+                | Op::Return
+                | Op::TypeI32 => unreachable!(),
             };
         }
         Some(())

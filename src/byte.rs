@@ -2,11 +2,14 @@ use std::ops::{Add, Sub};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
-  Const(i32),
+  I32Const(i32),
+  I64Const(i64),
   GetLocal(usize),
   SetLocal(usize),
-  Add,
-  Sub,
+  TeeLocal(usize),
+  I32Add,
+  I32Sub,
+  I32Mul,
   Call(usize),
   Equal,
   NotEqual,
@@ -16,7 +19,13 @@ pub enum Op {
   GreaterThanUnsign,
   If(Vec<Op>, Vec<Op>),
   Select,
+  Return,
   TypeI32,
+  I64ExtendUnsignI32,
+  I64Mul,
+  I64And,
+  I64ShiftRightUnsign,
+  I32WrapI64,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -158,8 +167,8 @@ pub enum Code {
 
   GetLocal,
   SetLocal,
-  Add,
-  Sub,
+  I32Add,
+  I32Sub,
 
   ExportDescFunctionIdx,
   ExportDescTableIdx,
@@ -200,8 +209,8 @@ impl Code {
       Some(0x49) => LessThanUnsign,
       Some(0x4a) => GreaterThanSign,
       Some(0x60) => TypeFunction,
-      Some(0x6a) => Add,
-      Some(0x6b) => Sub,
+      Some(0x6a) => I32Add,
+      Some(0x6b) => I32Sub,
       Some(0x7f) => ValueType(ValueTypes::I32),
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
@@ -330,12 +339,12 @@ impl Byte {
     let mut expressions = vec![];
     while !(Code::is_end_of_code(self.peek())) {
       match Code::from_byte(self.next()) {
-        Code::ConstI32 => expressions.push(Op::Const(self.decode_leb128()?)),
+        Code::ConstI32 => expressions.push(Op::I32Const(self.decode_leb128()?)),
         // NOTE: It might be need to decode as LEB128 integer, too.
         Code::GetLocal => expressions.push(Op::GetLocal(self.next()? as usize)),
         Code::SetLocal => expressions.push(Op::SetLocal(self.next()? as usize)),
-        Code::Add => expressions.push(Op::Add),
-        Code::Sub => expressions.push(Op::Sub),
+        Code::I32Add => expressions.push(Op::I32Add),
+        Code::I32Sub => expressions.push(Op::I32Sub),
         Code::Call => expressions.push(Op::Call(self.next()? as usize)),
         Code::Equal => expressions.push(Op::Equal),
         Code::NotEqual => expressions.push(Op::NotEqual),
@@ -346,14 +355,7 @@ impl Byte {
         Code::If => {
           let if_insts = self.decode_section_code_internal()?;
           let else_insts = self.decode_section_code_internal()?;
-          expressions.push(Op::If(
-            if_insts,
-            if else_insts.is_empty() {
-              None
-            } else {
-              Some(else_insts)
-            },
-          ));
+          expressions.push(Op::If(if_insts, else_insts));
         }
         Code::Else => {
           return Some(expressions);
@@ -474,7 +476,7 @@ mod tests {
       },
       locals: vec![],
       type_idex: 0,
-      body: vec![Const(42)],
+      body: vec![I32Const(42)],
     }]
   );
 
@@ -489,7 +491,7 @@ mod tests {
       },
       locals: vec![],
       type_idex: 0,
-      body: vec![Const(255)],
+      body: vec![I32Const(255)],
     }]
   );
 
@@ -504,7 +506,7 @@ mod tests {
       },
       locals: vec![],
       type_idex: 0,
-      body: vec![GetLocal(1), GetLocal(0), Add],
+      body: vec![GetLocal(1), GetLocal(0), I32Add],
     }]
   );
 
@@ -519,7 +521,7 @@ mod tests {
       },
       locals: vec![],
       type_idex: 0,
-      body: vec![Const(100), GetLocal(0), Sub],
+      body: vec![I32Const(100), GetLocal(0), I32Sub],
     }]
   );
 
@@ -534,7 +536,7 @@ mod tests {
       },
       locals: vec![],
       type_idex: 0,
-      body: vec![GetLocal(0), Const(10), Add, GetLocal(1), Add],
+      body: vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add],
     }]
   );
 
@@ -551,19 +553,19 @@ mod tests {
       type_idex: 0,
       body: vec![
         GetLocal(0),
-        Const(10),
+        I32Const(10),
         LessThanSign,
         If(
-          vec![TypeI32, GetLocal(0), Const(10), Add,],
+          vec![TypeI32, GetLocal(0), I32Const(10), I32Add],
           vec![
             GetLocal(0),
-            Const(15),
-            Add,
+            I32Const(15),
+            I32Add,
             SetLocal(1),
             GetLocal(0),
-            Const(10),
+            I32Const(10),
             Equal,
-            If(vec![TypeI32, Const(15),], vec![GetLocal(1)]),
+            If(vec![TypeI32, I32Const(15),], vec![GetLocal(1)]),
           ]
         ),
       ],
@@ -582,19 +584,19 @@ mod tests {
       type_idex: 0,
       body: vec![
         GetLocal(0),
-        Const(10),
+        I32Const(10),
         GreaterThanSign,
         If(
-          vec![TypeI32, GetLocal(0), Const(10), Add,],
+          vec![TypeI32, GetLocal(0), I32Const(10), I32Add],
           vec![
             GetLocal(0),
-            Const(15),
-            Add,
+            I32Const(15),
+            I32Add,
             SetLocal(1),
             GetLocal(0),
-            Const(10),
+            I32Const(10),
             Equal,
-            If(vec![TypeI32, Const(15)], vec![GetLocal(1)]),
+            If(vec![TypeI32, I32Const(15)], vec![GetLocal(1)]),
           ]
         ),
       ],
@@ -613,11 +615,11 @@ mod tests {
       type_idex: 0,
       body: vec![
         GetLocal(0),
-        Const(10),
+        I32Const(10),
         Equal,
-        If(vec![TypeI32, Const(5)], vec![Const(10)]),
+        If(vec![TypeI32, I32Const(5)], vec![I32Const(10)]),
         GetLocal(0),
-        Add,
+        I32Add,
       ],
     }]
   );
@@ -634,31 +636,31 @@ mod tests {
       type_idex: 0,
       body: vec![
         GetLocal(0),
-        Const(0),
-        If(vec![Const(0), Return], vec![]),
+        I32Const(0),
+        If(vec![I32Const(0), Return], vec![]),
         GetLocal(0),
-        Const(-1),
-        Add,
+        I32Const(-1),
+        I32Add,
         TeeLocal(1),
         GetLocal(0),
-        Const(-1),
-        Add,
+        I32Const(-1),
+        I32Add,
         I32Mul,
         GetLocal(0),
-        Add,
+        I32Add,
         GetLocal(1),
-        I64ExtendUnsignI32
+        I64ExtendUnsignI32,
         GetLocal(0),
-        Const(-2),
-        Add,
-        I64ExtendUnsignI32
+        I32Const(-2),
+        I32Add,
+        I64ExtendUnsignI32,
         I64Mul,
         I64Const(8589934591),
         I64And,
         I64Const(1),
         I64ShiftRightUnsign,
         I32WrapI64,
-        Add,
+        I32Add,
       ],
     }]
   );
