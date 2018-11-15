@@ -186,6 +186,7 @@ impl Vm {
                     }
                 }
                 Op::I64ExtendUnsignI32
+                | Op::LessThanEqualSign
                 | Op::I64Const(_)
                 | Op::TeeLocal(_)
                 | Op::I64Mul
@@ -194,6 +195,7 @@ impl Vm {
                 | Op::I32Mul
                 | Op::I32WrapI64
                 | Op::Return
+                | Op::TypeEmpty
                 | Op::TypeI32 => unreachable!(),
             };
         }

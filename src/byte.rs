@@ -14,6 +14,7 @@ pub enum Op {
   Equal,
   NotEqual,
   LessThanSign,
+  LessThanEqualSign,
   LessThanUnsign,
   GreaterThanSign,
   GreaterThanUnsign,
@@ -21,6 +22,7 @@ pub enum Op {
   Select,
   Return,
   TypeI32,
+  TypeEmpty,
   I64ExtendUnsignI32,
   I64Mul,
   I64And,
@@ -59,6 +61,7 @@ impl FunctionInstance {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ValueTypes {
+  Empty,
   I32,
   // I64,
   // F32,
@@ -161,14 +164,23 @@ impl SecionCode {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {
   ConstI32,
+  ConstI64,
 
-  ValueType(ValueTypes), // TODO: COnside to align 8bit
+  ValueType(ValueTypes), // TODO: Conside to align 8bit
   TypeFunction,
 
   GetLocal,
+  TeeLocal,
   SetLocal,
   I32Add,
   I32Sub,
+  I32Mul,
+  I32WrapI64,
+
+  I64ExtendUnsignI32,
+  I64Mul,
+  I64And,
+  I64ShiftRightUnsign,
 
   ExportDescFunctionIdx,
   ExportDescTableIdx,
@@ -182,11 +194,12 @@ pub enum Code {
   NotEqual,
   LessThanSign,
   LessThanUnsign,
-  // LessThanEquals,
+  LessThanEqualSign,
   GreaterThanSign,
   // GreaterThanEquals,
   If,
   Else,
+  Return,
   End,
 }
 
@@ -198,20 +211,31 @@ impl Code {
       Some(0x4) => If,
       Some(0x5) => Else,
       Some(0x0b) => End,
+      Some(0x0f) => Return,
       Some(0x10) => Call,
       Some(0x1b) => Select,
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
+      Some(0x22) => TeeLocal,
       Some(0x41) => ConstI32,
+      Some(0x42) => ConstI64,
       Some(0x46) => Equal,
       Some(0x47) => NotEqual,
       Some(0x48) => LessThanSign,
       Some(0x49) => LessThanUnsign,
       Some(0x4a) => GreaterThanSign,
+      Some(0x4c) => LessThanEqualSign,
       Some(0x60) => TypeFunction,
       Some(0x6a) => I32Add,
       Some(0x6b) => I32Sub,
+      Some(0x6c) => I32Mul,
+      Some(0x40) => ValueType(ValueTypes::Empty),
       Some(0x7f) => ValueType(ValueTypes::I32),
+      Some(0x7e) => I64Mul,
+      Some(0x83) => I64And,
+      Some(0x88) => I64ShiftRightUnsign,
+      Some(0xa7) => I32WrapI64,
+      Some(0xad) => I64ExtendUnsignI32,
       x => unreachable!("Code {:x?} does not supported yet.", x),
     }
   }
@@ -235,6 +259,34 @@ impl Code {
     }
   }
 }
+
+macro_rules! leb128 {
+    ($t:ty, $fn_name: ident) => {
+      fn $fn_name(&mut self) -> Option<$t> {
+        let mut buf: $t = 0;
+        let mut shift = 0;
+
+        // Check whether leftmost bit is 1 or 0
+        // n     = 0b11111111 = 0b01111111
+        // _     = 0b10000000 = 0b10000000
+        // n & _ = 0b10000000 = 0b00000000
+        while (self.peek()? & 0b10000000) != 0 {
+          let num = (self.next()? ^ (0b10000000)) as $t; // If leftmost bit is 1, we drop it.
+
+          // buf =      00000000_00000000_10000000_00000000
+          // num =      00000000_00000000_00000000_00000001
+          // num << 7 = 00000000_00000000_00000000_10000000
+          // buf ^ num  00000000_00000000_10000000_10000000
+          buf = buf ^ (num << shift);
+          shift += 7;
+        }
+        let num = (self.next()?) as $t;
+        buf = buf ^ (num << shift);
+
+        Some(buf)
+      }
+    };
+  }
 
 #[derive(Debug, PartialEq)]
 pub struct Byte {
@@ -266,30 +318,8 @@ impl Byte {
     el.map(|&x| x)
   }
 
-  // TODO: Make this function parametarized to be able to recieve i32/i64/f32/f64
-  fn decode_leb128(&mut self) -> Option<i32> {
-    let mut buf: i32 = 0;
-    let mut shift = 0;
-
-    // Check whether leftmost bit is 1 or 0
-    // n     = 0b11111111 = 0b01111111
-    // _     = 0b10000000 = 0b10000000
-    // n & _ = 0b10000000 = 0b00000000
-    while (self.peek()? & 0b10000000) != 0 {
-      let num = (self.next()? ^ (0b10000000)) as i32; // If leftmost bit is 1, we drop it.
-
-      // buf =      00000000_00000000_10000000_00000000
-      // num =      00000000_00000000_00000000_00000001
-      // num << 7 = 00000000_00000000_00000000_10000000
-      // buf ^ num  00000000_00000000_10000000_10000000
-      buf = buf ^ (num << shift);
-      shift += 7;
-    }
-    let num = (self.next()?) as i32;
-    buf = buf ^ (num << shift);
-
-    Some(buf)
-  }
+  leb128!(i32, decode_leb128_i32);
+  leb128!(i64, decode_leb128_i64);
 
   fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
     let _bin_size_of_section = self.next()?;
@@ -339,23 +369,40 @@ impl Byte {
     let mut expressions = vec![];
     while !(Code::is_end_of_code(self.peek())) {
       match Code::from_byte(self.next()) {
-        Code::ConstI32 => expressions.push(Op::I32Const(self.decode_leb128()?)),
+        Code::ConstI32 => expressions.push(Op::I32Const(self.decode_leb128_i32()?)),
+        Code::ConstI64 => expressions.push(Op::I64Const(self.decode_leb128_i64()?)),
         // NOTE: It might be need to decode as LEB128 integer, too.
         Code::GetLocal => expressions.push(Op::GetLocal(self.next()? as usize)),
         Code::SetLocal => expressions.push(Op::SetLocal(self.next()? as usize)),
+        Code::TeeLocal => expressions.push(Op::TeeLocal(self.next()? as usize)),
         Code::I32Add => expressions.push(Op::I32Add),
         Code::I32Sub => expressions.push(Op::I32Sub),
+        Code::I32Mul => expressions.push(Op::I32Mul),
+        Code::I64And => expressions.push(Op::I64And),
+        Code::I64Mul => expressions.push(Op::I64Mul),
+        Code::I64ExtendUnsignI32 => expressions.push(Op::I64ExtendUnsignI32),
+        Code::I64ShiftRightUnsign => expressions.push(Op::I64ShiftRightUnsign),
+        Code::I32WrapI64 => expressions.push(Op::I32WrapI64),
         Code::Call => expressions.push(Op::Call(self.next()? as usize)),
         Code::Equal => expressions.push(Op::Equal),
         Code::NotEqual => expressions.push(Op::NotEqual),
         Code::LessThanSign => expressions.push(Op::LessThanSign),
+        Code::LessThanEqualSign => expressions.push(Op::LessThanEqualSign),
         Code::LessThanUnsign => expressions.push(Op::LessThanUnsign),
         Code::GreaterThanSign => expressions.push(Op::GreaterThanSign),
         Code::Select => expressions.push(Op::Select),
         Code::If => {
           let if_insts = self.decode_section_code_internal()?;
-          let else_insts = self.decode_section_code_internal()?;
-          expressions.push(Op::If(if_insts, else_insts));
+          match Code::from_byte(self.peek()) {
+            Code::Else => {
+              self.next();
+              let else_insts = self.decode_section_code_internal()?;
+              expressions.push(Op::If(if_insts, else_insts));
+            }
+            _ => {
+              expressions.push(Op::If(if_insts, vec![]));
+            }
+          }
         }
         Code::Else => {
           return Some(expressions);
@@ -363,7 +410,9 @@ impl Byte {
         Code::End => {
           return Some(expressions);
         }
+        Code::Return => expressions.push(Op::Return),
         Code::ValueType(ValueTypes::I32) => expressions.push(Op::TypeI32),
+        Code::ValueType(ValueTypes::Empty) => expressions.push(Op::TypeEmpty),
         x => unimplemented!(
           "Code {:x?} does not supported yet. Current expressions -> {:?}",
           x,
@@ -371,8 +420,13 @@ impl Byte {
         ),
       };
     }
-    self.next(); // Drop End code.
-    Some(expressions)
+    match Code::from_byte(self.peek()) {
+      Code::Else => Some(expressions),
+      _ => {
+        self.next(); // Drop End code.
+        Some(expressions)
+      }
+    }
   }
 
   fn decode_section_code(&mut self) -> Option<Vec<(Vec<Op>, Vec<ValueTypes>)>> {
@@ -452,6 +506,11 @@ impl Byte {
 mod tests {
   use super::*;
   use utils::read_wasm;
+  #[test]
+  fn repl() {
+    println!("{:b}", -2i8);
+    println!("{:b}", 1u8);
+  }
 
   macro_rules! test_decode {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
@@ -637,7 +696,8 @@ mod tests {
       body: vec![
         GetLocal(0),
         I32Const(0),
-        If(vec![I32Const(0), Return], vec![]),
+        LessThanEqualSign,
+        If(vec![TypeEmpty, I32Const(0), Return], vec![]),
         GetLocal(0),
         I32Const(-1),
         I32Add,
