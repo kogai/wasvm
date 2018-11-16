@@ -282,8 +282,11 @@ macro_rules! leb128 {
         }
         let num = (self.next()?) as $t;
         buf = buf ^ (num << shift);
-
-        Some(buf)
+        if buf & (1 << (shift + 6)) != 0 {
+          Some(-((1 << (shift + 7)) - buf))
+        } else {
+          Some(buf)
+        }
       }
     };
   }
@@ -551,6 +554,21 @@ mod tests {
       locals: vec![],
       type_idex: 0,
       body: vec![I32Const(255)],
+    }]
+  );
+
+  test_decode!(
+    decode_signed,
+    "signed",
+    vec![FunctionInstance {
+      export_name: Some("_subject".to_owned()),
+      function_type: FunctionType {
+        parameters: vec![],
+        returns: vec![ValueTypes::I32],
+      },
+      locals: vec![],
+      type_idex: 0,
+      body: vec![I32Const(-1)],
     }]
   );
 
