@@ -315,6 +315,10 @@ impl Byte {
     self.bytes.get(self.byte_ptr).map(|&x| x)
   }
 
+  fn peek_before(&self) -> Option<u8> {
+    self.bytes.get(self.byte_ptr - 1).map(|&x| x)
+  }
+
   fn next(&mut self) -> Option<u8> {
     let el = self.bytes.get(self.byte_ptr);
     self.byte_ptr += 1;
@@ -396,15 +400,12 @@ impl Byte {
         Code::Select => expressions.push(Op::Select),
         Code::If => {
           let if_insts = self.decode_section_code_internal()?;
-          match Code::from_byte(self.peek()) {
+          match Code::from_byte(self.peek_before()) {
             Code::Else => {
-              self.next();
               let else_insts = self.decode_section_code_internal()?;
               expressions.push(Op::If(if_insts, else_insts));
             }
-            _ => {
-              expressions.push(Op::If(if_insts, vec![]));
-            }
+            _ => expressions.push(Op::If(if_insts, vec![])),
           }
         }
         Code::Else => {
@@ -509,9 +510,10 @@ impl Byte {
 mod tests {
   use super::*;
   use utils::read_wasm;
+
   #[test]
   fn repl() {
-    println!("{:b}", -2i8);
+    println!("{:b}", -1i8);
     println!("{:b}", 1u8);
   }
 
@@ -568,7 +570,7 @@ mod tests {
       },
       locals: vec![],
       type_idex: 0,
-      body: vec![I32Const(-1)],
+      body: vec![I32Const(-129)],
     }]
   );
 
@@ -721,7 +723,7 @@ mod tests {
         I32Add,
         TeeLocal(1),
         GetLocal(0),
-        I32Const(-1),
+        I32Const(1),
         I32Add,
         I32Mul,
         GetLocal(0),
