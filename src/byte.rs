@@ -490,8 +490,8 @@ impl Byte {
         .iter()
         .find(|(_, idx)| idx == &idx_of_fn)
         .map(|(key, _)| key.to_owned());
-      let function_type = function_types.get(idx_of_fn)?;
       let &index_of_type = index_of_types.get(idx_of_fn)?;
+      let function_type = function_types.get(index_of_type as usize)?;
       let (expression, locals) = list_of_expressions.get(idx_of_fn)?;
       let fnins = FunctionInstance {
         export_name,

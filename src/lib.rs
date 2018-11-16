@@ -352,4 +352,10 @@ mod tests {
         vec![Values::I32(11)],
         Values::I32(21)
     );
+    test_eval!(
+        evaluate_fib,
+        "fib",
+        vec![Values::I32(30)],
+        Values::I32(832040)
+    );
 }
