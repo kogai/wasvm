@@ -358,4 +358,10 @@ mod tests {
         vec![Values::I32(30)],
         Values::I32(832040)
     );
+    test_eval!(
+        evaluate_count,
+        "count",
+        vec![Values::I32(10)],
+        Values::I32(135)
+    );
 }
