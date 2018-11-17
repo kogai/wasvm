@@ -13,7 +13,7 @@ target/release/main: $(SRC)
 	cargo build --release
 
 report.txt: target/release/main Makefile
-	perf stat -o report.txt ./target/release/main fib 30
+	perf stat -o report.txt ./target/release/main fib 35
 
 .PHONY: run
 run:

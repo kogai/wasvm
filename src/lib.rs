@@ -97,7 +97,7 @@ impl Vm {
             .expect("Instantiate function has been failured.");
         Vm {
             store: Store { function_instances },
-            stack: Stack::new(2048),
+            stack: Stack::new(65536),
         }
     }
 
