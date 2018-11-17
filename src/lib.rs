@@ -1,6 +1,7 @@
 pub mod byte;
 mod utils;
 use byte::{FunctionInstance, Op, Values};
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
 struct Store {
@@ -20,7 +21,7 @@ pub struct Frame {
     return_ptr: usize,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub enum StackEntry {
     Empty,
     Value(Values),
@@ -30,7 +31,7 @@ pub enum StackEntry {
 
 #[derive(Debug)]
 pub struct Stack {
-    entries: Vec<StackEntry>,
+    entries: Vec<Rc<StackEntry>>,
     stack_ptr: usize, // Start from 1
     frame_ptr: Vec<usize>,
     is_empty: bool,
@@ -38,7 +39,7 @@ pub struct Stack {
 
 impl Stack {
     fn new(stack_size: usize) -> Self {
-        let entries = vec![StackEntry::Empty; stack_size];
+        let entries = vec![Rc::new(StackEntry::Empty); stack_size];
         Stack {
             entries,
             stack_ptr: 0,
@@ -51,34 +52,34 @@ impl Stack {
         self.stack_ptr += count;
     }
 
-    fn get(&self, ptr: usize) -> Option<StackEntry> {
-        self.entries.get(ptr).map(|e| e.to_owned())
+    fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
+        self.entries.get(ptr).map(|rc| rc.clone())
     }
 
-    fn set(&mut self, ptr: usize, entry: StackEntry) {
-        self.entries[ptr] = entry;
+    fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) {
+        self.entries[ptr] = entry.clone();
     }
 
-    fn push(&mut self, entry: StackEntry) {
-        self.entries[self.stack_ptr] = entry;
+    fn push(&mut self, entry: Rc<StackEntry>) {
+        self.entries[self.stack_ptr] = entry.clone();
         self.stack_ptr += 1;
     }
 
-    // TODO: Return with ownership
-    pub fn pop(&mut self) -> Option<&StackEntry> {
+    pub fn pop(&mut self) -> Option<Rc<StackEntry>> {
         if self.stack_ptr == 0 {
             self.is_empty = true;
             None
         } else {
             self.stack_ptr -= 1;
-            self.entries.get(self.stack_ptr)
+            self.entries.get(self.stack_ptr).map(|rc| rc.clone())
         }
     }
 
-    fn pop_value(&mut self) -> &Values {
-        match self.pop() {
-            Some(StackEntry::Value(v)) => v,
-            x => unreachable!(format!("Expect to popp value but got {:?}", x).as_str()),
+    fn pop_value(&mut self) -> Values {
+        let value = self.pop().expect("Expect to popp value but got None");
+        match *value {
+            StackEntry::Value(ref v) => v.to_owned(),
+            ref x => unreachable!(format!("Expect to popp value but got {:?}", x).as_str()),
         }
     }
 }
@@ -122,87 +123,107 @@ impl Vm {
                     self.stack.set(*idx + frame_ptr, value);
                 }
                 Op::Call(idx) => {
-                    let operand = self.stack.pop_value().clone();
+                    let operand = self.stack.pop_value();
                     self.call(*idx, vec![operand]);
                     self.evaluate();
                 }
                 Op::I32Add => {
-                    let right = self.stack.pop_value().clone();
-                    let left = self.stack.pop_value().clone();
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
                     let result = StackEntry::Value(left + right);
-                    self.stack.push(result);
+                    self.stack.push(Rc::new(result));
                 }
                 Op::I32Sub => {
-                    let right = self.stack.pop_value().clone();
-                    let left = self.stack.pop_value().clone();
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
                     let result = StackEntry::Value(left - right);
-                    self.stack.push(result);
+                    self.stack.push(Rc::new(result));
                 }
                 Op::I32Mul | Op::I64Mul => {
-                    let right = self.stack.pop_value().clone();
-                    let left = self.stack.pop_value().clone();
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
                     let result = StackEntry::Value(left.mul(&right));
-                    self.stack.push(result);
+                    self.stack.push(Rc::new(result));
                 }
                 Op::I32Const(n) => {
-                    self.stack.push(StackEntry::Value(Values::I32(*n)));
+                    self.stack.push(Rc::new(StackEntry::Value(Values::I32(*n))));
                 }
                 Op::I64Const(n) => {
-                    self.stack.push(StackEntry::Value(Values::I64(*n)));
+                    self.stack.push(Rc::new(StackEntry::Value(Values::I64(*n))));
                 }
                 Op::Select => {
-                    let cond = &self.stack.pop_value().clone();
-                    let false_br = self.stack.pop_value().clone();
-                    let true_br = self.stack.pop_value().clone();
+                    let cond = &self.stack.pop_value();
+                    let false_br = self.stack.pop_value();
+                    let true_br = self.stack.pop_value();
                     if cond.is_truthy() {
-                        self.stack.push(StackEntry::Value(true_br));
+                        self.stack.push(Rc::new(StackEntry::Value(true_br)));
                     } else {
-                        self.stack.push(StackEntry::Value(false_br));
+                        self.stack.push(Rc::new(StackEntry::Value(false_br)));
                     }
                 }
                 Op::LessThanSign | Op::LessThanUnsign => {
-                    let right = &self.stack.pop_value().clone();
-                    let left = &self.stack.pop_value().clone();
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
                     let cond = left.lt(right);
                     self.stack
-                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
+                            1
+                        } else {
+                            0
+                        }))));
                 }
                 Op::LessThanEqualSign => {
-                    let right = &self.stack.pop_value().clone();
-                    let left = &self.stack.pop_value().clone();
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
                     let cond = left.less_than_equal(right);
                     self.stack
-                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
+                            1
+                        } else {
+                            0
+                        }))));
                 }
                 Op::GreaterThanSign | Op::GreaterThanUnsign => {
-                    let right = &self.stack.pop_value().clone();
-                    let left = &self.stack.pop_value().clone();
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
                     let cond = left.gt(right);
                     self.stack
-                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
+                            1
+                        } else {
+                            0
+                        }))));
                 }
                 Op::Equal => {
-                    let right = &self.stack.pop_value().clone();
-                    let left = &self.stack.pop_value().clone();
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
                     let cond = left.eq(right);
                     self.stack
-                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
+                            1
+                        } else {
+                            0
+                        }))));
                 }
                 Op::NotEqual => {
-                    let right = &self.stack.pop_value().clone();
-                    let left = &self.stack.pop_value().clone();
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
                     let cond = left.neq(right);
                     self.stack
-                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
+                            1
+                        } else {
+                            0
+                        }))));
                 }
                 Op::I64And => {
-                    let right = &self.stack.pop_value().clone();
-                    let left = &self.stack.pop_value().clone();
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
                     let result = left.and(right);
-                    self.stack.push(StackEntry::Value(result));
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
                 Op::If(if_ops, else_ops) => {
-                    let cond = &self.stack.pop_value().clone();
+                    let cond = &self.stack.pop_value();
                     let (_return_type, if_insts) = if_ops.split_first()?;
                     if cond.is_truthy() {
                         self.evaluate_instructions(&if_insts.to_vec());
@@ -216,21 +237,22 @@ impl Vm {
                     unimplemented!();
                 }
                 Op::I64ExtendUnsignI32 => {
-                    let value = &self.stack.pop_value().clone();
+                    let value = &self.stack.pop_value();
                     let result = value.extend_to_i64();
-                    self.stack.push(StackEntry::Value(result));
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
                 Op::I64ShiftRightUnsign => {
-                    let i2 = &self.stack.pop_value().clone();
-                    let i1 = &self.stack.pop_value().clone();
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
                     let result = i1.shift_right_unsign(i2);
-                    self.stack.push(StackEntry::Value(result));
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
                 Op::I32WrapI64 => {
-                    let i = &self.stack.pop_value().clone();
+                    let i = &self.stack.pop_value();
                     if let Values::I64(n) = i {
                         let result = (*n % 2_i64.pow(32)) as i32;
-                        self.stack.push(StackEntry::Value(Values::I32(result)));
+                        self.stack
+                            .push(Rc::new(StackEntry::Value(Values::I32(result))));
                     } else {
                         unreachable!();
                     }
@@ -245,10 +267,10 @@ impl Vm {
 
     fn evaluate_frame(&mut self, instructions: &Vec<Op>) -> Option<()> {
         let _ = self.evaluate_instructions(instructions);
-        let return_value = self.stack.pop_value().to_owned();
-        let frame_ptr = self.stack.frame_ptr.pop().map(|f| f.to_owned())?;
+        let return_value = self.stack.pop_value();
+        let frame_ptr = self.stack.frame_ptr.pop()?;
         self.stack.stack_ptr = frame_ptr;
-        self.stack.push(StackEntry::Value(return_value));
+        self.stack.push(Rc::new(StackEntry::Value(return_value)));
         Some(())
     }
 
@@ -258,39 +280,40 @@ impl Vm {
             return_ptr: self.stack.stack_ptr,
             function_idx,
         });
-        self.stack.push(frame);
+        self.stack.push(Rc::new(frame));
     }
 
     fn evaluate(&mut self) {
         let mut result = None;
         while !self.stack.is_empty {
-            let popped = self.stack.pop().map(|v| v.to_owned());
-            match popped {
-                Some(StackEntry::Value(v)) => {
-                    result = Some(StackEntry::Value(v));
+            let popped = self.stack.pop().expect("Invalid popping stack.");
+            match *popped {
+                StackEntry::Value(ref v) => {
+                    result = Some(StackEntry::Value(v.to_owned()));
                     break;
                 }
-                Some(StackEntry::Label(expressions)) => {
+                StackEntry::Label(ref expressions) => {
                     self.evaluate_frame(&expressions);
                 }
-                Some(StackEntry::Frame(frame)) => {
+                StackEntry::Frame(ref frame) => {
                     let _offset = frame.locals.len();
                     self.stack.frame_ptr.push(frame.return_ptr);
-                    for local in frame.locals {
-                        self.stack.push(StackEntry::Value(local));
+                    for local in frame.clone().locals {
+                        self.stack.push(Rc::new(StackEntry::Value(local)));
                     }
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
                     let label = StackEntry::Label(expressions);
                     self.stack.increase(locals.len());
-                    self.stack.push(label);
+                    self.stack.push(Rc::new(label));
                 }
-                Some(StackEntry::Empty) | None => unreachable!("Invalid popping stack."),
+                StackEntry::Empty => unreachable!("Invalid popping stack."),
             }
         }
-        self.stack
-            .push(result.expect("Call stack may return with null value"));
+        self.stack.push(Rc::new(
+            result.expect("Call stack may return with null value"),
+        ));
     }
 
     pub fn run(&mut self, arguments: Vec<Values>) {
@@ -317,17 +340,26 @@ mod tests {
                 let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
                 let mut vm = Vm::new(wasm);
                 vm.run($call_arguments);
-                assert_eq!(vm.stack.pop(), Some(&StackEntry::Value($expect_value)));
+                assert_eq!(
+                    vm.stack.pop().map(|rc| *rc),
+                    Some(StackEntry::Value($expect_value))
+                );
             }
         };
     }
     #[test]
     fn stack_ptr() {
         let mut stack = Stack::new(4);
-        stack.push(StackEntry::Value(Values::I32(1)));
-        stack.set(2, StackEntry::Value(Values::I32(2)));
-        assert_eq!(stack.pop(), Some(&StackEntry::Value(Values::I32(1))));
-        assert_eq!(stack.get(2), Some(StackEntry::Value(Values::I32(2))));
+        stack.push(Rc::new(StackEntry::Value(Values::I32(1))));
+        stack.set(2, Rc::new(StackEntry::Value(Values::I32(2))));
+        assert_eq!(
+            stack.pop().map(|rc| *rc),
+            Some(StackEntry::Value(Values::I32(1)))
+        );
+        assert_eq!(
+            stack.get(2).map(|rc| *rc),
+            Some(StackEntry::Value(Values::I32(2)))
+        );
     }
     test_eval!(evaluate_cons8, "cons8", vec![], Values::I32(42));
     test_eval!(

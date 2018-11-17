@@ -12,6 +12,7 @@ dist/%.wasm: fixtures/%.c
 target/release/main: $(SRC)
 	cargo build --release
 
+.PHONY: report.txt
 report.txt: target/release/main Makefile
 	perf stat -o report.txt ./target/release/main fib 35
 
