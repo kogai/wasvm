@@ -8,6 +8,8 @@ break src/lib.rs:160
 info locals
 info breakpoint
 delete ${idx}
+perf record cargo run --release fib 30
+perf report
 
 ## Performance index
 

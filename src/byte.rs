@@ -82,35 +82,77 @@ impl ValueTypes {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Values {
   I32(i32),
-  // I64,
+  I64(i64),
   // F32,
   // F64,
 }
 
+// TODO: Use macro to simplify simulaly functions.
 impl Values {
   pub fn lt(&self, other: &Self) -> bool {
     match (self, other) {
       (Values::I32(l), Values::I32(r)) => l < r,
+      _ => unimplemented!(),
+    }
+  }
+  pub fn less_than_equal(&self, other: &Self) -> bool {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => l <= r,
+      _ => unimplemented!(),
     }
   }
   pub fn gt(&self, other: &Self) -> bool {
     match (self, other) {
       (Values::I32(l), Values::I32(r)) => l > r,
+      _ => unimplemented!(),
     }
   }
   pub fn eq(&self, other: &Self) -> bool {
     match (self, other) {
       (Values::I32(l), Values::I32(r)) => l == r,
+      _ => unimplemented!(),
     }
   }
   pub fn neq(&self, other: &Self) -> bool {
     match (self, other) {
       (Values::I32(l), Values::I32(r)) => l != r,
+      _ => unimplemented!(),
+    }
+  }
+  pub fn and(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => Values::I32(l & r),
+      (Values::I64(l), Values::I64(r)) => Values::I64(l & r),
+      _ => unimplemented!(),
     }
   }
   pub fn is_truthy(&self) -> bool {
     match &self {
       Values::I32(n) => *n > 0,
+      _ => unimplemented!(),
+    }
+  }
+  pub fn mul(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => Values::I32(l * r),
+      (Values::I64(l), Values::I64(r)) => Values::I64(l * r),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn extend_to_i64(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I64(i64::from(*l)),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn shift_right_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I64(i1), Values::I64(i2)) => {
+        let shift = *i2 % 64;
+        let result = i1 >> shift;
+        Values::I64(result)
+      }
+      _ => unimplemented!(),
     }
   }
 }
@@ -122,7 +164,7 @@ impl Add for Values {
     use self::Values::*;
     match (self, other) {
       (I32(l), I32(r)) => I32(l + r),
-      // _ => unimplemented!(),
+      _ => unimplemented!(),
     }
   }
 }
@@ -134,7 +176,7 @@ impl Sub for Values {
     use self::Values::*;
     match (self, other) {
       (I32(l), I32(r)) => I32(l - r),
-      // _ => unimplemented!(),
+      _ => unimplemented!(),
     }
   }
 }
@@ -513,8 +555,9 @@ mod tests {
 
   #[test]
   fn repl() {
-    println!("{:b}", -1i8);
-    println!("{:b}", 1u8);
+    println!("{:b}", 8u8);
+    println!("{:b}", 8u8 >> 2);
+    println!("{:b}", 8u8 << 2);
   }
 
   macro_rules! test_decode {
