@@ -1,8 +1,6 @@
 pub mod byte;
 mod utils;
 use byte::{FunctionInstance, Op, Values};
-// use std::collections::LinkedList;
-// use std::iter::FromIterator;
 
 #[derive(Debug, PartialEq)]
 struct Store {
@@ -99,7 +97,8 @@ impl Vm {
             .expect("Instantiate function has been failured.");
         Vm {
             store: Store { function_instances },
-            stack: Stack::new(2048),
+            // stack: Stack::new(2048),
+            stack: Stack::new(16),
         }
     }
 
@@ -113,6 +112,12 @@ impl Vm {
                 }
                 Op::SetLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
+                    let frame_ptr = self.stack.frame_ptr.last()?.clone();
+                    self.stack.set(*idx + frame_ptr, value);
+                }
+                Op::TeeLocal(idx) => {
+                    let value = self.stack.pop().map(|s| s.to_owned())?;
+                    self.stack.push(value.clone());
                     let frame_ptr = self.stack.frame_ptr.last()?.clone();
                     self.stack.set(*idx + frame_ptr, value);
                 }
@@ -133,8 +138,17 @@ impl Vm {
                     let result = StackEntry::Value(left - right);
                     self.stack.push(result);
                 }
+                Op::I32Mul | Op::I64Mul => {
+                    let right = self.stack.pop_value().clone();
+                    let left = self.stack.pop_value().clone();
+                    let result = StackEntry::Value(left.mul(&right));
+                    self.stack.push(result);
+                }
                 Op::I32Const(n) => {
                     self.stack.push(StackEntry::Value(Values::I32(*n)));
+                }
+                Op::I64Const(n) => {
+                    self.stack.push(StackEntry::Value(Values::I64(*n)));
                 }
                 Op::Select => {
                     let cond = &self.stack.pop_value().clone();
@@ -150,6 +164,13 @@ impl Vm {
                     let right = &self.stack.pop_value().clone();
                     let left = &self.stack.pop_value().clone();
                     let cond = left.lt(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
+                Op::LessThanEqualSign => {
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.less_than_equal(right);
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
@@ -174,6 +195,13 @@ impl Vm {
                     self.stack
                         .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
                 }
+                Op::I64And => {
+                    let right = &self.stack.pop_value().clone();
+                    let left = &self.stack.pop_value().clone();
+                    let cond = left.and(right);
+                    self.stack
+                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                }
                 Op::If(if_ops, else_ops) => {
                     let cond = &self.stack.pop_value().clone();
                     let (_return_type, if_insts) = if_ops.split_first()?;
@@ -185,18 +213,30 @@ impl Vm {
                         }
                     }
                 }
-                Op::I64ExtendUnsignI32
-                | Op::LessThanEqualSign
-                | Op::I64Const(_)
-                | Op::TeeLocal(_)
-                | Op::I64Mul
-                | Op::I64And
-                | Op::I64ShiftRightUnsign
-                | Op::I32Mul
-                | Op::I32WrapI64
-                | Op::Return
-                | Op::TypeEmpty
-                | Op::TypeI32 => unreachable!(),
+                Op::Return => {
+                    unimplemented!();
+                }
+                Op::I64ExtendUnsignI32 => {
+                    let value = &self.stack.pop_value().clone();
+                    let result = value.extend_to_i64();
+                    self.stack.push(StackEntry::Value(result));
+                }
+                Op::I64ShiftRightUnsign => {
+                    println!("{:?}", self.stack);
+                    let i2 = &self.stack.pop_value().clone();
+                    let i1 = &self.stack.pop_value().clone();
+                    let result = i1.shift_right_unsign(i2);
+                    self.stack.push(StackEntry::Value(result));
+                }
+                Op::I32WrapI64 => {
+                    let i = &self.stack.pop_value().clone();
+                    if let Values::I64(n) = i {
+                        let result = (*n % (2 ^ 32)) as i32;
+                        self.stack.push(StackEntry::Value(Values::I32(result)));
+                    }
+                    unreachable!();
+                }
+                Op::TypeEmpty | Op::TypeI32 => unreachable!(),
             };
         }
         Some(())
