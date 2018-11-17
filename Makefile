@@ -1,4 +1,4 @@
-EXAMPLES_SRC := $(shell find ./fixtures -type f -name '*.c')
+SRC := $(wildcard ./src/*.rs)
 TRIPLE := wasm32-unknown-unknown
 
 all: dist/*.wasm
@@ -8,6 +8,16 @@ dist/%.wasm: fixtures/%.c
 	wasm-gc $(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wasm
 	wasm2wat dist/$(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wat
 	rm ./$(shell basename $< .c).*
+
+target/release/main: $(SRC)
+	cargo build --release
+
+.PHONY: report.txt
+report.txt: target/release/main Makefile
+	perf stat -o report.txt ./target/release/main fib 35
+
+report.node.txt: Makefile
+	perf stat -o report.txt node run-wasm fib 35
 
 .PHONY: run
 run:
