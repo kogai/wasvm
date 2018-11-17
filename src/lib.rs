@@ -340,10 +340,7 @@ mod tests {
                 let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
                 let mut vm = Vm::new(wasm);
                 vm.run($call_arguments);
-                assert_eq!(
-                    vm.stack.pop().map(|rc| *rc),
-                    Some(StackEntry::Value($expect_value))
-                );
+                assert_eq!(*vm.stack.pop().unwrap(), StackEntry::Value($expect_value));
             }
         };
     }
@@ -352,14 +349,8 @@ mod tests {
         let mut stack = Stack::new(4);
         stack.push(Rc::new(StackEntry::Value(Values::I32(1))));
         stack.set(2, Rc::new(StackEntry::Value(Values::I32(2))));
-        assert_eq!(
-            stack.pop().map(|rc| *rc),
-            Some(StackEntry::Value(Values::I32(1)))
-        );
-        assert_eq!(
-            stack.get(2).map(|rc| *rc),
-            Some(StackEntry::Value(Values::I32(2)))
-        );
+        assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
+        assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
     }
     test_eval!(evaluate_cons8, "cons8", vec![], Values::I32(42));
     test_eval!(
