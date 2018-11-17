@@ -1,0 +1,20 @@
+# started on Sat Nov 17 22:42:24 2018
+
+
+ Performance counter stats for 'node run-wasm.js fib 40':
+
+       1023.654691      task-clock:u (msec)       #    1.000 CPUs utilized          
+                 0      context-switches:u        #    0.000 K/sec                  
+                 0      cpu-migrations:u          #    0.000 K/sec                  
+             2,525      page-faults:u             #    0.002 M/sec                  
+     2,485,757,290      cycles:u                  #    2.428 GHz                    
+     6,329,313,609      instructions:u            #    2.55  insn per cycle         
+     1,525,573,082      branches:u                # 1490.320 M/sec                  
+         1,300,350      branch-misses:u           #    0.09% of all branches        
+
+       1.023606456 seconds time elapsed
+
+       1.017050000 seconds user
+       0.006666000 seconds sys
+
+

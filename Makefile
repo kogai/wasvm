@@ -15,6 +15,9 @@ target/release/main: $(SRC)
 report.txt: target/release/main Makefile
 	perf stat -o report.txt ./target/release/main fib 35
 
+report.node.txt: Makefile
+	perf stat -o report.txt node run-wasm fib 35
+
 .PHONY: run
 run:
 	cargo run --bin main
