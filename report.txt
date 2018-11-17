@@ -1,20 +1,20 @@
-# started on Sat Nov 17 17:35:23 2018
+# started on Sat Nov 17 22:28:16 2018
 
 
  Performance counter stats for 'cargo run --release fib 30':
 
-        299.957884      task-clock:u (msec)       #    0.951 CPUs utilized          
+       2134.236734      task-clock:u (msec)       #    1.000 CPUs utilized          
                  0      context-switches:u        #    0.000 K/sec                  
                  0      cpu-migrations:u          #    0.000 K/sec                  
-            10,091      page-faults:u             #    0.034 M/sec                  
-       790,274,042      cycles:u                  #    2.635 GHz                    
-     1,194,377,094      instructions:u            #    1.51  insn per cycle         
-       216,408,601      branches:u                #  721.463 M/sec                  
-         4,031,089      branch-misses:u           #    1.86% of all branches        
+             1,463      page-faults:u             #    0.685 K/sec                  
+     6,967,077,934      cycles:u                  #    3.264 GHz                    
+    17,565,725,861      instructions:u            #    2.52  insn per cycle         
+     2,633,543,126      branches:u                # 1233.951 M/sec                  
+         3,710,162      branch-misses:u           #    0.14% of all branches        
 
-       0.315561001 seconds time elapsed
+       2.134736152 seconds time elapsed
 
-       0.266957000 seconds user
-       0.033183000 seconds sys
+       2.129003000 seconds user
+       0.003330000 seconds sys
 
 
