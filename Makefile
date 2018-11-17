@@ -1,5 +1,5 @@
 # EXAMPLES_SRC := $(shell find ./fixtures -type f -name '*.c')
-SRC := $(wildcard src/*.rc)
+SRC := $(wildcard ./src/*.rc)
 TRIPLE := wasm32-unknown-unknown
 
 all: dist/*.wasm
