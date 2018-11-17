@@ -119,10 +119,10 @@ impl Values {
       _ => unimplemented!(),
     }
   }
-  pub fn and(&self, other: &Self) -> bool {
+  pub fn and(&self, other: &Self) -> Self {
     match (self, other) {
-      (Values::I32(l), Values::I32(r)) => (l & r) > 0,
-      (Values::I64(l), Values::I64(r)) => (l & r) > 0,
+      (Values::I32(l), Values::I32(r)) => Values::I32(l & r),
+      (Values::I64(l), Values::I64(r)) => Values::I64(l & r),
       _ => unimplemented!(),
     }
   }
@@ -146,13 +146,10 @@ impl Values {
     }
   }
   pub fn shift_right_unsign(&self, other: &Self) -> Self {
-    println!("{:?}", self);
-    println!("{:?}", &other);
     match (self, other) {
-      // (Values::I32(l), Values::I32(r)) => Values::I32(l * r),
       (Values::I64(i1), Values::I64(i2)) => {
         let shift = *i2 % 64;
-        let result = i1 << shift;
+        let result = i1 >> shift;
         Values::I64(result)
       }
       _ => unimplemented!(),
@@ -558,8 +555,9 @@ mod tests {
 
   #[test]
   fn repl() {
-    println!("{:b}", -1i8);
-    println!("{:b}", 1u8);
+    println!("{:b}", 8u8);
+    println!("{:b}", 8u8 >> 2);
+    println!("{:b}", 8u8 << 2);
   }
 
   macro_rules! test_decode {

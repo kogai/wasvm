@@ -97,13 +97,13 @@ impl Vm {
             .expect("Instantiate function has been failured.");
         Vm {
             store: Store { function_instances },
-            // stack: Stack::new(2048),
-            stack: Stack::new(16),
+            stack: Stack::new(2048),
         }
     }
 
     fn evaluate_instructions(&mut self, expressions: &Vec<Op>) -> Option<()> {
         for expression in expressions.iter() {
+            // println!("{:?}", &expression);
             match expression {
                 Op::GetLocal(idx) => {
                     let frame_ptr = self.stack.frame_ptr.last()?.clone();
@@ -198,9 +198,8 @@ impl Vm {
                 Op::I64And => {
                     let right = &self.stack.pop_value().clone();
                     let left = &self.stack.pop_value().clone();
-                    let cond = left.and(right);
-                    self.stack
-                        .push(StackEntry::Value(Values::I32(if cond { 1 } else { 0 })));
+                    let result = left.and(right);
+                    self.stack.push(StackEntry::Value(result));
                 }
                 Op::If(if_ops, else_ops) => {
                     let cond = &self.stack.pop_value().clone();
@@ -222,7 +221,6 @@ impl Vm {
                     self.stack.push(StackEntry::Value(result));
                 }
                 Op::I64ShiftRightUnsign => {
-                    println!("{:?}", self.stack);
                     let i2 = &self.stack.pop_value().clone();
                     let i1 = &self.stack.pop_value().clone();
                     let result = i1.shift_right_unsign(i2);
@@ -231,13 +229,16 @@ impl Vm {
                 Op::I32WrapI64 => {
                     let i = &self.stack.pop_value().clone();
                     if let Values::I64(n) = i {
-                        let result = (*n % (2 ^ 32)) as i32;
+                        let result = (*n % 2_i64.pow(32)) as i32;
                         self.stack.push(StackEntry::Value(Values::I32(result)));
+                    } else {
+                        unreachable!();
                     }
-                    unreachable!();
                 }
                 Op::TypeEmpty | Op::TypeI32 => unreachable!(),
             };
+            // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
+            // println!("");
         }
         Some(())
     }
@@ -392,16 +393,23 @@ mod tests {
         vec![Values::I32(11)],
         Values::I32(21)
     );
+    test_eval!(evaluate_fib, "fib", vec![Values::I32(15)], Values::I32(610));
     test_eval!(
-        evaluate_fib,
-        "fib",
-        vec![Values::I32(30)],
-        Values::I32(832040)
+        evaluate_5_count,
+        "count",
+        vec![Values::I32(5)],
+        Values::I32(35)
     );
     test_eval!(
-        evaluate_count,
+        evaluate_10_count,
         "count",
         vec![Values::I32(10)],
-        Values::I32(135)
+        Values::I32(145)
+    );
+    test_eval!(
+        evaluate_100_count,
+        "count",
+        vec![Values::I32(100)],
+        Values::I32(14950)
     );
 }
