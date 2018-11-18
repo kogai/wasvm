@@ -232,7 +232,29 @@ impl Vm {
                         unreachable!();
                     }
                 }
-                Op::TypeEmpty | Op::TypeI32 => unreachable!(),
+                Op::TypeEmpty
+                | Op::TypeI32
+                | Op::I32EqualZero
+                | Op::I32GreaterThanUnsign
+                | Op::I32LessEqualSign
+                | Op::I32LessEqualUnsign
+                | Op::I32GreaterEqualSign
+                | Op::I32GreaterEqualUnsign
+                | Op::I32CountLeadingZero
+                | Op::I32CountTrailingZero
+                | Op::I32CountNonZero
+                | Op::I32DivSign
+                | Op::I32DivUnsign
+                | Op::I32RemSign
+                | Op::I32RemUnsign
+                | Op::I32And
+                | Op::I32Or
+                | Op::I32Xor
+                | Op::I32ShiftLeft
+                | Op::I32ShiftRIghtSign
+                | Op::I32ShiftRightUnsign
+                | Op::I32RotateLeft
+                | Op::I32RotateRight => unreachable!(),
             };
             // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
             // println!("");
@@ -291,8 +313,17 @@ impl Vm {
         ));
     }
 
-    pub fn get_result(&self) -> Option<String> {
-        unimplemented!();
+    pub fn get_result(&mut self) -> Option<String> {
+        let last_value = self.stack.pop();
+        if let None = last_value {
+            return None;
+        };
+        let value = last_value.unwrap();
+        match *value {
+            StackEntry::Value(Values::I32(v)) => Some(format!("{}", v)),
+            StackEntry::Value(Values::I64(v)) => Some(format!("{}", v)),
+            _ => None,
+        }
     }
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) {

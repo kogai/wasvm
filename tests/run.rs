@@ -49,7 +49,7 @@ struct TestCases {
 }
 
 #[test]
-fn run_all() {
+fn i32() {
   let mut buffer_json = vec![];
   let mut json = File::open("dist/i32.json").unwrap();
   json.read_to_end(&mut buffer_json).unwrap();
@@ -73,7 +73,7 @@ fn run_all() {
         action: Action::Invoke { field, args },
         expected,
       } => {
-        println!("Testing spec at {}.", line);
+        println!("Testing spec at line:{}.", line);
         let mut vm = wasvm::Vm::new(wasm_file.clone());
         vm.run(
           field,
