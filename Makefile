@@ -1,13 +1,26 @@
 SRC := $(wildcard ./src/*.rs)
 TRIPLE := wasm32-unknown-unknown
+CSRCS=$(wildcard ./fixtures/*.c)
+WASTS=$(wildcard ./testsuite/*.wast)
+C_WASMS=$(CSRCS:.c=.wasm)
+WASMS=$(WASTS:.wast=.wasm)
+TEST_CASES=$(WASTS:.wast=.json)
 
-all: dist/*.wasm
+all: $(C_WASMS) $(TEST_CASES)
 
-dist/%.wasm: fixtures/%.c
-	emcc -O3 -g0 fixtures/$(shell basename $<) -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $< .c).js
-	wasm-gc $(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wasm
-	wasm2wat dist/$(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wat
-	rm ./$(shell basename $< .c).*
+dist: $(C_WASMS)
+
+$(C_WASMS): $(CSRCS)
+	emcc -O3 -g0 fixtures/$(shell basename $@ .wasm).c -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $@ .wasm).js
+	wasm-gc $(shell basename $@) -o dist/$(shell basename $@)
+	wasm2wat dist/$(shell basename $@) -o dist/$(shell basename $@ .wasm).wat
+	rm ./$(shell basename $@ .wasm).*
+
+new_dist: $(TEST_CASES)
+
+$(TEST_CASES): $(WASTS)
+	wast2json testsuite/i32.wast -o dist/i32.json
+	wasm2wat dist/i32.0.wasm -o dist/i32.wat
 
 target/release/main: $(SRC)
 	cargo build --release

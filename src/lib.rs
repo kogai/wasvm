@@ -130,13 +130,13 @@ impl Vm {
                 Op::I32Add => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
-                    let result = StackEntry::Value(left + right);
+                    let result = StackEntry::Value(left.add(&right));
                     self.stack.push(Rc::new(result));
                 }
                 Op::I32Sub => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
-                    let result = StackEntry::Value(left - right);
+                    let result = StackEntry::Value(left.sub(&right));
                     self.stack.push(Rc::new(result));
                 }
                 Op::I32Mul | Op::I64Mul => {
@@ -164,57 +164,32 @@ impl Vm {
                 Op::LessThanSign | Op::LessThanUnsign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
-                    let cond = left.lt(right);
                     self.stack
-                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
-                            1
-                        } else {
-                            0
-                        }))));
+                        .push(Rc::new(StackEntry::Value(left.less_than(right))));
                 }
                 Op::LessThanEqualSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
-                    let cond = left.less_than_equal(right);
                     self.stack
-                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
-                            1
-                        } else {
-                            0
-                        }))));
+                        .push(Rc::new(StackEntry::Value(left.less_than_equal(right))));
                 }
                 Op::GreaterThanSign | Op::GreaterThanUnsign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
-                    let cond = left.gt(right);
                     self.stack
-                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
-                            1
-                        } else {
-                            0
-                        }))));
+                        .push(Rc::new(StackEntry::Value(left.greater_than(right))));
                 }
                 Op::Equal => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
-                    let cond = left.eq(right);
                     self.stack
-                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
-                            1
-                        } else {
-                            0
-                        }))));
+                        .push(Rc::new(StackEntry::Value(left.equal(right))));
                 }
                 Op::NotEqual => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
-                    let cond = left.neq(right);
                     self.stack
-                        .push(Rc::new(StackEntry::Value(Values::I32(if cond {
-                            1
-                        } else {
-                            0
-                        }))));
+                        .push(Rc::new(StackEntry::Value(left.not_equal(right))));
                 }
                 Op::I64And => {
                     let right = &self.stack.pop_value();
