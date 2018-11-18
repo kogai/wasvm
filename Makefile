@@ -1,13 +1,16 @@
 SRC := $(wildcard ./src/*.rs)
 TRIPLE := wasm32-unknown-unknown
 
-all: dist/*.wasm
+all: dist/*.wasm wat-dist/*.wasm
 
 dist/%.wasm: fixtures/%.c
 	emcc -O3 -g0 fixtures/$(shell basename $<) -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $< .c).js
 	wasm-gc $(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wasm
 	wasm2wat dist/$(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wat
 	rm ./$(shell basename $< .c).*
+
+wat-dist/%.wasm: wat/%.wat
+	wat2wasm $< -o wat-dist/$(shell basename $< .wat).wasm
 
 target/release/main: $(SRC)
 	cargo build --release
