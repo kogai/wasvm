@@ -8,7 +8,7 @@ extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 struct TypeValue {
   #[serde(rename = "type")]
   value_type: String,
@@ -73,6 +73,9 @@ fn i32() {
         action: Action::Invoke { field, args },
         expected,
       } => {
+        // if *line != 37 {
+        //   continue;
+        // };
         println!("Testing spec at line:{}.", line);
         let mut vm = wasvm::Vm::new(wasm_file.clone());
         vm.run(
@@ -84,16 +87,23 @@ fn i32() {
               let value_type = v.value_type.to_owned();
               match value_type.as_ref() {
                 "i32" => {
-                  let actual_value = i32::from_str_radix(value.as_ref(), 10)
-                    .expect(format!("Parameters must be {}", v.value_type).as_ref());
+                  let actual_value = value.parse::<u32>().unwrap() as i32;
                   wasvm::byte::Values::I32(actual_value)
                 }
                 x => unimplemented!("{:?} is not implemented yet", x),
               }
             }).collect::<Vec<wasvm::byte::Values>>(),
         );
-        let exp = expected.get(0).unwrap();
-        assert_eq!(vm.get_result(), exp.value);
+        let exp = expected.get(0).unwrap().to_owned();
+        let expectation = match (exp.value_type.as_ref(), exp.value) {
+          ("i32", Some(value)) => {
+            let actual_value = value.parse::<u32>().unwrap() as i32;
+            Some(format!("{}", actual_value))
+          }
+          (_, None) => None,
+          _ => unimplemented!(),
+        };
+        assert_eq!(vm.get_result(), expectation);
       }
       // TODO: Test AssertTrap
       _ => {
