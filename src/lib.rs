@@ -139,6 +139,12 @@ impl Vm {
                     let result = StackEntry::Value(left.sub(&right));
                     self.stack.push(Rc::new(result));
                 }
+                Op::I32DivSign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    let result = StackEntry::Value(left.div(&right));
+                    self.stack.push(Rc::new(result));
+                }
                 Op::I32Mul | Op::I64Mul => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
@@ -243,7 +249,6 @@ impl Vm {
                 | Op::I32CountLeadingZero
                 | Op::I32CountTrailingZero
                 | Op::I32CountNonZero
-                | Op::I32DivSign
                 | Op::I32DivUnsign
                 | Op::I32RemSign
                 | Op::I32RemUnsign

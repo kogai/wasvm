@@ -1,5 +1,5 @@
 use std::ops::{
-  Add, BitAnd, /* BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, */ Div, Mul, Sub,
+  BitAnd, /* BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, */ Div, Mul, Sub,
 };
 
 #[derive(Debug, PartialEq, Clone)]
@@ -114,8 +114,8 @@ macro_rules! numeric_instrunction {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Self {
       match (self, other) {
-        (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(r)),
-        (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(r)),
+        (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
+        (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(*r)),
         _ => unimplemented!(),
       }
     }
@@ -143,10 +143,10 @@ impl Values {
   conditional_instrunction!(not_equal, ne);
 
   numeric_instrunction!(and, bitand);
-  numeric_instrunction!(add, add);
-  numeric_instrunction!(sub, sub);
-  numeric_instrunction!(mul, mul);
-  numeric_instrunction!(div, div);
+  numeric_instrunction!(add, wrapping_add);
+  numeric_instrunction!(sub, wrapping_sub);
+  numeric_instrunction!(mul, wrapping_mul);
+  numeric_instrunction!(div, wrapping_div);
 
   pub fn shift_right_unsign(&self, other: &Self) -> Self {
     match (self, other) {
