@@ -22,6 +22,9 @@ $(TEST_CASES): $(WASTS)
 	wast2json testsuite/i32.wast -o dist/i32.json
 	wasm2wat dist/i32.0.wasm -o dist/i32.wat
 
+wat-dist/%.wasm: wat/%.wat
+	wat2wasm $< -o wat-dist/$(shell basename $< .wat).wasm
+
 target/release/main: $(SRC)
 	cargo build --release
 
