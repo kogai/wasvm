@@ -14,8 +14,13 @@ $(C_WASMS): $(CSRCS)
 	wasm2wat dist/$(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wat
 	rm ./$(shell basename $< .c).*
 
+new_dist: $(TEST_CASES)
+
 $(TEST_CASES): $(WASTS)
-	wast2json $< -o dist/$(shell basename $@)
+	# echo $(shell basename $@ .json).wasm
+	# wast2json testsuite/$(shell basename $@ .json).wast -o dist/$(shell basename $@)
+	# wast2json testsuite/i32.wast -o i32.json
+	wast2json testsuite/i32.wast -o i32.json
 
 target/release/main: $(SRC)
 	cargo build --release

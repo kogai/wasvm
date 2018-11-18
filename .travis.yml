@@ -14,10 +14,10 @@ notifications:
     on_failure: change
 git:
   submodules: false
-before_install:
-  - sudo apt-get update 
-  - sudo apt-get install -y wabt
-  - make
+# before_install:
+#   - sudo apt-get update 
+#   - sudo apt-get install -y wabt
+#   - make
 before_script:
   - echo "Hello" > sample.txt
 addons:

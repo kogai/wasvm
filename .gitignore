@@ -1,4 +1,2 @@
 target/
 perf.*
-dist/*.wasm
-dist/*.json
