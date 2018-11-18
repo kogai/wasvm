@@ -22,8 +22,13 @@ $(TEST_CASES): $(WASTS)
 	wast2json testsuite/i32.wast -o dist/i32.json
 	wasm2wat dist/i32.0.wasm -o dist/i32.wat
 
+new_dist: $(TEST_CASES)
+
 $(TEST_CASES): $(WASTS)
-	wast2json $< -o dist/$(shell basename $@)
+	# echo $(shell basename $@ .json).wasm
+	# wast2json testsuite/$(shell basename $@ .json).wast -o dist/$(shell basename $@)
+	# wast2json testsuite/i32.wast -o i32.json
+	wast2json testsuite/i32.wast -o i32.json
 
 target/release/main: $(SRC)
 	cargo build --release
