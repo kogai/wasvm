@@ -8,19 +8,18 @@ TEST_CASES=$(WASTS:.wast=.json)
 
 all: $(C_WASMS) $(TEST_CASES)
 
+dist: $(C_WASMS)
+
 $(C_WASMS): $(CSRCS)
-	emcc -O3 -g0 fixtures/$(shell basename $<) -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $< .c).js
-	wasm-gc $(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wasm
-	wasm2wat dist/$(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wat
-	rm ./$(shell basename $< .c).*
+	emcc -O3 -g0 fixtures/$(shell basename $@ .wasm).c -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $@ .wasm).js
+	wasm-gc $(shell basename $@) -o dist/$(shell basename $@)
+	wasm2wat dist/$(shell basename $@) -o dist/$(shell basename $@ .wasm).wat
+	rm ./$(shell basename $@ .wasm).*
 
 new_dist: $(TEST_CASES)
 
 $(TEST_CASES): $(WASTS)
-	# echo $(shell basename $@ .json).wasm
-	# wast2json testsuite/$(shell basename $@ .json).wast -o dist/$(shell basename $@)
-	# wast2json testsuite/i32.wast -o i32.json
-	wast2json testsuite/i32.wast -o i32.json
+	wast2json testsuite/i32.wast -o dist/i32.json
 
 target/release/main: $(SRC)
 	cargo build --release
