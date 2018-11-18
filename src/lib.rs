@@ -291,12 +291,16 @@ impl Vm {
         ));
     }
 
-    pub fn run(&mut self, arguments: Vec<Values>) {
+    pub fn get_result(&self) -> Option<String> {
+        unimplemented!();
+    }
+
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) {
         let start_idx = self
             .store
             .function_instances
             .iter()
-            .position(|f| f.find("_subject"))
+            .position(|f| f.find(invoke))
             .expect("Main function did not found.");
         self.call(start_idx, arguments);
         self.evaluate();
@@ -314,7 +318,7 @@ mod tests {
             fn $fn_name() {
                 let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
                 let mut vm = Vm::new(wasm);
-                vm.run($call_arguments);
+                vm.run("_subject", $call_arguments);
                 assert_eq!(*vm.stack.pop().unwrap(), StackEntry::Value($expect_value));
             }
         };
