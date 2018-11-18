@@ -1,4 +1,6 @@
-use std::ops::{Add, Sub};
+use std::ops::{
+  Add, BitAnd, /* BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, */ Div, Mul, Sub,
+};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
@@ -87,64 +89,44 @@ pub enum Values {
   // F64,
 }
 
-// TODO: Use macro to simplify simulaly functions.
+macro_rules! numeric_instrunction {
+  ($fn_name: ident,$op: ident) => {
+    pub fn $fn_name(&self, other: &Self) -> Self {
+      match (self, other) {
+        (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(r)),
+        (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(r)),
+        _ => unimplemented!(),
+      }
+    }
+  };
+}
+
+macro_rules! conditional_instrunction {
+  ($fn_name: ident,$op: ident) => {
+    pub fn $fn_name(&self, other: &Self) -> Self {
+      match (self, other) {
+        (Values::I32(l), Values::I32(r)) => Values::I32(if l.$op(r) { 1 } else { 0 }),
+        (Values::I64(l), Values::I64(r)) => Values::I64(if l.$op(r) { 1 } else { 0 }),
+        _ => unimplemented!(),
+      }
+    }
+  };
+}
+
 impl Values {
-  pub fn lt(&self, other: &Self) -> bool {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => l < r,
-      _ => unimplemented!(),
-    }
-  }
-  pub fn less_than_equal(&self, other: &Self) -> bool {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => l <= r,
-      _ => unimplemented!(),
-    }
-  }
-  pub fn gt(&self, other: &Self) -> bool {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => l > r,
-      _ => unimplemented!(),
-    }
-  }
-  pub fn eq(&self, other: &Self) -> bool {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => l == r,
-      _ => unimplemented!(),
-    }
-  }
-  pub fn neq(&self, other: &Self) -> bool {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => l != r,
-      _ => unimplemented!(),
-    }
-  }
-  pub fn and(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => Values::I32(l & r),
-      (Values::I64(l), Values::I64(r)) => Values::I64(l & r),
-      _ => unimplemented!(),
-    }
-  }
-  pub fn is_truthy(&self) -> bool {
-    match &self {
-      Values::I32(n) => *n > 0,
-      _ => unimplemented!(),
-    }
-  }
-  pub fn mul(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => Values::I32(l * r),
-      (Values::I64(l), Values::I64(r)) => Values::I64(l * r),
-      _ => unimplemented!(),
-    }
-  }
-  pub fn extend_to_i64(&self) -> Self {
-    match self {
-      Values::I32(l) => Values::I64(i64::from(*l)),
-      _ => unimplemented!(),
-    }
-  }
+  conditional_instrunction!(less_than, lt);
+  conditional_instrunction!(less_than_equal, le);
+  conditional_instrunction!(greater_than, gt);
+  conditional_instrunction!(greater_than_equal, ge);
+  conditional_instrunction!(equal, eq);
+  conditional_instrunction!(not_equal, ne);
+
+  numeric_instrunction!(and, bitand);
+  numeric_instrunction!(add, add);
+  numeric_instrunction!(sub, sub);
+  numeric_instrunction!(mul, mul);
+  numeric_instrunction!(div, div);
+
   pub fn shift_right_unsign(&self, other: &Self) -> Self {
     match (self, other) {
       (Values::I64(i1), Values::I64(i2)) => {
@@ -155,27 +137,16 @@ impl Values {
       _ => unimplemented!(),
     }
   }
-}
 
-impl Add for Values {
-  type Output = Values;
-
-  fn add(self, other: Self) -> Self {
-    use self::Values::*;
-    match (self, other) {
-      (I32(l), I32(r)) => I32(l + r),
+  pub fn is_truthy(&self) -> bool {
+    match &self {
+      Values::I32(n) => *n > 0,
       _ => unimplemented!(),
     }
   }
-}
-
-impl Sub for Values {
-  type Output = Values;
-
-  fn sub(self, other: Self) -> Self {
-    use self::Values::*;
-    match (self, other) {
-      (I32(l), I32(r)) => I32(l - r),
+  pub fn extend_to_i64(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I64(i64::from(*l)),
       _ => unimplemented!(),
     }
   }
@@ -565,7 +536,7 @@ mod tests {
       #[test]
       fn $fn_name() {
         use Op::*;
-        let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
+        let wasm = read_wasm(format!("./{}.wasm", $file_name)).unwrap();
         let mut bc = Byte::new(wasm);
         assert_eq!(bc.decode().unwrap(), $fn_insts);
       }
@@ -574,7 +545,7 @@ mod tests {
 
   test_decode!(
     decode_cons8,
-    "cons8",
+    "dist/cons8",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -589,7 +560,7 @@ mod tests {
 
   test_decode!(
     decode_cons16,
-    "cons16",
+    "dist/cons16",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -604,7 +575,7 @@ mod tests {
 
   test_decode!(
     decode_signed,
-    "signed",
+    "dist/signed",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -619,7 +590,7 @@ mod tests {
 
   test_decode!(
     decode_add,
-    "add",
+    "dist/add",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -634,7 +605,7 @@ mod tests {
 
   test_decode!(
     decode_sub,
-    "sub",
+    "dist/sub",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -649,7 +620,7 @@ mod tests {
 
   test_decode!(
     decode_add_five,
-    "add_five",
+    "dist/add_five",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -664,7 +635,7 @@ mod tests {
 
   test_decode!(
     decode_if_lt,
-    "if_lt",
+    "dist/if_lt",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -695,7 +666,7 @@ mod tests {
   );
   test_decode!(
     decode_if_gt,
-    "if_gt",
+    "dist/if_gt",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -726,7 +697,7 @@ mod tests {
   );
   test_decode!(
     decode_if_eq,
-    "if_eq",
+    "dist/if_eq",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
@@ -747,7 +718,7 @@ mod tests {
   );
   test_decode!(
     decode_count,
-    "count",
+    "dist/count",
     vec![FunctionInstance {
       export_name: Some("_subject".to_owned()),
       function_type: FunctionType {
