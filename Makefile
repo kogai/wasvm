@@ -1,16 +1,21 @@
 SRC := $(wildcard ./src/*.rs)
 TRIPLE := wasm32-unknown-unknown
+CSRCS=$(wildcard ./fixtures/*.c)
+WASTS=$(wildcard ./testsuite/*.wast)
+C_WASMS=$(CSRCS:.c=.wasm)
+WASMS=$(WASTS:.wast=.wasm)
+TEST_CASES=$(WASTS:.wast=.json)
 
-all: dist/*.wasm wat-dist/*.wasm
+all: $(C_WASMS) $(TEST_CASES)
 
-dist/%.wasm: fixtures/%.c
+$(C_WASMS): $(CSRCS)
 	emcc -O3 -g0 fixtures/$(shell basename $<) -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $< .c).js
 	wasm-gc $(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wasm
 	wasm2wat dist/$(shell basename $< .c).wasm -o dist/$(shell basename $< .c).wat
 	rm ./$(shell basename $< .c).*
 
-wat-dist/%.wasm: wat/%.wat
-	wat2wasm $< -o wat-dist/$(shell basename $< .wat).wasm
+$(TEST_CASES): $(WASTS)
+	wast2json $< -o dist/$(shell basename $@)
 
 target/release/main: $(SRC)
 	cargo build --release
