@@ -1,6 +1,6 @@
 use std::convert::From;
-// /* BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, */
-use std::ops::BitAnd;
+// /* BitAndAssign, , BitOrAssign, , BitXorAssign, */
+use std::ops::{BitAnd, BitOr, BitXor};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
@@ -148,6 +148,8 @@ impl Values {
   conditional_instrunction!(not_equal, ne);
 
   numeric_instrunction!(and, bitand);
+  numeric_instrunction!(or, bitor);
+  numeric_instrunction!(xor, bitxor);
   numeric_instrunction!(add, wrapping_add);
   numeric_instrunction!(sub, wrapping_sub);
   numeric_instrunction!(mul, wrapping_mul);
@@ -224,8 +226,44 @@ impl Values {
     }
   }
 
+  pub fn shift_left(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => {
+        let shifted = i1.wrapping_shl(*i2 as u32);
+        Values::I32(shifted)
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn shift_right_sign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => {
+        let shifted = i1.wrapping_shr(*i2 as u32);
+        Values::I32((shifted as u32) as i32)
+      }
+      _ => unimplemented!(),
+    }
+  }
+
   pub fn shift_right_unsign(&self, other: &Self) -> Self {
     match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => {
+        let i1 = *i1 as u32;
+        let i2 = *i2 as u32;
+        let shifted = i1.wrapping_shr(i2) as i32;
+        let leftmost = 1 << 31;
+        println!("{:b}", 1i32 << 31);
+        println!("{:b}", shifted);
+        Values::I32(if shifted & leftmost == 0 {
+          shifted
+        } else {
+          // println!("{:b}", 1i32 << 31);
+          // println!("{:b}", 1u32 << 31);
+          println!("{}", shifted ^ leftmost);
+          shifted ^ leftmost
+        })
+      }
       (Values::I64(i1), Values::I64(i2)) => {
         let shift = *i2 % 64;
         let result = i1 >> shift;

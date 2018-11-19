@@ -248,7 +248,19 @@ impl Vm {
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.not_equal(right))));
                 }
-                Op::I64And => {
+                Op::I32Or => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    let result = left.or(right);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32Xor => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    let result = left.xor(right);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32And | Op::I64And => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     let result = left.and(right);
@@ -273,7 +285,19 @@ impl Vm {
                     let result = value.extend_to_i64();
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                Op::I64ShiftRightUnsign => {
+                Op::I32ShiftLeft => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.shift_left(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32ShiftRIghtSign => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.shift_right_sign(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32ShiftRightUnsign | Op::I64ShiftRightUnsign => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
                     let result = i1.shift_right_unsign(i2);
@@ -300,12 +324,6 @@ impl Vm {
                 Op::I32CountLeadingZero => unreachable!(),
                 Op::I32CountTrailingZero => unreachable!(),
                 Op::I32CountNonZero => unreachable!(),
-                Op::I32And => unreachable!(),
-                Op::I32Or => unreachable!(),
-                Op::I32Xor => unreachable!(),
-                Op::I32ShiftLeft => unreachable!(),
-                Op::I32ShiftRIghtSign => unreachable!(),
-                Op::I32ShiftRightUnsign => unreachable!(),
                 Op::I32RotateLeft => unreachable!(),
                 Op::I32RotateRight => unreachable!(),
             };
