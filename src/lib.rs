@@ -1,6 +1,6 @@
 pub mod byte;
 mod utils;
-use byte::{FunctionInstance, Op, Trap, Values};
+use byte::{FunctionInstance, Op, Values};
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
@@ -168,6 +168,34 @@ impl Vm {
                         }
                     }
                 }
+                Op::I32RemSign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    match left.rem_s(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
+                }
+                Op::I32RemUnsign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    match left.rem_u(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
+                }
                 Op::I32Mul | Op::I64Mul => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
@@ -261,27 +289,25 @@ impl Vm {
                         unreachable!();
                     }
                 }
-                Op::TypeEmpty
-                | Op::TypeI32
-                | Op::I32EqualZero
-                | Op::I32GreaterThanUnsign
-                | Op::I32LessEqualSign
-                | Op::I32LessEqualUnsign
-                | Op::I32GreaterEqualSign
-                | Op::I32GreaterEqualUnsign
-                | Op::I32CountLeadingZero
-                | Op::I32CountTrailingZero
-                | Op::I32CountNonZero
-                | Op::I32RemSign
-                | Op::I32RemUnsign
-                | Op::I32And
-                | Op::I32Or
-                | Op::I32Xor
-                | Op::I32ShiftLeft
-                | Op::I32ShiftRIghtSign
-                | Op::I32ShiftRightUnsign
-                | Op::I32RotateLeft
-                | Op::I32RotateRight => unreachable!(),
+                Op::TypeEmpty => unreachable!(),
+                Op::TypeI32 => unreachable!(),
+                Op::I32EqualZero => unreachable!(),
+                Op::I32GreaterThanUnsign => unreachable!(),
+                Op::I32LessEqualSign => unreachable!(),
+                Op::I32LessEqualUnsign => unreachable!(),
+                Op::I32GreaterEqualSign => unreachable!(),
+                Op::I32GreaterEqualUnsign => unreachable!(),
+                Op::I32CountLeadingZero => unreachable!(),
+                Op::I32CountTrailingZero => unreachable!(),
+                Op::I32CountNonZero => unreachable!(),
+                Op::I32And => unreachable!(),
+                Op::I32Or => unreachable!(),
+                Op::I32Xor => unreachable!(),
+                Op::I32ShiftLeft => unreachable!(),
+                Op::I32ShiftRIghtSign => unreachable!(),
+                Op::I32ShiftRightUnsign => unreachable!(),
+                Op::I32RotateLeft => unreachable!(),
+                Op::I32RotateRight => unreachable!(),
             };
             // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
             // println!("");

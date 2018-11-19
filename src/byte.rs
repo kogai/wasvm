@@ -55,7 +55,9 @@ pub enum Op {
 
 pub enum Trap {
   DivisionOverflow,
+  DivisionByZero,
 }
+
 #[derive(Debug, PartialEq, Clone)]
 struct FunctionType {
   parameters: Vec<ValueTypes>,
@@ -150,9 +152,48 @@ impl Values {
   numeric_instrunction!(sub, wrapping_sub);
   numeric_instrunction!(mul, wrapping_mul);
 
+  pub fn rem_s(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = l.overflowing_rem(*r);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn rem_u(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = (*l as u32).overflowing_rem(*r as u32);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined as i32))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
+
   pub fn div_u(&self, other: &Self) -> Result<Self, Trap> {
     match (self, other) {
       (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
         let (divined, overflowed) = (*l as u32).overflowing_div(*r as u32);
         if overflowed {
           Err(Trap::DivisionOverflow)
@@ -168,6 +209,9 @@ impl Values {
   pub fn div_s(&self, other: &Self) -> Result<Self, Trap> {
     match (self, other) {
       (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
         let (divined, overflowed) = l.overflowing_div(*r);
         if overflowed {
           Err(Trap::DivisionOverflow)
