@@ -1,6 +1,6 @@
-use std::ops::{
-  BitAnd, /* BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, */ Div, Mul, Sub,
-};
+use std::convert::From;
+// /* BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, */
+use std::ops::BitAnd;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
@@ -53,6 +53,9 @@ pub enum Op {
   I32WrapI64,
 }
 
+pub enum Trap {
+  DivisionOverflow,
+}
 #[derive(Debug, PartialEq, Clone)]
 struct FunctionType {
   parameters: Vec<ValueTypes>,
@@ -146,7 +149,36 @@ impl Values {
   numeric_instrunction!(add, wrapping_add);
   numeric_instrunction!(sub, wrapping_sub);
   numeric_instrunction!(mul, wrapping_mul);
-  numeric_instrunction!(div, wrapping_div);
+
+  pub fn div_u(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let (divined, overflowed) = (*l as u32).overflowing_div(*r as u32);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined as i32))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn div_s(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let (divined, overflowed) = l.overflowing_div(*r);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
 
   pub fn shift_right_unsign(&self, other: &Self) -> Self {
     match (self, other) {

@@ -1,6 +1,6 @@
 pub mod byte;
 mod utils;
-use byte::{FunctionInstance, Op, Values};
+use byte::{FunctionInstance, Op, Trap, Values};
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
@@ -103,6 +103,7 @@ impl Vm {
     }
 
     fn evaluate_instructions(&mut self, expressions: &Vec<Op>) -> Option<()> {
+        let mut result = Some(());
         for expression in expressions.iter() {
             // println!("{:?}", &expression);
             match expression {
@@ -139,11 +140,33 @@ impl Vm {
                     let result = StackEntry::Value(left.sub(&right));
                     self.stack.push(Rc::new(result));
                 }
+                Op::I32DivUnsign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    match left.div_u(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
+                }
                 Op::I32DivSign => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
-                    let result = StackEntry::Value(left.div(&right));
-                    self.stack.push(Rc::new(result));
+                    match left.div_s(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
                 }
                 Op::I32Mul | Op::I64Mul => {
                     let right = self.stack.pop_value();
@@ -249,7 +272,6 @@ impl Vm {
                 | Op::I32CountLeadingZero
                 | Op::I32CountTrailingZero
                 | Op::I32CountNonZero
-                | Op::I32DivUnsign
                 | Op::I32RemSign
                 | Op::I32RemUnsign
                 | Op::I32And
@@ -264,11 +286,11 @@ impl Vm {
             // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
             // println!("");
         }
-        Some(())
+        result
     }
 
     fn evaluate_frame(&mut self, instructions: &Vec<Op>) -> Option<()> {
-        let _ = self.evaluate_instructions(instructions);
+        self.evaluate_instructions(instructions)?;
         let return_value = self.stack.pop_value();
         let frame_ptr = self.stack.frame_ptr.pop()?;
         self.stack.stack_ptr = frame_ptr;
@@ -285,7 +307,7 @@ impl Vm {
         self.stack.push(Rc::new(frame));
     }
 
-    fn evaluate(&mut self) {
+    fn evaluate(&mut self) -> Option<()> {
         let mut result = None;
         while !self.stack.is_empty {
             let popped = self.stack.pop().expect("Invalid popping stack.");
@@ -295,7 +317,7 @@ impl Vm {
                     break;
                 }
                 StackEntry::Label(ref expressions) => {
-                    self.evaluate_frame(&expressions);
+                    self.evaluate_frame(&expressions)?;
                 }
                 StackEntry::Frame(ref frame) => {
                     let _offset = frame.locals.len();
@@ -316,6 +338,7 @@ impl Vm {
         self.stack.push(Rc::new(
             result.expect("Call stack may return with null value"),
         ));
+        Some(())
     }
 
     pub fn get_result(&mut self) -> Option<String> {
@@ -339,7 +362,11 @@ impl Vm {
             .position(|f| f.find(invoke))
             .expect("Main function did not found.");
         self.call(start_idx, arguments);
-        self.evaluate();
+        match self.evaluate() {
+            Some(_) => {}
+            // FIXME: Temporaly, if trapped evaluation, push 0 to stack :thinking_face: .
+            None => self.stack.push(Rc::new(StackEntry::Value(Values::I32(0)))),
+        }
     }
 }
 
