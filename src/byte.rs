@@ -252,22 +252,13 @@ impl Values {
         let i1 = *i1 as u32;
         let i2 = *i2 as u32;
         let shifted = i1.wrapping_shr(i2) as i32;
-        let leftmost = 1 << 31;
-        println!("{:b}", 1i32 << 31);
-        println!("{:b}", shifted);
-        Values::I32(if shifted & leftmost == 0 {
-          shifted
-        } else {
-          // println!("{:b}", 1i32 << 31);
-          // println!("{:b}", 1u32 << 31);
-          println!("{}", shifted ^ leftmost);
-          shifted ^ leftmost
-        })
+        Values::I32(shifted)
       }
       (Values::I64(i1), Values::I64(i2)) => {
-        let shift = *i2 % 64;
-        let result = i1 >> shift;
-        Values::I64(result)
+        let i1 = *i1 as u64;
+        let i2 = *i2 as u64;
+        let shifted = i1.wrapping_shr((i2 % 64) as u32) as i64;
+        Values::I64(shifted)
       }
       _ => unimplemented!(),
     }
