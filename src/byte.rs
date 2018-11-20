@@ -1,8 +1,7 @@
 use std::convert::From;
 // /* BitAndAssign, , BitOrAssign, , BitXorAssign, */
-use code::{Code, ExportDescriptionCode, SecionCode};
-use inst::{Inst, Trap};
-use std::ops::{BitAnd, BitOr, BitXor};
+use code::{Code, ExportDescriptionCode, SecionCode, ValueTypes};
+use inst::Inst;
 
 #[derive(Debug, PartialEq, Clone)]
 struct FunctionType {
@@ -29,288 +28,6 @@ impl FunctionInstance {
     match &self.export_name {
       Some(name) => name.as_str() == key,
       _ => false,
-    }
-  }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum ValueTypes {
-  Empty,
-  I32,
-  // I64,
-  // F32,
-  // F64,
-}
-
-impl ValueTypes {
-  fn from_byte(code: Option<u8>) -> Self {
-    use self::ValueTypes::*;
-    match code {
-      Some(0x7f) => I32,
-      Some(x) => unimplemented!("ValueTypes of {} does not implemented yet.", x),
-      _ => unreachable!(),
-    }
-  }
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Values {
-  I32(i32),
-  I64(i64),
-  // F32,
-  // F64,
-}
-
-macro_rules! numeric_instrunction {
-  ($fn_name: ident,$op: ident) => {
-    pub fn $fn_name(&self, other: &Self) -> Self {
-      match (self, other) {
-        (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
-        (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(*r)),
-        _ => unimplemented!(),
-      }
-    }
-  };
-}
-
-macro_rules! conditional_instrunction {
-  ($fn_name: ident,$op: ident) => {
-    pub fn $fn_name(&self, other: &Self) -> Self {
-      match (self, other) {
-        (Values::I32(l), Values::I32(r)) => Values::I32(if l.$op(r) { 1 } else { 0 }),
-        (Values::I64(l), Values::I64(r)) => Values::I64(if l.$op(r) { 1 } else { 0 }),
-        _ => unimplemented!(),
-      }
-    }
-  };
-}
-
-impl Values {
-  conditional_instrunction!(less_than, lt);
-  conditional_instrunction!(less_than_equal, le);
-  conditional_instrunction!(greater_than, gt);
-  conditional_instrunction!(greater_than_equal, ge);
-  conditional_instrunction!(equal, eq);
-  conditional_instrunction!(not_equal, ne);
-
-  numeric_instrunction!(and, bitand);
-  numeric_instrunction!(or, bitor);
-  numeric_instrunction!(xor, bitxor);
-  numeric_instrunction!(add, wrapping_add);
-  numeric_instrunction!(sub, wrapping_sub);
-  numeric_instrunction!(mul, wrapping_mul);
-
-  pub fn equal_zero(&self) -> Self {
-    match self {
-      Values::I32(n) => Values::I32(if *n == 0 { 1 } else { 0 }),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn less_than_unsign(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        let l1 = *l as u32;
-        let r1 = *r as u32;
-        let result = l1.lt(&r1);
-        Values::I32(if result { 1 } else { 0 })
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn less_than_equal_unsign(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        let l1 = *l as u32;
-        let r1 = *r as u32;
-        let result = l1.le(&r1);
-        Values::I32(if result { 1 } else { 0 })
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn greater_than_unsign(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        let l1 = *l as u32;
-        let r1 = *r as u32;
-        let result = l1.gt(&r1);
-        Values::I32(if result { 1 } else { 0 })
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn greater_than_equal_unsign(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        let l1 = *l as u32;
-        let r1 = *r as u32;
-        let result = l1.ge(&r1);
-        Values::I32(if result { 1 } else { 0 })
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn rem_s(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = l.overflowing_rem(*r);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn rem_u(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = (*l as u32).overflowing_rem(*r as u32);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined as i32))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn div_u(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = (*l as u32).overflowing_div(*r as u32);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined as i32))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn div_s(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = l.overflowing_div(*r);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn shift_left(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(i1), Values::I32(i2)) => {
-        let shifted = i1.wrapping_shl(*i2 as u32);
-        Values::I32(shifted)
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn shift_right_sign(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(i1), Values::I32(i2)) => {
-        let shifted = i1.wrapping_shr(*i2 as u32);
-        Values::I32((shifted as u32) as i32)
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn shift_right_unsign(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(i1), Values::I32(i2)) => {
-        let i1 = *i1 as u32;
-        let i2 = *i2 as u32;
-        let shifted = i1.wrapping_shr(i2) as i32;
-        Values::I32(shifted)
-      }
-      (Values::I64(i1), Values::I64(i2)) => {
-        let i1 = *i1 as u64;
-        let i2 = *i2 as u64;
-        let shifted = i1.wrapping_shr((i2 % 64) as u32) as i64;
-        Values::I64(shifted)
-      }
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn rotate_left(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(i1), Values::I32(i2)) => Values::I32(i1.rotate_left(*i2 as u32)),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn rotate_right(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::I32(i1), Values::I32(i2)) => Values::I32(i1.rotate_right(*i2 as u32)),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn is_truthy(&self) -> bool {
-    match &self {
-      Values::I32(n) => *n > 0,
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn count_leading_zero(&self) -> Self {
-    match self {
-      Values::I32(l) => Values::I32(l.leading_zeros() as i32),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn count_trailing_zero(&self) -> Self {
-    match self {
-      Values::I32(l) => Values::I32(l.trailing_zeros() as i32),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn pop_count(&self) -> Self {
-    match self {
-      Values::I32(l) => Values::I32(l.count_ones() as i32),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn extend_to_i64(&self) -> Self {
-    match self {
-      Values::I32(l) => Values::I64(i64::from(*l)),
-      _ => unimplemented!(),
     }
   }
 }
@@ -393,11 +110,11 @@ impl Byte {
       let _type_function = Code::from(self.next());
       let size_of_arity = self.decode_leb128_i32()?;
       for _ in 0..size_of_arity {
-        parameters.push(ValueTypes::from_byte(self.next()));
+        parameters.push(ValueTypes::from(self.next()));
       }
       let size_of_result = self.decode_leb128_i32()?;
       for _ in 0..size_of_result {
-        returns.push(ValueTypes::from_byte(self.next()));
+        returns.push(ValueTypes::from(self.next()));
       }
       function_types.push(FunctionType {
         parameters,
@@ -465,7 +182,6 @@ impl Byte {
         Code::Equal => expressions.push(Inst::Equal),
         Code::NotEqual => expressions.push(Inst::NotEqual),
         Code::LessThanSign => expressions.push(Inst::LessThanSign),
-        Code::LessThanEqualSign => expressions.push(Inst::I32LessEqualSign),
         Code::LessThanUnsign => expressions.push(Inst::LessThanUnsign),
         Code::GreaterThanSign => expressions.push(Inst::GreaterThanSign),
         Code::I32GreaterThanUnsign => expressions.push(Inst::I32GreaterThanUnsign),
@@ -520,7 +236,7 @@ impl Byte {
       let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
       for _ in 0..count_of_locals {
         let _idx = self.next(); // NOTE: Index of local varibale type?
-        locals.push(ValueTypes::from_byte(self.next()));
+        locals.push(ValueTypes::from(self.next()));
       }
       let mut expressions = self.decode_section_code_internal()?;
       codes.push((expressions, locals));

@@ -7,6 +7,7 @@ extern crate serde_json;
 extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
+use wasvm::value::Values;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 struct TypeValue {
@@ -90,11 +91,11 @@ macro_rules! impl_e2e {
                   match value_type.as_ref() {
                     "i32" => {
                       let actual_value = value.parse::<u32>().unwrap() as i32;
-                      wasvm::byte::Values::I32(actual_value)
+                      Values::I32(actual_value)
                     }
                     x => unimplemented!("{:?} is not implemented yet", x),
                   }
-                }).collect::<Vec<wasvm::byte::Values>>(),
+                }).collect::<Vec<Values>>(),
             );
             let exp = expected.get(0).unwrap().to_owned();
             let expectation = match (exp.value_type.as_ref(), exp.value) {

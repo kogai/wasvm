@@ -1,11 +1,13 @@
 pub mod byte;
-pub mod code;
-pub mod inst;
-
+mod code;
+mod inst;
 mod utils;
-use byte::{FunctionInstance, Values};
+pub mod value;
+
+use byte::FunctionInstance;
 use inst::Inst;
 use std::rc::Rc;
+use value::Values;
 
 #[derive(Debug, PartialEq)]
 struct Store {

@@ -46,7 +46,6 @@ pub enum Code {
   NotEqual,
   LessThanSign,
   LessThanUnsign,
-  LessThanEqualSign,
   GreaterThanSign,
   I32GreaterThanUnsign,
   I32LessEqualSign,
@@ -164,6 +163,25 @@ impl From<Option<u8>> for ExportDescriptionCode {
       Some(0x02) => ExportDescMemIdx,
       Some(0x03) => ExportDescGlobalIdx,
       x => unreachable!("Export description code {:x?} does not supported yet.", x),
+    }
+  }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ValueTypes {
+  Empty,
+  I32,
+  // I64,
+  // F32,
+  // F64,
+}
+
+impl From<Option<u8>> for ValueTypes {
+  fn from(code: Option<u8>) -> Self {
+    match Code::from(code) {
+      Code::TypeValueEmpty => ValueTypes::Empty,
+      Code::TypeValueI32 => ValueTypes::I32,
+      x => unimplemented!("ValueTypes of {:?} does not implemented yet.", x),
     }
   }
 }
