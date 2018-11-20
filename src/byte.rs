@@ -154,6 +154,61 @@ impl Values {
   numeric_instrunction!(sub, wrapping_sub);
   numeric_instrunction!(mul, wrapping_mul);
 
+  pub fn equal_zero(&self) -> Self {
+    match self {
+      Values::I32(n) => Values::I32(if *n == 0 { 1 } else { 0 }),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn less_than_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.lt(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn less_than_equal_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.le(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn greater_than_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.gt(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn greater_than_equal_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.ge(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
   pub fn rem_s(&self, other: &Self) -> Result<Self, Trap> {
     match (self, other) {
       (Values::I32(l), Values::I32(r)) => {
@@ -264,12 +319,48 @@ impl Values {
     }
   }
 
+  pub fn rotate_left(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => Values::I32(i1.rotate_left(*i2 as u32)),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn rotate_right(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => Values::I32(i1.rotate_right(*i2 as u32)),
+      _ => unimplemented!(),
+    }
+  }
+
   pub fn is_truthy(&self) -> bool {
     match &self {
       Values::I32(n) => *n > 0,
       _ => unimplemented!(),
     }
   }
+
+  pub fn count_leading_zero(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I32(l.leading_zeros() as i32),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn count_trailing_zero(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I32(l.trailing_zeros() as i32),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn pop_count(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I32(l.count_ones() as i32),
+      _ => unimplemented!(),
+    }
+  }
+
   pub fn extend_to_i64(&self) -> Self {
     match self {
       Values::I32(l) => Values::I64(i64::from(*l)),

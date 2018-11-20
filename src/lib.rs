@@ -218,23 +218,56 @@ impl Vm {
                         self.stack.push(Rc::new(StackEntry::Value(false_br)));
                     }
                 }
-                Op::LessThanSign | Op::LessThanUnsign => {
+                Op::LessThanSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than(right))));
                 }
-                Op::LessThanEqualSign => {
+                Op::LessThanUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack
+                        .push(Rc::new(StackEntry::Value(left.less_than_unsign(right))));
+                }
+                // FIXME: Is the code LessThanEqualSign duplicated?
+                Op::I32LessEqualSign | Op::LessThanEqualSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than_equal(right))));
+                }
+                Op::I32LessEqualUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack.push(Rc::new(StackEntry::Value(
+                        left.less_than_equal_unsign(right),
+                    )));
+                }
+                Op::I32GreaterEqualSign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack
+                        .push(Rc::new(StackEntry::Value(left.greater_than_equal(right))));
                 }
                 Op::GreaterThanSign | Op::GreaterThanUnsign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.greater_than(right))));
+                }
+                Op::I32GreaterThanUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack
+                        .push(Rc::new(StackEntry::Value(left.greater_than_unsign(right))));
+                }
+                Op::I32GreaterEqualUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack.push(Rc::new(StackEntry::Value(
+                        left.greater_than_equal_unsign(right),
+                    )));
                 }
                 Op::Equal => {
                     let right = &self.stack.pop_value();
@@ -313,19 +346,40 @@ impl Vm {
                         unreachable!();
                     }
                 }
+                Op::I32RotateLeft => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.rotate_left(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32RotateRight => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.rotate_right(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32CountLeadingZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.count_leading_zero();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32CountTrailingZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.count_trailing_zero();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32CountNonZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.pop_count();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
                 Op::TypeEmpty => unreachable!(),
                 Op::TypeI32 => unreachable!(),
-                Op::I32EqualZero => unreachable!(),
-                Op::I32GreaterThanUnsign => unreachable!(),
-                Op::I32LessEqualSign => unreachable!(),
-                Op::I32LessEqualUnsign => unreachable!(),
-                Op::I32GreaterEqualSign => unreachable!(),
-                Op::I32GreaterEqualUnsign => unreachable!(),
-                Op::I32CountLeadingZero => unreachable!(),
-                Op::I32CountTrailingZero => unreachable!(),
-                Op::I32CountNonZero => unreachable!(),
-                Op::I32RotateLeft => unreachable!(),
-                Op::I32RotateRight => unreachable!(),
+                Op::I32EqualZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.equal_zero();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
             };
             // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
             // println!("");
