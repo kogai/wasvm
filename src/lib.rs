@@ -230,8 +230,7 @@ impl Vm {
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than_unsign(right))));
                 }
-                // FIXME: Is the code LessThanEqualSign duplicated?
-                Op::I32LessEqualSign | Op::LessThanEqualSign => {
+                Op::I32LessEqualSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
