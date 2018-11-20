@@ -4,7 +4,7 @@ use std::env::args;
 use std::fs;
 use std::io;
 use std::io::Read;
-use wasvm::byte;
+use wasvm::value;
 
 fn main() -> io::Result<()> {
   let arguments = args().collect::<Vec<String>>();
@@ -25,8 +25,8 @@ fn main() -> io::Result<()> {
         arguments
           .iter()
           .map(|v| i32::from_str_radix(v, 10).expect("Parameters must be i32"))
-          .map(|v| byte::Values::I32(v))
-          .collect::<Vec<byte::Values>>(),
+          .map(|v| value::Values::I32(v))
+          .collect::<Vec<value::Values>>(),
       );
       println!("{:?}", vm.stack.pop().unwrap());
     }
