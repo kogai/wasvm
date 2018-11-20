@@ -103,6 +103,7 @@ impl Vm {
     }
 
     fn evaluate_instructions(&mut self, expressions: &Vec<Op>) -> Option<()> {
+        let mut result = Some(());
         for expression in expressions.iter() {
             // println!("{:?}", &expression);
             match expression {
@@ -139,6 +140,62 @@ impl Vm {
                     let result = StackEntry::Value(left.sub(&right));
                     self.stack.push(Rc::new(result));
                 }
+                Op::I32DivUnsign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    match left.div_u(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
+                }
+                Op::I32DivSign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    match left.div_s(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
+                }
+                Op::I32RemSign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    match left.rem_s(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
+                }
+                Op::I32RemUnsign => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    match left.rem_u(&right) {
+                        Ok(result) => {
+                            self.stack.push(Rc::new(StackEntry::Value(result)));
+                        }
+                        // FIXME: May handle trap properly.
+                        Err(_trap) => {
+                            result = None;
+                            break;
+                        }
+                    }
+                }
                 Op::I32Mul | Op::I64Mul => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
@@ -161,23 +218,55 @@ impl Vm {
                         self.stack.push(Rc::new(StackEntry::Value(false_br)));
                     }
                 }
-                Op::LessThanSign | Op::LessThanUnsign => {
+                Op::LessThanSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than(right))));
                 }
-                Op::LessThanEqualSign => {
+                Op::LessThanUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack
+                        .push(Rc::new(StackEntry::Value(left.less_than_unsign(right))));
+                }
+                Op::I32LessEqualSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than_equal(right))));
+                }
+                Op::I32LessEqualUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack.push(Rc::new(StackEntry::Value(
+                        left.less_than_equal_unsign(right),
+                    )));
+                }
+                Op::I32GreaterEqualSign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack
+                        .push(Rc::new(StackEntry::Value(left.greater_than_equal(right))));
                 }
                 Op::GreaterThanSign | Op::GreaterThanUnsign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.greater_than(right))));
+                }
+                Op::I32GreaterThanUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack
+                        .push(Rc::new(StackEntry::Value(left.greater_than_unsign(right))));
+                }
+                Op::I32GreaterEqualUnsign => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    self.stack.push(Rc::new(StackEntry::Value(
+                        left.greater_than_equal_unsign(right),
+                    )));
                 }
                 Op::Equal => {
                     let right = &self.stack.pop_value();
@@ -191,7 +280,19 @@ impl Vm {
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.not_equal(right))));
                 }
-                Op::I64And => {
+                Op::I32Or => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    let result = left.or(right);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32Xor => {
+                    let right = &self.stack.pop_value();
+                    let left = &self.stack.pop_value();
+                    let result = left.xor(right);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32And | Op::I64And => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     let result = left.and(right);
@@ -216,7 +317,19 @@ impl Vm {
                     let result = value.extend_to_i64();
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                Op::I64ShiftRightUnsign => {
+                Op::I32ShiftLeft => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.shift_left(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32ShiftRIghtSign => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.shift_right_sign(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32ShiftRightUnsign | Op::I64ShiftRightUnsign => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
                     let result = i1.shift_right_unsign(i2);
@@ -232,16 +345,49 @@ impl Vm {
                         unreachable!();
                     }
                 }
-                Op::TypeEmpty | Op::TypeI32 => unreachable!(),
+                Op::I32RotateLeft => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.rotate_left(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32RotateRight => {
+                    let i2 = &self.stack.pop_value();
+                    let i1 = &self.stack.pop_value();
+                    let result = i1.rotate_right(i2);
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32CountLeadingZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.count_leading_zero();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32CountTrailingZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.count_trailing_zero();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::I32CountNonZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.pop_count();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
+                Op::TypeEmpty => unreachable!(),
+                Op::TypeI32 => unreachable!(),
+                Op::I32EqualZero => {
+                    let l = &self.stack.pop_value();
+                    let result = l.equal_zero();
+                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                }
             };
             // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
             // println!("");
         }
-        Some(())
+        result
     }
 
     fn evaluate_frame(&mut self, instructions: &Vec<Op>) -> Option<()> {
-        let _ = self.evaluate_instructions(instructions);
+        self.evaluate_instructions(instructions)?;
         let return_value = self.stack.pop_value();
         let frame_ptr = self.stack.frame_ptr.pop()?;
         self.stack.stack_ptr = frame_ptr;
@@ -258,7 +404,7 @@ impl Vm {
         self.stack.push(Rc::new(frame));
     }
 
-    fn evaluate(&mut self) {
+    fn evaluate(&mut self) -> Option<()> {
         let mut result = None;
         while !self.stack.is_empty {
             let popped = self.stack.pop().expect("Invalid popping stack.");
@@ -268,7 +414,7 @@ impl Vm {
                     break;
                 }
                 StackEntry::Label(ref expressions) => {
-                    self.evaluate_frame(&expressions);
+                    self.evaluate_frame(&expressions)?;
                 }
                 StackEntry::Frame(ref frame) => {
                     let _offset = frame.locals.len();
@@ -289,17 +435,35 @@ impl Vm {
         self.stack.push(Rc::new(
             result.expect("Call stack may return with null value"),
         ));
+        Some(())
     }
 
-    pub fn run(&mut self, arguments: Vec<Values>) {
+    pub fn get_result(&mut self) -> Option<String> {
+        let last_value = self.stack.pop();
+        if let None = last_value {
+            return None;
+        };
+        let value = last_value.unwrap();
+        match *value {
+            StackEntry::Value(Values::I32(v)) => Some(format!("{}", v)),
+            StackEntry::Value(Values::I64(v)) => Some(format!("{}", v)),
+            _ => None,
+        }
+    }
+
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) {
         let start_idx = self
             .store
             .function_instances
             .iter()
-            .position(|f| f.find("_subject"))
+            .position(|f| f.find(invoke))
             .expect("Main function did not found.");
         self.call(start_idx, arguments);
-        self.evaluate();
+        match self.evaluate() {
+            Some(_) => {}
+            // FIXME: Temporaly, if trapped evaluation, push 0 to stack :thinking_face: .
+            None => self.stack.push(Rc::new(StackEntry::Value(Values::I32(0)))),
+        }
     }
 }
 
@@ -314,7 +478,7 @@ mod tests {
             fn $fn_name() {
                 let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
                 let mut vm = Vm::new(wasm);
-                vm.run($call_arguments);
+                vm.run("_subject", $call_arguments);
                 assert_eq!(*vm.stack.pop().unwrap(), StackEntry::Value($expect_value));
             }
         };

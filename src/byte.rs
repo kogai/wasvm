@@ -1,6 +1,6 @@
-use std::ops::{
-  Add, BitAnd, /* BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, */ Div, Mul, Sub,
-};
+use std::convert::From;
+// /* BitAndAssign, , BitOrAssign, , BitXorAssign, */
+use std::ops::{BitAnd, BitOr, BitXor};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Op {
@@ -9,17 +9,37 @@ pub enum Op {
   GetLocal(usize),
   SetLocal(usize),
   TeeLocal(usize),
+  I32CountLeadingZero,
+  I32CountTrailingZero,
+  I32CountNonZero,
   I32Add,
   I32Sub,
   I32Mul,
+  I32DivSign,
+  I32DivUnsign,
+  I32RemSign,
+  I32RemUnsign,
+  I32And,
+  I32Or,
+  I32Xor,
+  I32ShiftLeft,
+  I32ShiftRIghtSign,
+  I32ShiftRightUnsign,
+  I32RotateLeft,
+  I32RotateRight,
   Call(usize),
+  I32EqualZero,
   Equal,
   NotEqual,
   LessThanSign,
-  LessThanEqualSign,
   LessThanUnsign,
   GreaterThanSign,
   GreaterThanUnsign,
+  I32GreaterThanUnsign,
+  I32LessEqualSign,
+  I32LessEqualUnsign,
+  I32GreaterEqualSign,
+  I32GreaterEqualUnsign,
   If(Vec<Op>, Vec<Op>),
   Select,
   Return,
@@ -30,6 +50,11 @@ pub enum Op {
   I64And,
   I64ShiftRightUnsign,
   I32WrapI64,
+}
+
+pub enum Trap {
+  DivisionOverflow,
+  DivisionByZero,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -93,8 +118,8 @@ macro_rules! numeric_instrunction {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Self {
       match (self, other) {
-        (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(r)),
-        (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(r)),
+        (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
+        (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(*r)),
         _ => unimplemented!(),
       }
     }
@@ -122,18 +147,187 @@ impl Values {
   conditional_instrunction!(not_equal, ne);
 
   numeric_instrunction!(and, bitand);
-  numeric_instrunction!(add, add);
-  numeric_instrunction!(sub, sub);
-  numeric_instrunction!(mul, mul);
-  numeric_instrunction!(div, div);
+  numeric_instrunction!(or, bitor);
+  numeric_instrunction!(xor, bitxor);
+  numeric_instrunction!(add, wrapping_add);
+  numeric_instrunction!(sub, wrapping_sub);
+  numeric_instrunction!(mul, wrapping_mul);
+
+  pub fn equal_zero(&self) -> Self {
+    match self {
+      Values::I32(n) => Values::I32(if *n == 0 { 1 } else { 0 }),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn less_than_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.lt(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn less_than_equal_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.le(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn greater_than_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.gt(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn greater_than_equal_unsign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        let l1 = *l as u32;
+        let r1 = *r as u32;
+        let result = l1.ge(&r1);
+        Values::I32(if result { 1 } else { 0 })
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn rem_s(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = l.overflowing_rem(*r);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn rem_u(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = (*l as u32).overflowing_rem(*r as u32);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined as i32))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn div_u(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = (*l as u32).overflowing_div(*r as u32);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined as i32))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn div_s(&self, other: &Self) -> Result<Self, Trap> {
+    match (self, other) {
+      (Values::I32(l), Values::I32(r)) => {
+        if *r == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = l.overflowing_div(*r);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(Values::I32(divined))
+        }
+      }
+      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn shift_left(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => {
+        let shifted = i1.wrapping_shl(*i2 as u32);
+        Values::I32(shifted)
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn shift_right_sign(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => {
+        let shifted = i1.wrapping_shr(*i2 as u32);
+        Values::I32((shifted as u32) as i32)
+      }
+      _ => unimplemented!(),
+    }
+  }
 
   pub fn shift_right_unsign(&self, other: &Self) -> Self {
     match (self, other) {
-      (Values::I64(i1), Values::I64(i2)) => {
-        let shift = *i2 % 64;
-        let result = i1 >> shift;
-        Values::I64(result)
+      (Values::I32(i1), Values::I32(i2)) => {
+        let i1 = *i1 as u32;
+        let i2 = *i2 as u32;
+        let shifted = i1.wrapping_shr(i2) as i32;
+        Values::I32(shifted)
       }
+      (Values::I64(i1), Values::I64(i2)) => {
+        let i1 = *i1 as u64;
+        let i2 = *i2 as u64;
+        let shifted = i1.wrapping_shr((i2 % 64) as u32) as i64;
+        Values::I64(shifted)
+      }
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn rotate_left(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => Values::I32(i1.rotate_left(*i2 as u32)),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn rotate_right(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::I32(i1), Values::I32(i2)) => Values::I32(i1.rotate_right(*i2 as u32)),
       _ => unimplemented!(),
     }
   }
@@ -144,6 +338,28 @@ impl Values {
       _ => unimplemented!(),
     }
   }
+
+  pub fn count_leading_zero(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I32(l.leading_zeros() as i32),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn count_trailing_zero(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I32(l.trailing_zeros() as i32),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn pop_count(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I32(l.count_ones() as i32),
+      _ => unimplemented!(),
+    }
+  }
+
   pub fn extend_to_i64(&self) -> Self {
     match self {
       Values::I32(l) => Values::I64(i64::from(*l)),
@@ -185,10 +401,25 @@ pub enum Code {
   GetLocal,
   TeeLocal,
   SetLocal,
+  I32CountLeadingZero,
+  I32CountTrailingZero,
+  I32CountNonZero,
   I32Add,
   I32Sub,
   I32Mul,
   I32WrapI64,
+  I32DivSign,
+  I32DivUnsign,
+  I32RemSign,
+  I32RemUnsign,
+  I32And,
+  I32Or,
+  I32Xor,
+  I32ShiftLeft,
+  I32ShiftRIghtSign,
+  I32ShiftRightUnsign,
+  I32RotateLeft,
+  I32RotateRight,
 
   I64ExtendUnsignI32,
   I64Mul,
@@ -203,13 +434,19 @@ pub enum Code {
   Call,
   Select,
 
+  I32EqualZero,
   Equal,
   NotEqual,
   LessThanSign,
   LessThanUnsign,
   LessThanEqualSign,
   GreaterThanSign,
-  // GreaterThanEquals,
+  I32GreaterThanUnsign,
+  I32LessEqualSign,
+  I32LessEqualUnsign,
+  I32GreaterEqualSign,
+  I32GreaterEqualUnsign,
+
   If,
   Else,
   Return,
@@ -230,21 +467,41 @@ impl Code {
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
       Some(0x22) => TeeLocal,
+      Some(0x40) => ValueType(ValueTypes::Empty),
       Some(0x41) => ConstI32,
       Some(0x42) => ConstI64,
+      Some(0x45) => I32EqualZero,
       Some(0x46) => Equal,
       Some(0x47) => NotEqual,
       Some(0x48) => LessThanSign,
       Some(0x49) => LessThanUnsign,
       Some(0x4a) => GreaterThanSign,
-      Some(0x4c) => LessThanEqualSign,
+      Some(0x4b) => I32GreaterThanUnsign,
+      Some(0x4c) => I32LessEqualSign,
+      Some(0x4d) => I32LessEqualUnsign,
+      Some(0x4e) => I32GreaterEqualSign,
+      Some(0x4f) => I32GreaterEqualUnsign,
       Some(0x60) => TypeFunction,
+      Some(0x67) => I32CountLeadingZero,
+      Some(0x68) => I32CountTrailingZero,
+      Some(0x69) => I32CountNonZero,
       Some(0x6a) => I32Add,
       Some(0x6b) => I32Sub,
       Some(0x6c) => I32Mul,
-      Some(0x40) => ValueType(ValueTypes::Empty),
-      Some(0x7f) => ValueType(ValueTypes::I32),
+      Some(0x6d) => I32DivSign,
+      Some(0x6e) => I32DivUnsign,
+      Some(0x6f) => I32RemSign,
+      Some(0x70) => I32RemUnsign,
+      Some(0x71) => I32And,
+      Some(0x72) => I32Or,
+      Some(0x73) => I32Xor,
+      Some(0x74) => I32ShiftLeft,
+      Some(0x75) => I32ShiftRIghtSign,
+      Some(0x76) => I32ShiftRightUnsign,
+      Some(0x77) => I32RotateLeft,
+      Some(0x78) => I32RotateRight,
       Some(0x7e) => I64Mul,
+      Some(0x7f) => ValueType(ValueTypes::I32),
       Some(0x83) => I64And,
       Some(0x88) => I64ShiftRightUnsign,
       Some(0xa7) => I32WrapI64,
@@ -268,7 +525,7 @@ impl Code {
       Some(0x01) => ExportDescTableIdx,
       Some(0x02) => ExportDescMemIdx,
       Some(0x03) => ExportDescGlobalIdx,
-      _ => unreachable!(),
+      x => unreachable!("Export description code {:x?} does not supported yet.", x),
     }
   }
 }
@@ -342,18 +599,18 @@ impl Byte {
   leb128!(i64, decode_leb128_i64);
 
   fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
-    let _bin_size_of_section = self.next()?;
-    let count_of_type = self.next()?;
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_type = self.decode_leb128_i32()?;
     let mut function_types = vec![];
     for _ in 0..count_of_type {
       let mut parameters = vec![];
       let mut returns = vec![];
       let _type_function = Code::from_byte(self.next());
-      let size_of_arity = self.next()?;
+      let size_of_arity = self.decode_leb128_i32()?;
       for _ in 0..size_of_arity {
         parameters.push(ValueTypes::from_byte(self.next()));
       }
-      let size_of_result = self.next()?;
+      let size_of_result = self.decode_leb128_i32()?;
       for _ in 0..size_of_result {
         returns.push(ValueTypes::from_byte(self.next()));
       }
@@ -366,11 +623,11 @@ impl Byte {
   }
 
   fn decode_section_export(&mut self) -> Option<Vec<(String, usize)>> {
-    let _bin_size_of_section = self.next()?;
-    let count_of_exports = self.next()?;
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_exports = self.decode_leb128_i32()?;
     let mut exports = vec![];
     for _ in 0..count_of_exports {
-      let size_of_name = self.next()?;
+      let size_of_name = self.decode_leb128_i32()?;
       let mut buf = vec![];
       for _ in 0..size_of_name {
         buf.push(self.next()?);
@@ -395,21 +652,42 @@ impl Byte {
         Code::GetLocal => expressions.push(Op::GetLocal(self.next()? as usize)),
         Code::SetLocal => expressions.push(Op::SetLocal(self.next()? as usize)),
         Code::TeeLocal => expressions.push(Op::TeeLocal(self.next()? as usize)),
+        Code::I32CountLeadingZero => expressions.push(Op::I32CountLeadingZero),
+        Code::I32CountTrailingZero => expressions.push(Op::I32CountTrailingZero),
+        Code::I32CountNonZero => expressions.push(Op::I32CountNonZero),
         Code::I32Add => expressions.push(Op::I32Add),
         Code::I32Sub => expressions.push(Op::I32Sub),
         Code::I32Mul => expressions.push(Op::I32Mul),
+        Code::I32DivSign => expressions.push(Op::I32DivSign),
+        Code::I32DivUnsign => expressions.push(Op::I32DivUnsign),
+        Code::I32RemSign => expressions.push(Op::I32RemSign),
+        Code::I32RemUnsign => expressions.push(Op::I32RemUnsign),
+        Code::I32And => expressions.push(Op::I32And),
+        Code::I32Or => expressions.push(Op::I32Or),
+        Code::I32Xor => expressions.push(Op::I32Xor),
+        Code::I32ShiftLeft => expressions.push(Op::I32ShiftLeft),
+        Code::I32ShiftRIghtSign => expressions.push(Op::I32ShiftRIghtSign),
+        Code::I32ShiftRightUnsign => expressions.push(Op::I32ShiftRightUnsign),
+        Code::I32RotateLeft => expressions.push(Op::I32RotateLeft),
+        Code::I32RotateRight => expressions.push(Op::I32RotateRight),
         Code::I64And => expressions.push(Op::I64And),
         Code::I64Mul => expressions.push(Op::I64Mul),
         Code::I64ExtendUnsignI32 => expressions.push(Op::I64ExtendUnsignI32),
         Code::I64ShiftRightUnsign => expressions.push(Op::I64ShiftRightUnsign),
         Code::I32WrapI64 => expressions.push(Op::I32WrapI64),
         Code::Call => expressions.push(Op::Call(self.next()? as usize)),
+        Code::I32EqualZero => expressions.push(Op::I32EqualZero),
         Code::Equal => expressions.push(Op::Equal),
         Code::NotEqual => expressions.push(Op::NotEqual),
         Code::LessThanSign => expressions.push(Op::LessThanSign),
-        Code::LessThanEqualSign => expressions.push(Op::LessThanEqualSign),
+        Code::LessThanEqualSign => expressions.push(Op::I32LessEqualSign),
         Code::LessThanUnsign => expressions.push(Op::LessThanUnsign),
         Code::GreaterThanSign => expressions.push(Op::GreaterThanSign),
+        Code::I32GreaterThanUnsign => expressions.push(Op::I32GreaterThanUnsign),
+        Code::I32LessEqualSign => expressions.push(Op::I32LessEqualSign),
+        Code::I32LessEqualUnsign => expressions.push(Op::I32LessEqualUnsign),
+        Code::I32GreaterEqualSign => expressions.push(Op::I32GreaterEqualSign),
+        Code::I32GreaterEqualUnsign => expressions.push(Op::I32GreaterEqualUnsign),
         Code::Select => expressions.push(Op::Select),
         Code::If => {
           let if_insts = self.decode_section_code_internal()?;
@@ -447,12 +725,12 @@ impl Byte {
   }
 
   fn decode_section_code(&mut self) -> Option<Vec<(Vec<Op>, Vec<ValueTypes>)>> {
-    let _bin_size_of_section = self.next()?;
+    let _bin_size_of_section = self.decode_leb128_i32()?;
     let mut codes = vec![];
-    let count_of_code = self.next()?;
+    let count_of_code = self.decode_leb128_i32()?;
     for _idx_of_fn in 0..count_of_code {
-      let _size_of_function = self.next()?;
-      let count_of_locals = self.next()? as usize;
+      let _size_of_function = self.decode_leb128_i32()?;
+      let count_of_locals = self.decode_leb128_i32()? as usize;
       // FIXME:
       let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
       for _ in 0..count_of_locals {
@@ -466,8 +744,8 @@ impl Byte {
   }
 
   fn decode_section_function(&mut self) -> Option<Vec<u32>> {
-    let _bin_size_of_section = self.next()?;
-    let count_of_type_idx = self.next()?;
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_type_idx = self.decode_leb128_i32()?;
     let mut type_indexes = vec![];
     for _idx_of_fn in 0..count_of_type_idx {
       type_indexes.push(self.next()? as u32);
@@ -730,7 +1008,7 @@ mod tests {
       body: vec![
         GetLocal(0),
         I32Const(0),
-        LessThanEqualSign,
+        I32LessEqualSign,
         If(vec![TypeEmpty, I32Const(0), Return], vec![]),
         GetLocal(0),
         I32Const(-1),

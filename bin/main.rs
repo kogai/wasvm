@@ -21,6 +21,7 @@ fn main() -> io::Result<()> {
 
       let mut vm = wasvm::Vm::new(buffer);
       vm.run(
+        "_subject",
         arguments
           .iter()
           .map(|v| i32::from_str_radix(v, 10).expect("Parameters must be i32"))
