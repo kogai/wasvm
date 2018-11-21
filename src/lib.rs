@@ -355,13 +355,13 @@ impl Vm {
                 I32RotateLeft => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
-                    let result = i1.rotate_left(i2);
+                    let result = i1.wasm_rotate_left(i2);
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
                 I32RotateRight => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
-                    let result = i1.rotate_right(i2);
+                    let result = i1.wasm_rotate_right(i2);
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
                 I32CountLeadingZero => {
