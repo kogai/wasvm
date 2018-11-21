@@ -219,13 +219,14 @@ impl Byte {
         Code::I32GreaterEqualUnsign => expressions.push(Inst::I32GreaterEqualUnsign),
         Code::Select => expressions.push(Inst::Select),
         Code::If => {
+          let return_type = ValueTypes::from(self.next());
           let if_insts = self.decode_section_code_internal()?;
           match Code::from(self.peek_before()) {
             Code::Else => {
               let else_insts = self.decode_section_code_internal()?;
-              expressions.push(Inst::If(if_insts, else_insts));
+              expressions.push(Inst::If(return_type, if_insts, else_insts));
             }
-            _ => expressions.push(Inst::If(if_insts, vec![])),
+            _ => expressions.push(Inst::If(return_type, if_insts, vec![])),
           }
         }
         Code::Else => {
@@ -456,7 +457,8 @@ mod tests {
         I32Const(10),
         LessThanSign,
         If(
-          vec![TypeI32, GetLocal(0), I32Const(10), I32Add],
+          ValueTypes::I32,
+          vec![GetLocal(0), I32Const(10), I32Add],
           vec![
             GetLocal(0),
             I32Const(15),
@@ -465,7 +467,7 @@ mod tests {
             GetLocal(0),
             I32Const(10),
             Equal,
-            If(vec![TypeI32, I32Const(15),], vec![GetLocal(1)]),
+            If(ValueTypes::I32, vec![I32Const(15),], vec![GetLocal(1)]),
           ]
         ),
       ],
@@ -487,7 +489,8 @@ mod tests {
         I32Const(10),
         I32GreaterThanSign,
         If(
-          vec![TypeI32, GetLocal(0), I32Const(10), I32Add],
+          ValueTypes::I32,
+          vec![GetLocal(0), I32Const(10), I32Add],
           vec![
             GetLocal(0),
             I32Const(15),
@@ -496,7 +499,7 @@ mod tests {
             GetLocal(0),
             I32Const(10),
             Equal,
-            If(vec![TypeI32, I32Const(15)], vec![GetLocal(1)]),
+            If(ValueTypes::I32, vec![I32Const(15)], vec![GetLocal(1)]),
           ]
         ),
       ],
@@ -517,7 +520,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If(vec![TypeI32, I32Const(5)], vec![I32Const(10)]),
+        If(ValueTypes::I32, vec![I32Const(5)], vec![I32Const(10)]),
         GetLocal(0),
         I32Add,
       ],
@@ -538,7 +541,7 @@ mod tests {
         GetLocal(0),
         I32Const(0),
         I32LessEqualSign,
-        If(vec![TypeEmpty, I32Const(0), Return], vec![]),
+        If(ValueTypes::Empty, vec![I32Const(0), Return], vec![]),
         GetLocal(0),
         I32Const(-1),
         I32Add,

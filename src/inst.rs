@@ -1,3 +1,5 @@
+use code::ValueTypes;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
   I32Const(i32),
@@ -71,7 +73,7 @@ pub enum Inst {
   I64GreaterEqualSign,
   I64GreaterEqualUnSign,
 
-  If(Vec<Inst>, Vec<Inst>),
+  If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
   Return,
   TypeI32,

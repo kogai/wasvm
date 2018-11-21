@@ -232,7 +232,7 @@ pub enum ValueTypes {
 impl From<Option<u8>> for ValueTypes {
   fn from(code: Option<u8>) -> Self {
     match code {
-      Some(0x40) => ValueTypes::Empty, // FIXME: ?
+      Some(0x40) => ValueTypes::Empty,
       Some(0x7f) => ValueTypes::I32,
       Some(0x7e) => ValueTypes::I64,
       x => unimplemented!("ValueTypes of {:?} does not implemented yet.", x),

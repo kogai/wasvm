@@ -305,11 +305,10 @@ impl Vm {
                     let result = left.and(right);
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                If(if_ops, else_ops) => {
+                If(_return_type, if_ops, else_ops) => {
                     let cond = &self.stack.pop_value();
-                    let (_return_type, if_insts) = if_ops.split_first()?;
                     if cond.is_truthy() {
-                        self.evaluate_instructions(&if_insts.to_vec());
+                        self.evaluate_instructions(if_ops);
                     } else {
                         if !else_ops.is_empty() {
                             self.evaluate_instructions(else_ops);
