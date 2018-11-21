@@ -9,7 +9,7 @@ pub enum Values {
   // F64,
 }
 
-macro_rules! unary_instruction {
+macro_rules! unary_inst {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self) -> Self {
       match self {
@@ -20,12 +20,24 @@ macro_rules! unary_instruction {
   };
 }
 
-macro_rules! numeric_instrunction {
+macro_rules! bynary_inst {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Self {
       match (self, other) {
         (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
         (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(*r)),
+        _ => unimplemented!(),
+      }
+    }
+  };
+}
+
+macro_rules! bynary_try_inst {
+  ($fn_name: ident,$op: ident) => {
+    pub fn $fn_name(&self, other: &Self) -> Result<Self, Trap> {
+      match (self, other) {
+        (Values::I32(l), Values::I32(r)) =>  l.$op(*r).map(|n| Values::I32(n)) ,
+        (Values::I64(l), Values::I64(r)) =>  l.$op(*r).map(|n| Values::I64(n)) ,
         _ => unimplemented!(),
       }
     }
@@ -57,6 +69,19 @@ trait Arithmetic {
 
   fn wasm_rotate_left(&self, other: Self) -> Self;
   fn wasm_rotate_right(&self, other: Self) -> Self;
+
+  fn rem_s(&self, other: Self) -> Result<Self, Trap>
+  where
+    Self: Sized;
+  fn rem_u(&self, other: Self) -> Result<Self, Trap>
+  where
+    Self: Sized;
+  fn div_s(&self, other: Self) -> Result<Self, Trap>
+  where
+    Self: Sized;
+  fn div_u(&self, other: Self) -> Result<Self, Trap>
+  where
+    Self: Sized;
 }
 
 macro_rules! impl_traits {
@@ -181,6 +206,52 @@ macro_rules! impl_traits {
       fn wasm_rotate_right(&self, other: Self) -> Self {
         self.rotate_right(other as u32)
       }
+
+      fn rem_s(&self, other: Self) -> Result<Self, Trap> {
+        if other == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = self.overflowing_rem(other);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(divined)
+        }
+      }
+
+      fn rem_u(&self, other: Self) -> Result<Self, Trap> {
+        if other == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = (*self as $unsign).overflowing_rem(other as $unsign);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(divined as $ty)
+        }
+      }
+      fn div_u(&self, other: Self) -> Result<Self, Trap> {
+        if other == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = (*self as $unsign).overflowing_div(other as $unsign);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(divined as $ty)
+        }
+      }
+      fn div_s(&self, other: Self) -> Result<Self, Trap> {
+        if other == 0 {
+          return Err(Trap::DivisionByZero);
+        }
+        let (divined, overflowed) = self.overflowing_div(other);
+        if overflowed {
+          Err(Trap::DivisionOverflow)
+        } else {
+          Ok(divined)
+        }
+      }
     }
   };
 }
@@ -189,107 +260,40 @@ impl_traits!(i32, u32);
 impl_traits!(i64, u64);
 
 impl Values {
-  numeric_instrunction!(and, bitand);
-  numeric_instrunction!(or, bitor);
-  numeric_instrunction!(xor, bitxor);
-  numeric_instrunction!(add, wrapping_add);
-  numeric_instrunction!(sub, wrapping_sub);
-  numeric_instrunction!(mul, wrapping_mul);
+  bynary_inst!(and, bitand);
+  bynary_inst!(or, bitor);
+  bynary_inst!(xor, bitxor);
+  bynary_inst!(add, wrapping_add);
+  bynary_inst!(sub, wrapping_sub);
+  bynary_inst!(mul, wrapping_mul);
 
-  numeric_instrunction!(less_than, less_than);
-  numeric_instrunction!(less_than_equal, less_than_equal);
-  numeric_instrunction!(less_than_unsign, less_than_unsign);
-  numeric_instrunction!(less_than_equal_unsign, less_than_equal_unsign);
+  bynary_inst!(less_than, less_than);
+  bynary_inst!(less_than_equal, less_than_equal);
+  bynary_inst!(less_than_unsign, less_than_unsign);
+  bynary_inst!(less_than_equal_unsign, less_than_equal_unsign);
 
-  numeric_instrunction!(greater_than, greater_than);
-  numeric_instrunction!(greater_than_equal, greater_than_equal);
-  numeric_instrunction!(greater_than_unsign, greater_than_unsign);
-  numeric_instrunction!(greater_than_equal_unsign, greater_than_equal_unsign);
-  numeric_instrunction!(equal, equal);
-  numeric_instrunction!(not_equal, not_equal);
+  bynary_inst!(greater_than, greater_than);
+  bynary_inst!(greater_than_equal, greater_than_equal);
+  bynary_inst!(greater_than_unsign, greater_than_unsign);
+  bynary_inst!(greater_than_equal_unsign, greater_than_equal_unsign);
+  bynary_inst!(equal, equal);
+  bynary_inst!(not_equal, not_equal);
 
-  numeric_instrunction!(shift_left, shift_left);
-  numeric_instrunction!(shift_right_sign, shift_right_sign);
-  numeric_instrunction!(shift_right_unsign, shift_right_unsign);
-  numeric_instrunction!(wasm_rotate_left, wasm_rotate_left);
-  numeric_instrunction!(wasm_rotate_right, wasm_rotate_right);
+  bynary_inst!(shift_left, shift_left);
+  bynary_inst!(shift_right_sign, shift_right_sign);
+  bynary_inst!(shift_right_unsign, shift_right_unsign);
+  bynary_inst!(wasm_rotate_left, wasm_rotate_left);
+  bynary_inst!(wasm_rotate_right, wasm_rotate_right);
 
-  unary_instruction!(equal_zero, equal_zero);
-  unary_instruction!(count_leading_zero, count_leading_zero);
-  unary_instruction!(count_trailing_zero, count_trailing_zero);
-  unary_instruction!(pop_count, pop_count);
+  bynary_try_inst!(rem_s, rem_s);
+  bynary_try_inst!(rem_u, rem_u);
+  bynary_try_inst!(div_s, div_s);
+  bynary_try_inst!(div_u, div_u);
 
-  pub fn rem_s(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = l.overflowing_rem(*r);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn rem_u(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = (*l as u32).overflowing_rem(*r as u32);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined as i32))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn div_u(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = (*l as u32).overflowing_div(*r as u32);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined as i32))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
-
-  pub fn div_s(&self, other: &Self) -> Result<Self, Trap> {
-    match (self, other) {
-      (Values::I32(l), Values::I32(r)) => {
-        if *r == 0 {
-          return Err(Trap::DivisionByZero);
-        }
-        let (divined, overflowed) = l.overflowing_div(*r);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(Values::I32(divined))
-        }
-      }
-      // (Values::I64(l), Values::I64(r)) => Values::I64(l.overflowing_div(*r).0),
-      _ => unimplemented!(),
-    }
-  }
+  unary_inst!(equal_zero, equal_zero);
+  unary_inst!(count_leading_zero, count_leading_zero);
+  unary_inst!(count_trailing_zero, count_trailing_zero);
+  unary_inst!(pop_count, pop_count);
 
   pub fn is_truthy(&self) -> bool {
     match &self {
