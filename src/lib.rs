@@ -135,19 +135,25 @@ impl Vm {
                     self.call(*idx, vec![operand]);
                     self.evaluate();
                 }
-                I32Add => {
+                I32Add | I64Add => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
                     let result = StackEntry::Value(left.add(&right));
                     self.stack.push(Rc::new(result));
                 }
-                I32Sub => {
+                I32Sub | I64Sub => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
                     let result = StackEntry::Value(left.sub(&right));
                     self.stack.push(Rc::new(result));
                 }
-                I32DivUnsign => {
+                I32Mul | I64Mul => {
+                    let right = self.stack.pop_value();
+                    let left = self.stack.pop_value();
+                    let result = StackEntry::Value(left.mul(&right));
+                    self.stack.push(Rc::new(result));
+                }
+                I32DivUnsign | I64DivUnsign => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
                     match left.div_u(&right) {
@@ -161,7 +167,7 @@ impl Vm {
                         }
                     }
                 }
-                I32DivSign => {
+                I32DivSign | I64DivSign => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
                     match left.div_s(&right) {
@@ -175,7 +181,7 @@ impl Vm {
                         }
                     }
                 }
-                I32RemSign => {
+                I32RemSign | I64RemSign => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
                     match left.rem_s(&right) {
@@ -189,7 +195,7 @@ impl Vm {
                         }
                     }
                 }
-                I32RemUnsign => {
+                I32RemUnsign | I64RemUnsign => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
                     match left.rem_u(&right) {
@@ -202,12 +208,6 @@ impl Vm {
                             break;
                         }
                     }
-                }
-                I32Mul | I64Mul => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    let result = StackEntry::Value(left.mul(&right));
-                    self.stack.push(Rc::new(result));
                 }
                 I32Const(n) => {
                     self.stack.push(Rc::new(StackEntry::Value(Values::I32(*n))));
@@ -225,75 +225,75 @@ impl Vm {
                         self.stack.push(Rc::new(StackEntry::Value(false_br)));
                     }
                 }
-                LessThanSign => {
+                LessThanSign | I64LessThanSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than(right))));
                 }
-                LessThanUnsign => {
+                LessThanUnsign | I64LessThanUnSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than_unsign(right))));
                 }
-                I32LessEqualSign => {
+                I32LessEqualSign | I64LessEqualSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.less_than_equal(right))));
                 }
-                I32LessEqualUnsign => {
+                I32LessEqualUnsign | I64LessEqualUnSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack.push(Rc::new(StackEntry::Value(
                         left.less_than_equal_unsign(right),
                     )));
                 }
-                I32GreaterEqualSign => {
+                I32GreaterEqualSign | I64GreaterEqualSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.greater_than_equal(right))));
                 }
-                GreaterThanSign | GreaterThanUnsign => {
+                I32GreaterThanSign | I64GreaterThanSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.greater_than(right))));
                 }
-                I32GreaterThanUnsign => {
+                I32GreaterThanUnsign | I64GreaterThanUnSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.greater_than_unsign(right))));
                 }
-                I32GreaterEqualUnsign => {
+                I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack.push(Rc::new(StackEntry::Value(
                         left.greater_than_equal_unsign(right),
                     )));
                 }
-                Equal => {
+                Equal | I64Equal => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.equal(right))));
                 }
-                NotEqual => {
+                NotEqual | I64NotEqual => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     self.stack
                         .push(Rc::new(StackEntry::Value(left.not_equal(right))));
                 }
-                I32Or => {
+                I32Or | I64Or => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     let result = left.or(right);
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32Xor => {
+                I32Xor | I64Xor => {
                     let right = &self.stack.pop_value();
                     let left = &self.stack.pop_value();
                     let result = left.xor(right);
@@ -324,13 +324,13 @@ impl Vm {
                     let result = value.extend_to_i64();
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32ShiftLeft => {
+                I32ShiftLeft | I64ShiftLeft => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
                     let result = i1.shift_left(i2);
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32ShiftRIghtSign => {
+                I32ShiftRIghtSign | I64ShiftRightSign => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
                     let result = i1.shift_right_sign(i2);
@@ -352,36 +352,36 @@ impl Vm {
                         unreachable!();
                     }
                 }
-                I32RotateLeft => {
+                I32RotateLeft | I64RotateLeft => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
                     let result = i1.wasm_rotate_left(i2);
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32RotateRight => {
+                I32RotateRight | I64RotateRight => {
                     let i2 = &self.stack.pop_value();
                     let i1 = &self.stack.pop_value();
                     let result = i1.wasm_rotate_right(i2);
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32CountLeadingZero => {
+                I32CountLeadingZero | I64CountLeadingZero => {
                     let l = &self.stack.pop_value();
                     let result = l.count_leading_zero();
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32CountTrailingZero => {
+                I32CountTrailingZero | I64CountTrailingZero => {
                     let l = &self.stack.pop_value();
                     let result = l.count_trailing_zero();
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32CountNonZero => {
+                I32CountNonZero | I64CountNonZero => {
                     let l = &self.stack.pop_value();
                     let result = l.pop_count();
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
                 TypeEmpty => unreachable!(),
                 TypeI32 => unreachable!(),
-                I32EqualZero => {
+                I32EqualZero | I64EqualZero => {
                     let l = &self.stack.pop_value();
                     let result = l.equal_zero();
                     self.stack.push(Rc::new(StackEntry::Value(result)));

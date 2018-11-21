@@ -93,6 +93,10 @@ macro_rules! impl_e2e {
                       let actual_value = value.parse::<u32>().unwrap() as i32;
                       Values::I32(actual_value)
                     }
+                    "i64" => {
+                      let actual_value = value.parse::<u64>().unwrap() as i64;
+                      Values::I64(actual_value)
+                    }
                     x => unimplemented!("{:?} is not implemented yet", x),
                   }
                 }).collect::<Vec<Values>>(),
@@ -101,6 +105,10 @@ macro_rules! impl_e2e {
             let expectation = match (exp.value_type.as_ref(), exp.value) {
               ("i32", Some(value)) => {
                 let actual_value = value.parse::<u32>().unwrap() as i32;
+                Some(format!("{}", actual_value))
+              }
+              ("i64", Some(value)) => {
+                let actual_value = value.parse::<u64>().unwrap() as i64;
                 Some(format!("{}", actual_value))
               }
               (_, None) => None,
