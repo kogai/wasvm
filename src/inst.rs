@@ -1,3 +1,5 @@
+use code::ValueTypes;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
   I32Const(i32),
@@ -24,6 +26,27 @@ pub enum Inst {
   I32ShiftRightUnsign,
   I32RotateLeft,
   I32RotateRight,
+
+  I64CountLeadingZero,
+  I64CountTrailingZero,
+  I64CountNonZero,
+  I64Add,
+  I64Sub,
+  I64Mul,
+  I64DivSign,
+  I64DivUnsign,
+  I64RemSign,
+  I64RemUnsign,
+  I64And,
+  I64Or,
+  I64Xor,
+  I64ShiftLeft,
+  I64ShiftRightSign,
+  I64ShiftRightUnsign,
+  I64RotateLeft,
+  I64RotateRight,
+  I64ExtendUnsignI32,
+
   // FIXME: Change to u32
   Call(usize),
   I32EqualZero,
@@ -31,22 +54,30 @@ pub enum Inst {
   NotEqual,
   LessThanSign,
   LessThanUnsign,
-  GreaterThanSign,
-  GreaterThanUnsign,
+  I32GreaterThanSign,
   I32GreaterThanUnsign,
   I32LessEqualSign,
   I32LessEqualUnsign,
   I32GreaterEqualSign,
   I32GreaterEqualUnsign,
-  If(Vec<Inst>, Vec<Inst>),
+
+  I64EqualZero,
+  I64Equal,
+  I64NotEqual,
+  I64LessThanSign,
+  I64LessThanUnSign,
+  I64GreaterThanSign,
+  I64GreaterThanUnSign,
+  I64LessEqualSign,
+  I64LessEqualUnSign,
+  I64GreaterEqualSign,
+  I64GreaterEqualUnSign,
+
+  If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
   Return,
   TypeI32,
   TypeEmpty,
-  I64ExtendUnsignI32,
-  I64Mul,
-  I64And,
-  I64ShiftRightUnsign,
   I32WrapI64,
 }
 

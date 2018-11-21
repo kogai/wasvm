@@ -172,10 +172,38 @@ impl Byte {
         Code::I32ShiftRightUnsign => expressions.push(Inst::I32ShiftRightUnsign),
         Code::I32RotateLeft => expressions.push(Inst::I32RotateLeft),
         Code::I32RotateRight => expressions.push(Inst::I32RotateRight),
-        Code::I64And => expressions.push(Inst::I64And),
+        Code::I64CountLeadingZero => expressions.push(Inst::I64CountLeadingZero),
+        Code::I64CountTrailingZero => expressions.push(Inst::I64CountTrailingZero),
+        Code::I64CountNonZero => expressions.push(Inst::I64CountNonZero),
+        Code::I64Add => expressions.push(Inst::I64Add),
+        Code::I64Sub => expressions.push(Inst::I64Sub),
         Code::I64Mul => expressions.push(Inst::I64Mul),
-        Code::I64ExtendUnsignI32 => expressions.push(Inst::I64ExtendUnsignI32),
+        Code::I64DivSign => expressions.push(Inst::I64DivSign),
+        Code::I64DivUnsign => expressions.push(Inst::I64DivUnsign),
+        Code::I64RemSign => expressions.push(Inst::I64RemSign),
+        Code::I64RemUnsign => expressions.push(Inst::I64RemUnsign),
+        Code::I64And => expressions.push(Inst::I64And),
+        Code::I64Or => expressions.push(Inst::I64Or),
+        Code::I64Xor => expressions.push(Inst::I64Xor),
+        Code::I64ShiftLeft => expressions.push(Inst::I64ShiftLeft),
+        Code::I64ShiftRightSign => expressions.push(Inst::I64ShiftRightSign),
         Code::I64ShiftRightUnsign => expressions.push(Inst::I64ShiftRightUnsign),
+        Code::I64RotateLeft => expressions.push(Inst::I64RotateLeft),
+        Code::I64RotateRight => expressions.push(Inst::I64RotateRight),
+        Code::I64ExtendUnsignI32 => expressions.push(Inst::I64ExtendUnsignI32),
+
+        Code::I64EqualZero => expressions.push(Inst::I64EqualZero),
+        Code::I64Equal => expressions.push(Inst::I64Equal),
+        Code::I64NotEqual => expressions.push(Inst::I64NotEqual),
+        Code::I64LessThanSign => expressions.push(Inst::I64LessThanSign),
+        Code::I64LessThanUnSign => expressions.push(Inst::I64LessThanUnSign),
+        Code::I64GreaterThanSign => expressions.push(Inst::I64GreaterThanSign),
+        Code::I64GreaterThanUnSign => expressions.push(Inst::I64GreaterThanUnSign),
+        Code::I64LessEqualSign => expressions.push(Inst::I64LessEqualSign),
+        Code::I64LessEqualUnSign => expressions.push(Inst::I64LessEqualUnSign),
+        Code::I64GreaterEqualSign => expressions.push(Inst::I64GreaterEqualSign),
+        Code::I64GreaterEqualUnSign => expressions.push(Inst::I64GreaterEqualUnSign),
+
         Code::I32WrapI64 => expressions.push(Inst::I32WrapI64),
         Code::Call => expressions.push(Inst::Call(self.next()? as usize)),
         Code::I32EqualZero => expressions.push(Inst::I32EqualZero),
@@ -183,7 +211,7 @@ impl Byte {
         Code::NotEqual => expressions.push(Inst::NotEqual),
         Code::LessThanSign => expressions.push(Inst::LessThanSign),
         Code::LessThanUnsign => expressions.push(Inst::LessThanUnsign),
-        Code::GreaterThanSign => expressions.push(Inst::GreaterThanSign),
+        Code::GreaterThanSign => expressions.push(Inst::I32GreaterThanSign),
         Code::I32GreaterThanUnsign => expressions.push(Inst::I32GreaterThanUnsign),
         Code::I32LessEqualSign => expressions.push(Inst::I32LessEqualSign),
         Code::I32LessEqualUnsign => expressions.push(Inst::I32LessEqualUnsign),
@@ -191,13 +219,14 @@ impl Byte {
         Code::I32GreaterEqualUnsign => expressions.push(Inst::I32GreaterEqualUnsign),
         Code::Select => expressions.push(Inst::Select),
         Code::If => {
+          let return_type = ValueTypes::from(self.next());
           let if_insts = self.decode_section_code_internal()?;
           match Code::from(self.peek_before()) {
             Code::Else => {
               let else_insts = self.decode_section_code_internal()?;
-              expressions.push(Inst::If(if_insts, else_insts));
+              expressions.push(Inst::If(return_type, if_insts, else_insts));
             }
-            _ => expressions.push(Inst::If(if_insts, vec![])),
+            _ => expressions.push(Inst::If(return_type, if_insts, vec![])),
           }
         }
         Code::Else => {
@@ -428,7 +457,8 @@ mod tests {
         I32Const(10),
         LessThanSign,
         If(
-          vec![TypeI32, GetLocal(0), I32Const(10), I32Add],
+          ValueTypes::I32,
+          vec![GetLocal(0), I32Const(10), I32Add],
           vec![
             GetLocal(0),
             I32Const(15),
@@ -437,7 +467,7 @@ mod tests {
             GetLocal(0),
             I32Const(10),
             Equal,
-            If(vec![TypeI32, I32Const(15),], vec![GetLocal(1)]),
+            If(ValueTypes::I32, vec![I32Const(15),], vec![GetLocal(1)]),
           ]
         ),
       ],
@@ -457,9 +487,10 @@ mod tests {
       body: vec![
         GetLocal(0),
         I32Const(10),
-        GreaterThanSign,
+        I32GreaterThanSign,
         If(
-          vec![TypeI32, GetLocal(0), I32Const(10), I32Add],
+          ValueTypes::I32,
+          vec![GetLocal(0), I32Const(10), I32Add],
           vec![
             GetLocal(0),
             I32Const(15),
@@ -468,7 +499,7 @@ mod tests {
             GetLocal(0),
             I32Const(10),
             Equal,
-            If(vec![TypeI32, I32Const(15)], vec![GetLocal(1)]),
+            If(ValueTypes::I32, vec![I32Const(15)], vec![GetLocal(1)]),
           ]
         ),
       ],
@@ -489,7 +520,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If(vec![TypeI32, I32Const(5)], vec![I32Const(10)]),
+        If(ValueTypes::I32, vec![I32Const(5)], vec![I32Const(10)]),
         GetLocal(0),
         I32Add,
       ],
@@ -510,7 +541,7 @@ mod tests {
         GetLocal(0),
         I32Const(0),
         I32LessEqualSign,
-        If(vec![TypeEmpty, I32Const(0), Return], vec![]),
+        If(ValueTypes::Empty, vec![I32Const(0), Return], vec![]),
         GetLocal(0),
         I32Const(-1),
         I32Add,
