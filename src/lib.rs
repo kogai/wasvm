@@ -380,6 +380,31 @@ impl Vm {
                 }
                 TypeEmpty => unreachable!(),
                 TypeI32 => unreachable!(),
+                I32Load(align, offset)
+                | I64Load(align, offset)
+                | F32Load(align, offset)
+                | F64Load(align, offset)
+                | I32Load8Sign(align, offset)
+                | I32Load8Unsign(align, offset)
+                | I32Load16Sign(align, offset)
+                | I32Load16Unsign(align, offset)
+                | I64Load8Sign(align, offset)
+                | I64Load8Unsign(align, offset)
+                | I64Load16Sign(align, offset)
+                | I64Load16Unsign(align, offset)
+                | I64Load32Sign(align, offset)
+                | I64Load32Unsign(align, offset)
+                | I32Store(align, offset)
+                | I64Store(align, offset)
+                | F32Store(align, offset)
+                | F64Store(align, offset)
+                | I32Store8(align, offset)
+                | I32Store16(align, offset)
+                | I64Store8(align, offset)
+                | I64Store16(align, offset)
+                | I64Store32(align, offset) => {
+                    unimplemented!();
+                }
                 I32EqualZero | I64EqualZero => {
                     let l = &self.stack.pop_value();
                     let result = l.equal_zero();

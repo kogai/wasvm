@@ -146,12 +146,6 @@ macro_rules! impl_e2e {
           _ => unreachable!(),
         }
       }
-      // let (module, assertions) = test_cases.commands.split_first().unwrap();
-      // let wasm_file = if let TestCase::Module { line: _, filename } = module {
-      // } else {
-      //   unreachable!();
-      // };
-      // do_assert(wasm_file, assertions);
     }
   };
 }

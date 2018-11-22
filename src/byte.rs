@@ -1,7 +1,6 @@
-use std::convert::From;
-// /* BitAndAssign, , BitOrAssign, , BitXorAssign, */
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use inst::Inst;
+use std::convert::From;
 
 #[derive(Debug, PartialEq, Clone)]
 struct FunctionType {
@@ -16,6 +15,12 @@ pub struct FunctionInstance {
   locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Vec<Inst>,
+}
+
+#[derive(Debug)]
+pub enum Memory {
+  NoUpperLimit(u32),
+  HasUpperLimit(u32, u32),
 }
 
 impl FunctionInstance {
@@ -33,35 +38,35 @@ impl FunctionInstance {
 }
 
 macro_rules! leb128 {
-    ($t:ty, $fn_name: ident) => {
-      fn $fn_name(&mut self) -> Option<$t> {
-        let mut buf: $t = 0;
-        let mut shift = 0;
+  ($t:ty, $fn_name: ident) => {
+    fn $fn_name(&mut self) -> Option<$t> {
+      let mut buf: $t = 0;
+      let mut shift = 0;
 
-        // Check whether leftmost bit is 1 or 0
-        // n     = 0b11111111 = 0b01111111
-        // _     = 0b10000000 = 0b10000000
-        // n & _ = 0b10000000 = 0b00000000
-        while (self.peek()? & 0b10000000) != 0 {
-          let num = (self.next()? ^ (0b10000000)) as $t; // If leftmost bit is 1, we drop it.
+      // Check whether leftmost bit is 1 or 0
+      // n     = 0b11111111 = 0b01111111
+      // _     = 0b10000000 = 0b10000000
+      // n & _ = 0b10000000 = 0b00000000
+      while (self.peek()? & 0b10000000) != 0 {
+        let num = (self.next()? ^ (0b10000000)) as $t; // If leftmost bit is 1, we drop it.
 
-          // buf =      00000000_00000000_10000000_00000000
-          // num =      00000000_00000000_00000000_00000001
-          // num << 7 = 00000000_00000000_00000000_10000000
-          // buf ^ num  00000000_00000000_10000000_10000000
-          buf = buf ^ (num << shift);
-          shift += 7;
-        }
-        let num = (self.next()?) as $t;
+        // buf =      00000000_00000000_10000000_00000000
+        // num =      00000000_00000000_00000000_00000001
+        // num << 7 = 00000000_00000000_00000000_10000000
+        // buf ^ num  00000000_00000000_10000000_10000000
         buf = buf ^ (num << shift);
-        if buf & (1 << (shift + 6)) != 0 {
-          Some(-((1 << (shift + 7)) - buf))
-        } else {
-          Some(buf)
-        }
+        shift += 7;
       }
-    };
-  }
+      let num = (self.next()?) as $t;
+      buf = buf ^ (num << shift);
+      if buf & (1 << (shift + 6)) != 0 {
+        Some(-((1 << (shift + 7)) - buf))
+      } else {
+        Some(buf)
+      }
+    }
+  };
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Byte {
@@ -144,6 +149,12 @@ impl Byte {
     Some(exports)
   }
 
+  fn decode_memory_inst(&mut self) -> Option<(u32, u32)> {
+    let align = self.decode_leb128_i32()? as u32;
+    let offset = self.decode_leb128_i32()? as u32;
+    Some((align, offset))
+  }
+
   fn decode_section_code_internal(&mut self) -> Option<Vec<Inst>> {
     let mut expressions = vec![];
     while !(Code::is_end_of_code(self.peek())) {
@@ -154,6 +165,99 @@ impl Byte {
         Code::GetLocal => expressions.push(Inst::GetLocal(self.next()? as usize)),
         Code::SetLocal => expressions.push(Inst::SetLocal(self.next()? as usize)),
         Code::TeeLocal => expressions.push(Inst::TeeLocal(self.next()? as usize)),
+
+        Code::I32Load => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load(align, offset));
+        }
+        Code::I64Load => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load(align, offset));
+        }
+        Code::F32Load => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F32Load(align, offset));
+        }
+        Code::F64Load => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F64Load(align, offset));
+        }
+        Code::I32Load8Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load8Sign(align, offset));
+        }
+        Code::I32Load8Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load8Unsign(align, offset));
+        }
+        Code::I32Load16Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load16Sign(align, offset));
+        }
+        Code::I32Load16Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load16Unsign(align, offset));
+        }
+        Code::I64Load8Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load8Sign(align, offset));
+        }
+        Code::I64Load8Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load8Unsign(align, offset));
+        }
+        Code::I64Load16Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load16Sign(align, offset));
+        }
+        Code::I64Load16Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load16Unsign(align, offset));
+        }
+        Code::I64Load32Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load32Sign(align, offset));
+        }
+        Code::I64Load32Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load32Unsign(align, offset));
+        }
+        Code::I32Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Store(align, offset));
+        }
+        Code::I64Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store(align, offset));
+        }
+        Code::F32Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F32Store(align, offset));
+        }
+        Code::F64Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F64Store(align, offset));
+        }
+        Code::I32Store8 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Store8(align, offset));
+        }
+        Code::I32Store16 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Store16(align, offset));
+        }
+        Code::I64Store8 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store8(align, offset));
+        }
+        Code::I64Store16 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store16(align, offset));
+        }
+        Code::I64Store32 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store32(align, offset));
+        }
         Code::I32CountLeadingZero => expressions.push(Inst::I32CountLeadingZero),
         Code::I32CountTrailingZero => expressions.push(Inst::I32CountTrailingZero),
         Code::I32CountNonZero => expressions.push(Inst::I32CountNonZero),
@@ -283,11 +387,33 @@ impl Byte {
     Some(type_indexes)
   }
 
+  fn decode_section_memory(&mut self) -> Option<Vec<Memory>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_memory = self.decode_leb128_i32()?;
+    let mut results = vec![];
+    for _ in 0..count_of_memory {
+      match self.next() {
+        Some(0x0) => {
+          let min = self.decode_leb128_i32()?;
+          results.push(Memory::NoUpperLimit(min as u32))
+        }
+        Some(0x1) => {
+          let min = self.decode_leb128_i32()?;
+          let max = self.decode_leb128_i32()?;
+          results.push(Memory::HasUpperLimit(min as u32, max as u32))
+        }
+        x => unreachable!("Expected limit of memory-type, got {:?}", x),
+      }
+    }
+    Some(results)
+  }
+
   pub fn decode(&mut self) -> Option<Vec<FunctionInstance>> {
     let mut function_types = vec![];
     let mut index_of_types = vec![];
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
+    let mut memories = vec![];
     while self.has_next() {
       match SectionCode::from(self.next()) {
         SectionCode::Type => {
@@ -306,7 +432,7 @@ impl Byte {
           unimplemented!();
         }
         SectionCode::Memory => {
-          unimplemented!();
+          memories = self.decode_section_memory()?;
         }
         SectionCode::Custom
         | SectionCode::Import
