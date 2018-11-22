@@ -59,16 +59,7 @@ struct TestCases {
 
 fn is_module_type(x: Option<&TestCase>) -> bool {
   match x {
-    Some(TestCase::Module {
-      line: _,
-      filename: _,
-    })
-    | Some(TestCase::AssertMalformed {
-      line: _,
-      filename: _,
-      text: _,
-      module_type: _,
-    }) => true,
+    Some(TestCase::Module { .. }) | Some(TestCase::AssertMalformed { .. }) => true,
     _ => false,
   }
 }
@@ -139,12 +130,7 @@ macro_rules! impl_e2e {
                   };
                   assert_eq!(vm.get_result(), expectation);
                 }
-                Some(TestCase::AssertTrap {
-                  line: _,
-                  action: _,
-                  text: _,
-                  expected: _,
-                }) => {
+                Some(TestCase::AssertTrap { .. }) => {
                   println!("Skip assert trap");
                 }
                 None => {
@@ -154,12 +140,7 @@ macro_rules! impl_e2e {
               }
             }
           }
-          TestCase::AssertMalformed {
-            line: _,
-            filename: _,
-            text: _,
-            module_type: _,
-          } => {
+          TestCase::AssertMalformed { .. } => {
             continue;
           }
           _ => unreachable!(),

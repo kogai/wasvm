@@ -1,6 +1,6 @@
 use std::convert::From;
 // /* BitAndAssign, , BitOrAssign, , BitXorAssign, */
-use code::{Code, ExportDescriptionCode, SecionCode, ValueTypes};
+use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use inst::Inst;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -289,18 +289,32 @@ impl Byte {
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
     while self.has_next() {
-      match SecionCode::from(self.next()) {
-        SecionCode::SectionType => {
+      match SectionCode::from(self.next()) {
+        SectionCode::Type => {
           function_types = self.decode_section_type()?;
         }
-        SecionCode::SectionFunction => {
+        SectionCode::Function => {
           index_of_types = self.decode_section_function()?;
         }
-        SecionCode::SectionExport => {
+        SectionCode::Export => {
           function_key_and_indexes = self.decode_section_export()?;
         }
-        SecionCode::SectionCode => {
+        SectionCode::Code => {
           list_of_expressions = self.decode_section_code()?;
+        }
+        SectionCode::Data => {
+          unimplemented!();
+        }
+        SectionCode::Memory => {
+          unimplemented!();
+        }
+        SectionCode::Custom
+        | SectionCode::Import
+        | SectionCode::Table
+        | SectionCode::Global
+        | SectionCode::Start
+        | SectionCode::Element => {
+          unimplemented!();
         }
       };
     }
