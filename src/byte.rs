@@ -24,6 +24,12 @@ pub enum Memory {
   HasUpperLimit(u32, u32),
 }
 
+pub struct Data {
+  memidx: u32,
+  offset: Vec<Inst>,
+  init: Vec<u8>,
+}
+
 impl FunctionInstance {
   pub fn call(&self) -> (Vec<Inst>, Vec<ValueTypes>) {
     (self.body.to_owned(), self.locals.to_owned())
@@ -431,12 +437,35 @@ impl Byte {
     Ok(results)
   }
 
+  fn decode_section_data(&mut self) -> Result<Vec<Data>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_data = self.decode_leb128_i32()?;
+    let mut datas = vec![];
+    for _ in 0..count_of_data {
+      let memidx = self.decode_leb128_i32()? as u32;
+      let offset = self.decode_section_code_internal()?;
+      let mut size_of_data = self.next()?;
+      let mut init = vec![];
+      while size_of_data != 0 {
+        size_of_data -= 1;
+        init.push(self.next()?);
+      }
+      datas.push(Data {
+        memidx,
+        offset,
+        init,
+      })
+    }
+    Ok(datas)
+  }
+
   pub fn decode(&mut self) -> Result<Vec<FunctionInstance>> {
     let mut function_types = vec![];
     let mut index_of_types = vec![];
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
     let mut memories = vec![];
+    let mut data = vec![];
     while self.has_next() {
       match SectionCode::from(self.next()) {
         SectionCode::Type => {
@@ -452,7 +481,7 @@ impl Byte {
           list_of_expressions = self.decode_section_code()?;
         }
         SectionCode::Data => {
-          unimplemented!();
+          data = self.decode_section_data()?;
         }
         SectionCode::Memory => {
           memories = self.decode_section_memory()?;
