@@ -1,15 +1,19 @@
+#![feature(try_trait)]
+
 pub mod byte;
 mod code;
 mod inst;
+mod trap;
 mod utils;
 pub mod value;
 
 use byte::FunctionInstance;
 use inst::Inst;
 use std::rc::Rc;
+use trap::Result;
 use value::Values;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 struct Store {
     function_instances: Vec<FunctionInstance>,
 }
@@ -97,14 +101,14 @@ pub struct Vm {
 }
 
 impl Vm {
-    pub fn new(bytes: Vec<u8>) -> Self {
+    pub fn new(bytes: Vec<u8>) -> Result<Self> {
         let mut bytes = byte::Byte::new(bytes);
-        let function_instances = bytes
-            .decode()
-            .expect("Instantiate function has been failured.");
-        Vm {
-            store: Store { function_instances },
-            stack: Stack::new(65536),
+        match bytes.decode() {
+            Ok(function_instances) => Ok(Vm {
+                store: Store { function_instances },
+                stack: Stack::new(65536),
+            }),
+            Err(err) => Err(err),
         }
     }
 
@@ -435,7 +439,7 @@ impl Vm {
         self.stack.push(Rc::new(frame));
     }
 
-    fn evaluate(&mut self) -> Option<()> {
+    fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty {
             let popped = self.stack.pop().expect("Invalid popping stack.");
@@ -466,23 +470,10 @@ impl Vm {
         self.stack.push(Rc::new(
             result.expect("Call stack may return with null value"),
         ));
-        Some(())
+        Ok(())
     }
 
-    pub fn get_result(&mut self) -> Option<String> {
-        let last_value = self.stack.pop();
-        if let None = last_value {
-            return None;
-        };
-        let value = last_value.unwrap();
-        match *value {
-            StackEntry::Value(Values::I32(v)) => Some(format!("{}", v)),
-            StackEntry::Value(Values::I64(v)) => Some(format!("{}", v)),
-            _ => None,
-        }
-    }
-
-    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) {
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self
             .store
             .function_instances
@@ -491,9 +482,11 @@ impl Vm {
             .expect("Main function did not found.");
         self.call(start_idx, arguments);
         match self.evaluate() {
-            Some(_) => {}
-            // FIXME: Temporaly, if trapped evaluation, push 0 to stack :thinking_face: .
-            None => self.stack.push(Rc::new(StackEntry::Value(Values::I32(0)))),
+            Ok(_) => match self.stack.pop_value() {
+                Values::I32(v) => format!("{}", v),
+                Values::I64(v) => format!("{}", v),
+            },
+            Err(err) => String::from(err),
         }
     }
 }
@@ -508,9 +501,9 @@ mod tests {
             #[test]
             fn $fn_name() {
                 let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
-                let mut vm = Vm::new(wasm);
-                vm.run("_subject", $call_arguments);
-                assert_eq!(*vm.stack.pop().unwrap(), StackEntry::Value($expect_value));
+                let mut vm = Vm::new(wasm).unwrap();
+                let actual = vm.run("_subject", $call_arguments);
+                assert_eq!(actual, format!("{}", $expect_value));
             }
         };
     }
@@ -522,87 +515,32 @@ mod tests {
         assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
         assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
     }
-    test_eval!(evaluate_cons8, "cons8", vec![], Values::I32(42));
+    test_eval!(evaluate_cons8, "cons8", vec![], 42);
     test_eval!(
         evaluate_add_simple,
         "add",
         vec![Values::I32(3), Values::I32(4)],
-        Values::I32(7)
+        7
     );
-    test_eval!(evaluate_sub, "sub", vec![Values::I32(10)], Values::I32(90));
+    test_eval!(evaluate_sub, "sub", vec![Values::I32(10)], 90);
     test_eval!(
         evaluate_add_five,
         "add_five",
         vec![Values::I32(3), Values::I32(4)],
-        Values::I32(17)
+        17
     );
-    test_eval!(
-        evaluate_if_lt_1,
-        "if_lt",
-        vec![Values::I32(10)],
-        Values::I32(15)
-    );
-    test_eval!(
-        evaluate_if_lt_2,
-        "if_lt",
-        vec![Values::I32(9)],
-        Values::I32(19)
-    );
-    test_eval!(
-        evaluate_if_lt_3,
-        "if_lt",
-        vec![Values::I32(11)],
-        Values::I32(26)
-    );
+    test_eval!(evaluate_if_lt_1, "if_lt", vec![Values::I32(10)], 15);
+    test_eval!(evaluate_if_lt_2, "if_lt", vec![Values::I32(9)], 19);
+    test_eval!(evaluate_if_lt_3, "if_lt", vec![Values::I32(11)], 26);
 
-    test_eval!(
-        evaluate_if_gt_1,
-        "if_gt",
-        vec![Values::I32(10)],
-        Values::I32(15)
-    );
-    test_eval!(
-        evaluate_if_gt_2,
-        "if_gt",
-        vec![Values::I32(15)],
-        Values::I32(25)
-    );
-    test_eval!(
-        evaluate_if_gt_3,
-        "if_gt",
-        vec![Values::I32(5)],
-        Values::I32(20)
-    );
+    test_eval!(evaluate_if_gt_1, "if_gt", vec![Values::I32(10)], 15);
+    test_eval!(evaluate_if_gt_2, "if_gt", vec![Values::I32(15)], 25);
+    test_eval!(evaluate_if_gt_3, "if_gt", vec![Values::I32(5)], 20);
 
-    test_eval!(
-        evaluate_if_eq_1,
-        "if_eq",
-        vec![Values::I32(10)],
-        Values::I32(15)
-    );
-    test_eval!(
-        evaluate_if_eq_2,
-        "if_eq",
-        vec![Values::I32(11)],
-        Values::I32(21)
-    );
-    test_eval!(evaluate_fib, "fib", vec![Values::I32(15)], Values::I32(610));
-    test_eval!(
-        evaluate_5_count,
-        "count",
-        vec![Values::I32(5)],
-        Values::I32(35)
-    );
-    test_eval!(
-        evaluate_10_count,
-        "count",
-        vec![Values::I32(10)],
-        Values::I32(145)
-    );
-    test_eval!(
-        evaluate_100_count,
-        "count",
-        vec![Values::I32(100)],
-        Values::I32(14950)
-    );
+    test_eval!(evaluate_if_eq_1, "if_eq", vec![Values::I32(10)], 15);
+    test_eval!(evaluate_if_eq_2, "if_eq", vec![Values::I32(11)], 21);
+    test_eval!(evaluate_fib, "fib", vec![Values::I32(15)], 610);
+    test_eval!(evaluate_5_count, "count", vec![Values::I32(5)], 35);
+    test_eval!(evaluate_10_count, "count", vec![Values::I32(10)], 145);
+    test_eval!(evaluate_100_count, "count", vec![Values::I32(100)], 14950);
 }

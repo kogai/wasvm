@@ -82,20 +82,25 @@ macro_rules! impl_e2e {
             let mut wasm_exec = vec![];
             let _ = file.read_exact(&mut tmp).unwrap();
             file.read_to_end(&mut wasm_exec).unwrap();
-            // while let Some() = test_cases.pop_front()
             while !is_module_type(test_cases.front()) {
-              match test_cases.pop_front() {
-                Some(TestCase::AssertReturn {
-                  line,
-                  action: Action::Invoke { field, args },
-                  expected,
-                }) => {
-                  // if *line != 39 {
-                  //   continue;
-                  // };
+              match (test_cases.pop_front(), wasvm::Vm::new(wasm_exec.clone())) {
+                (
+                  Some(TestCase::AssertReturn {
+                    line,
+                    action:
+                      Action::Invoke {
+                        ref field,
+                        ref args,
+                      },
+                    ref expected,
+                  }),
+                  Ok(ref mut vm),
+                ) => {
+                  if line != 60 {
+                    continue;
+                  };
                   println!("Testing spec at line:{}.", line);
-                  let mut vm = wasvm::Vm::new(wasm_exec.clone());
-                  vm.run(
+                  let actual = vm.run(
                     field.as_ref(),
                     args
                       .iter()
@@ -113,27 +118,31 @@ macro_rules! impl_e2e {
                           }
                           x => unimplemented!("{:?} is not implemented yet", x),
                         }
-                      }).collect::<Vec<Values>>(),
+                      })
+                      .collect::<Vec<Values>>(),
                   );
                   let exp = expected.get(0).unwrap().to_owned();
                   let expectation = match (exp.value_type.as_ref(), exp.value) {
                     ("i32", Some(value)) => {
                       let actual_value = value.parse::<u32>().unwrap() as i32;
-                      Some(format!("{}", actual_value))
+                      format!("{}", actual_value)
                     }
                     ("i64", Some(value)) => {
                       let actual_value = value.parse::<u64>().unwrap() as i64;
-                      Some(format!("{}", actual_value))
+                      format!("{}", actual_value)
                     }
-                    (_, None) => None,
+                    (_, None) => "".to_owned(),
                     _ => unimplemented!(),
                   };
-                  assert_eq!(vm.get_result(), expectation);
+                  assert_eq!(actual, expectation);
                 }
-                Some(TestCase::AssertTrap { .. }) => {
-                  println!("Skip assert trap");
+                // (Some(TestCase::AssertReturn { .. }), Err(_))
+                // | (Some(TestCase::AssertTrap { .. }), Err(_))
+                (Some(TestCase::AssertTrap { line, .. }), Err(_))
+                | (Some(TestCase::AssertTrap { line, .. }), Ok(_)) => {
+                  println!("Skip assert trap {}", line);
                 }
-                None => {
+                (None, _) => {
                   break;
                 }
                 x => unreachable!("{:?}", x),

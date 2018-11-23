@@ -19,8 +19,8 @@ fn main() -> io::Result<()> {
       let mut buffer = vec![];
       file.read_to_end(&mut buffer)?;
 
-      let mut vm = wasvm::Vm::new(buffer);
-      vm.run(
+      let mut vm = wasvm::Vm::new(buffer).unwrap();
+      let result = vm.run(
         "_subject",
         arguments
           .iter()
@@ -28,7 +28,7 @@ fn main() -> io::Result<()> {
           .map(|v| value::Values::I32(v))
           .collect::<Vec<value::Values>>(),
       );
-      println!("{:?}", vm.stack.pop().unwrap());
+      println!("{:?}", result);
     }
     _ => unreachable!("Should specify file-name"),
   };

@@ -105,8 +105,3 @@ pub enum Inst {
   TypeEmpty,
   I32WrapI64,
 }
-
-pub enum Trap {
-  DivisionOverflow,
-  DivisionByZero,
-}
