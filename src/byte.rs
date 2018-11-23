@@ -378,7 +378,8 @@ impl Byte {
     let mut codes = vec![];
     let count_of_code = self.decode_leb128_i32()?;
     for _idx_of_fn in 0..count_of_code {
-      let _size_of_function = self.decode_leb128_i32()?;
+      let size_of_function = self.decode_leb128_i32()?;
+      let end_of_function = self.byte_ptr + (size_of_function as usize);
       let count_of_locals = self.decode_leb128_i32()? as usize;
       // FIXME:
       let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
@@ -391,6 +392,7 @@ impl Byte {
           codes.push(Ok((expressions, locals)));
         }
         Err(err) => {
+          self.byte_ptr = end_of_function;
           codes.push(Err(err));
         }
       };
