@@ -10,7 +10,7 @@ pub mod value;
 use byte::FunctionInstance;
 use inst::Inst;
 use std::rc::Rc;
-use trap::Result;
+use trap::{Result, Trap};
 use value::Values;
 
 #[derive(Debug)]
@@ -112,6 +112,7 @@ impl Vm {
         }
     }
 
+    // FIXME: Change to return Result<()>
     fn evaluate_instructions(&mut self, expressions: &Vec<Inst>) -> Option<()> {
         use self::Inst::*;
         let mut result = Some(());
@@ -384,12 +385,33 @@ impl Vm {
                 }
                 TypeEmpty => unreachable!(),
                 TypeI32 => unreachable!(),
+                I32Load8Unsign(_align, offset) => {
+                    let i = match self.stack.pop_value() {
+                        Values::I32(i) => i,
+                        x => unreachable!("{:?}", x),
+                    } as u32;
+                    let ea = i + *offset;
+                    if (ea + 4/* = 32 / 4 */) > 999
+                    /* mem.data */
+                    {
+                        // FIXME:
+                        return None;
+                        // return Err(Trap::MemoryAccessOutOfBounds)
+                    };
+                    let n = (i as u64) % 2u64.pow(32);
+                    // Get 4 byte from target address
+                    // data = [ea..32/8];
+                    // c = extend_to_i32(data)
+                    // push(c)
+                    // unimplemented!();
+                    self.stack
+                        .push(Rc::new(StackEntry::Value(Values::I32(0x61))));
+                }
                 I32Load(align, offset)
                 | I64Load(align, offset)
                 | F32Load(align, offset)
                 | F64Load(align, offset)
                 | I32Load8Sign(align, offset)
-                | I32Load8Unsign(align, offset)
                 | I32Load16Sign(align, offset)
                 | I32Load16Unsign(align, offset)
                 | I64Load8Sign(align, offset)
