@@ -1,5 +1,5 @@
-use inst::Trap;
 use std::ops::{BitAnd, BitOr, BitXor};
+use trap::Trap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Values {

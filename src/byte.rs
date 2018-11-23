@@ -1,6 +1,7 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use inst::Inst;
 use std::convert::From;
+use trap::Trap;
 
 #[derive(Debug, PartialEq, Clone)]
 struct FunctionType {
@@ -38,8 +39,8 @@ impl FunctionInstance {
 }
 
 macro_rules! leb128 {
-  ($t:ty, $fn_name: ident) => {
-    fn $fn_name(&mut self) -> Option<$t> {
+  ($t:ty, $buf_size: ty, $fn_name: ident) => {
+    fn $fn_name(&mut self) -> Result<$t, Trap> {
       let mut buf: $t = 0;
       let mut shift = 0;
 
