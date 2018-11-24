@@ -84,9 +84,7 @@ macro_rules! impl_e2e {
             }
 
             let mut file = File::open(format!("dist/{}", filename)).unwrap();
-            let mut tmp = [0; 8];
             let mut wasm_exec = vec![];
-            let _ = file.read_exact(&mut tmp).unwrap();
             file.read_to_end(&mut wasm_exec).unwrap();
             while !is_module_type(test_cases.front()) {
               match (test_cases.pop_front(), wasvm::Vm::new(wasm_exec.clone())) {

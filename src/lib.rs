@@ -1,6 +1,6 @@
 #![feature(try_trait)]
 
-pub mod byte;
+mod byte;
 mod code;
 mod function;
 mod inst;
@@ -106,7 +106,7 @@ macro_rules! impl_load_inst {
 
 pub struct Vm {
     store: Store,
-    pub stack: Stack,
+    stack: Stack,
 }
 
 impl Vm {
@@ -408,17 +408,17 @@ impl Vm {
                 I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
 
-                F32Load(align, offset)
-                | F64Load(align, offset)
-                | I32Store(align, offset)
-                | I64Store(align, offset)
-                | F32Store(align, offset)
-                | F64Store(align, offset)
-                | I32Store8(align, offset)
-                | I32Store16(align, offset)
-                | I64Store8(align, offset)
-                | I64Store16(align, offset)
-                | I64Store32(align, offset) => {
+                F32Load(_, _offset)
+                | F64Load(_, _offset)
+                | I32Store(_, _offset)
+                | I64Store(_, _offset)
+                | F32Store(_, _offset)
+                | F64Store(_, _offset)
+                | I32Store8(_, _offset)
+                | I32Store16(_, _offset)
+                | I64Store8(_, _offset)
+                | I64Store16(_, _offset)
+                | I64Store32(_, _offset) => {
                     unimplemented!();
                 }
                 I32EqualZero | I64EqualZero => {
@@ -501,14 +501,17 @@ impl Vm {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use utils::read_wasm;
+    use std::fs::File;
+    use std::io::Read;
 
     macro_rules! test_eval {
         ($fn_name:ident, $file_name:expr, $call_arguments: expr, $expect_value: expr) => {
             #[test]
             fn $fn_name() {
-                let wasm = read_wasm(format!("./dist/{}.wasm", $file_name)).unwrap();
-                let mut vm = Vm::new(wasm).unwrap();
+                let mut file = File::open(format!("./dist/{}.wasm", $file_name)).unwrap();
+                let mut buffer = vec![];
+                let _ = file.read_to_end(&mut buffer);
+                let mut vm = Vm::new(buffer).unwrap();
                 let actual = vm.run("_subject", $call_arguments);
                 assert_eq!(actual, format!("{}", $expect_value));
             }

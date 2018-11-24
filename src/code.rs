@@ -5,8 +5,6 @@ pub enum Code {
   ConstI32,
   ConstI64,
 
-  TypeValueI32,
-  TypeValueI64,
   TypeValueEmpty,
   TypeFunction,
 
