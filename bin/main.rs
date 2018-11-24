@@ -12,10 +12,6 @@ fn main() -> io::Result<()> {
   match arguments.split_first() {
     Some((file_name, arguments)) => {
       let mut file = fs::File::open(format!("./{}.wasm", file_name))?;
-      let mut tmp = [0; 4];
-      let _drop_magic_number = file.read_exact(&mut tmp)?;
-      let _drop_version = file.read_exact(&mut tmp)?;
-
       let mut buffer = vec![];
       file.read_to_end(&mut buffer)?;
 

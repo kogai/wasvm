@@ -21,8 +21,7 @@ impl FunctionType {
 pub struct FunctionInstance {
   export_name: Option<String>,
   function_type: Result<FunctionType>,
-  // #[cfg(test)]
-  pub locals: Vec<ValueTypes>,
+  locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Vec<Inst>,
 }
@@ -41,19 +40,6 @@ impl FunctionInstance {
       locals,
       type_idex,
       body,
-    }
-  }
-  pub fn new_error(
-    export_name: Option<String>,
-    function_type: Result<FunctionType>,
-    type_idex: u32,
-  ) -> Self {
-    FunctionInstance {
-      export_name,
-      function_type,
-      locals: vec![],
-      type_idex,
-      body: vec![],
     }
   }
 

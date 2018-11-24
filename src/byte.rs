@@ -51,8 +51,9 @@ pub struct Byte {
 
 impl Byte {
   pub fn new(bytes: Vec<u8>) -> Self {
+    let (_, bytes) = bytes.split_at(8);
     Byte {
-      bytes,
+      bytes: bytes.to_vec(),
       bytes_decoded: vec![],
       byte_ptr: 0,
     }
@@ -319,7 +320,6 @@ impl Byte {
           return Ok(expressions);
         }
         Code::Return => expressions.push(Inst::Return),
-        Code::TypeValueI32 => expressions.push(Inst::TypeI32),
         Code::TypeValueEmpty => expressions.push(Inst::TypeEmpty),
         x => unimplemented!(
           "Code {:x?} does not supported yet. Current expressions -> {:?}",
@@ -418,7 +418,7 @@ impl Byte {
     let mut index_of_types = vec![];
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
-    let mut memories = vec![];
+    let mut _memories = vec![];
     let mut data = vec![];
     while self.has_next() {
       match SectionCode::from(self.next()) {
@@ -438,7 +438,7 @@ impl Byte {
           data = self.decode_section_data()?;
         }
         SectionCode::Memory => {
-          memories = self.decode_section_memory()?;
+          _memories = self.decode_section_memory()?;
         }
         SectionCode::Custom
         | SectionCode::Import
@@ -485,7 +485,8 @@ impl Byte {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use utils::read_wasm;
+  use std::fs::File;
+  use std::io::Read;
 
   #[test]
   fn repl() {
@@ -499,8 +500,10 @@ mod tests {
       #[test]
       fn $fn_name() {
         use self::Inst::*;
-        let wasm = read_wasm(format!("./{}.wasm", $file_name)).unwrap();
-        let mut bc = Byte::new(wasm);
+        let mut file = File::open(format!("./{}.wasm", $file_name)).unwrap();
+        let mut buffer = vec![];
+        let _ = file.read_to_end(&mut buffer);
+        let mut bc = Byte::new(buffer);
         assert_eq!(bc.decode().unwrap().get_function_instance(), $fn_insts);
       }
     };

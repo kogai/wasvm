@@ -102,7 +102,6 @@ pub enum Inst {
   If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
   Return,
-  TypeI32,
   TypeEmpty,
   I32WrapI64,
 }
