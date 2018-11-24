@@ -381,22 +381,14 @@ impl Vm {
                         Values::I32(i) => i,
                         x => unreachable!("{:?}", x),
                     } as u32;
-                    let ea = i + *offset;
-                    if (ea + 4/* = 32 / 4 */) > 999
-                    /* mem.data */
-                    {
+                    let ea = i + *offset; // NOTE: What 'ea' stands for?
+                    if self.store.data_size_small_than(ea + 1 /* = 8 / 8 */) {
                         // FIXME:
-                        return None;
                         // return Err(Trap::MemoryAccessOutOfBounds)
+                        return None;
                     };
-                    let n = (i as u64) % 2u64.pow(32);
-                    // Get 4 byte from target address
-                    // data = [ea..32/8];
-                    // c = extend_to_i32(data)
-                    // push(c)
-                    // unimplemented!();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(Values::I32(0x61))));
+                    let data = self.store.load_data(ea, ea + (8 / 8), true);
+                    self.stack.push(Rc::new(StackEntry::Value(data)));
                 }
                 I32Load(align, offset)
                 | I64Load(align, offset)
