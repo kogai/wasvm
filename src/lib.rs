@@ -2,27 +2,19 @@
 
 pub mod byte;
 mod code;
+mod function;
 mod inst;
+mod memory;
+mod store;
 mod trap;
 mod utils;
 pub mod value;
 
-use byte::FunctionInstance;
 use inst::Inst;
 use std::rc::Rc;
-use trap::{Result, Trap};
+use store::Store;
+use trap::Result;
 use value::Values;
-
-#[derive(Debug)]
-struct Store {
-    function_instances: Vec<FunctionInstance>,
-}
-
-impl Store {
-    fn call(&self, fn_idx: usize) -> Option<&FunctionInstance> {
-        self.function_instances.get(fn_idx)
-    }
-}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Frame {
@@ -94,7 +86,6 @@ impl Stack {
     }
 }
 
-#[derive(Debug)]
 pub struct Vm {
     store: Store,
     pub stack: Stack,
@@ -104,8 +95,8 @@ impl Vm {
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
         let mut bytes = byte::Byte::new(bytes);
         match bytes.decode() {
-            Ok(function_instances) => Ok(Vm {
-                store: Store { function_instances },
+            Ok(store) => Ok(Vm {
+                store,
                 stack: Stack::new(65536),
             }),
             Err(err) => Err(err),
@@ -138,7 +129,7 @@ impl Vm {
                 Call(idx) => {
                     let operand = self.stack.pop_value();
                     self.call(*idx, vec![operand]);
-                    self.evaluate();
+                    let _ = self.evaluate();
                 }
                 I32Add | I64Add => {
                     let right = self.stack.pop_value();
@@ -496,12 +487,7 @@ impl Vm {
     }
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
-        let start_idx = self
-            .store
-            .function_instances
-            .iter()
-            .position(|f| f.find(invoke))
-            .expect("Main function did not found.");
+        let start_idx = self.store.get_function_idx(invoke);
         self.call(start_idx, arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {

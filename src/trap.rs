@@ -1,6 +1,7 @@
 use std::convert::From;
 use std::option::NoneError;
 
+// TODO: Prefer to separate runtime error and decode-time one.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Trap {
   DivisionOverflow,

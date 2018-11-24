@@ -145,7 +145,7 @@ macro_rules! impl_e2e {
                 (None, _) => {
                   break;
                 }
-                x => unreachable!("{:?}", x),
+                (x, _) => unreachable!("{:?}", x),
               }
             }
           }

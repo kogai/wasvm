@@ -98,6 +98,7 @@ pub enum Inst {
   I64GreaterEqualSign,
   I64GreaterEqualUnSign,
 
+  // Drop structuring instruction
   If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
   Return,
