@@ -301,7 +301,8 @@ impl From<Option<u8>> for ValueTypes {
       Some(0x40) => ValueTypes::Empty,
       Some(0x7f) => ValueTypes::I32,
       Some(0x7e) => ValueTypes::I64,
-      x => unimplemented!("ValueTypes of {:?} does not implemented yet.", x),
+      Some(x) => unimplemented!("ValueTypes of {:x} does not implemented yet.", x),
+      None => unreachable!("ValueTypes not found"),
     }
   }
 }

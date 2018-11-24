@@ -36,7 +36,7 @@ impl Store {
     self.memory_instance.data_size_smaller_than(ptr)
   }
 
-  pub fn load_data(&self, from: u32, to: u32, is_signed: bool) -> Values {
-    self.memory_instance.load_data(from, to, is_signed)
+  pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
+    self.memory_instance.load_data(from, to, value_kind)
   }
 }

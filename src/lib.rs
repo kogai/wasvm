@@ -87,7 +87,7 @@ impl Stack {
 }
 
 macro_rules! impl_load_inst {
-    ($load_data_width: expr, $self: ident, $offset: ident) => {{
+    ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let width = $load_data_width / 8;
         let i = match $self.stack.pop_value() {
             Values::I32(i) => i,
@@ -99,7 +99,7 @@ macro_rules! impl_load_inst {
             // return Err(Trap::MemoryAccessOutOfBounds)
             return None;
         };
-        let data = $self.store.load_data(ea, ea + width, true);
+        let data = $self.store.load_data(ea, ea + width, $value_kind);
         $self.stack.push(Rc::new(StackEntry::Value(data)));
     }};
 }
@@ -395,21 +395,21 @@ impl Vm {
                 TypeEmpty => unreachable!(),
                 TypeI32 => unreachable!(),
 
-                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset),
-                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset),
-                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset),
-                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset),
-                I32Load(_, offset) => impl_load_inst!(32, self, offset),
+                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
+                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
+                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
+                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
+                I32Load(_, offset) => impl_load_inst!(32, self, offset, "i32"),
+                I64Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
+                I64Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
+                I64Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
+                I64Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
+                I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+                I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+                I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
 
-                I64Load(align, offset)
-                | F32Load(align, offset)
+                F32Load(align, offset)
                 | F64Load(align, offset)
-                | I64Load8Sign(align, offset)
-                | I64Load8Unsign(align, offset)
-                | I64Load16Sign(align, offset)
-                | I64Load16Unsign(align, offset)
-                | I64Load32Sign(align, offset)
-                | I64Load32Unsign(align, offset)
                 | I32Store(align, offset)
                 | I64Store(align, offset)
                 | F32Store(align, offset)

@@ -11,7 +11,7 @@ fn main() -> io::Result<()> {
   let (_, arguments) = arguments.split_at(1);
   match arguments.split_first() {
     Some((file_name, arguments)) => {
-      let mut file = fs::File::open(format!("./dist/{}.wasm", file_name))?;
+      let mut file = fs::File::open(format!("./{}.wasm", file_name))?;
       let mut tmp = [0; 4];
       let _drop_magic_number = file.read_exact(&mut tmp)?;
       let _drop_version = file.read_exact(&mut tmp)?;
