@@ -13,6 +13,31 @@ pub enum Code {
   GetLocal,
   TeeLocal,
   SetLocal,
+
+  I32Load,
+  I64Load,
+  F32Load,
+  F64Load,
+  I32Load8Sign,
+  I32Load8Unsign,
+  I32Load16Sign,
+  I32Load16Unsign,
+  I64Load8Sign,
+  I64Load8Unsign,
+  I64Load16Sign,
+  I64Load16Unsign,
+  I64Load32Sign,
+  I64Load32Unsign,
+  I32Store,
+  I64Store,
+  F32Store,
+  F64Store,
+  I32Store8,
+  I32Store16,
+  I64Store8,
+  I64Store16,
+  I64Store32,
+
   I32CountLeadingZero,
   I32CountTrailingZero,
   I32CountNonZero,
@@ -101,6 +126,31 @@ impl From<Option<u8>> for Code {
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
       Some(0x22) => TeeLocal,
+
+      Some(0x28) => I32Load,
+      Some(0x29) => I64Load,
+      Some(0x2a) => F32Load,
+      Some(0x2b) => F64Load,
+      Some(0x2c) => I32Load8Sign,
+      Some(0x2d) => I32Load8Unsign,
+      Some(0x2e) => I32Load16Sign,
+      Some(0x2f) => I32Load16Unsign,
+      Some(0x30) => I64Load8Sign,
+      Some(0x31) => I64Load8Unsign,
+      Some(0x32) => I64Load16Sign,
+      Some(0x33) => I64Load16Unsign,
+      Some(0x34) => I64Load32Sign,
+      Some(0x35) => I64Load32Unsign,
+      Some(0x36) => I32Store,
+      Some(0x37) => I64Store,
+      Some(0x38) => F32Store,
+      Some(0x39) => F64Store,
+      Some(0x3a) => I32Store8,
+      Some(0x3b) => I32Store16,
+      Some(0x3c) => I64Store8,
+      Some(0x3d) => I64Store16,
+      Some(0x3e) => I64Store32,
+
       Some(0x40) => TypeValueEmpty,
       Some(0x41) => ConstI32,
       Some(0x42) => ConstI64,
@@ -180,22 +230,38 @@ impl Code {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum SecionCode {
-  SectionType,
-  SectionFunction,
-  SectionExport,
-  SectionCode,
+pub enum SectionCode {
+  Custom,
+  Type,
+  Import,
+  Function,
+  Table,
+  Memory,
+  Global,
+  Export,
+  Start,
+  Element,
+  Code,
+  Data,
 }
 
-impl From<Option<u8>> for SecionCode {
+impl From<Option<u8>> for SectionCode {
   fn from(code: Option<u8>) -> Self {
-    use self::SecionCode::*;
+    use self::SectionCode::*;
     match code {
-      Some(0x1) => SectionType,
-      Some(0x3) => SectionFunction,
-      Some(0x7) => SectionExport,
-      Some(0xa) => SectionCode,
-      x => unreachable!("SectionCode {:x?} does not supported yet.", x),
+      Some(0x0) => Custom,
+      Some(0x1) => Type,
+      Some(0x2) => Import,
+      Some(0x3) => Function,
+      Some(0x4) => Table,
+      Some(0x5) => Memory,
+      Some(0x6) => Global,
+      Some(0x7) => Export,
+      Some(0x8) => Start,
+      Some(0x9) => Element,
+      Some(0xa) => Code,
+      Some(0xb) => Data,
+      x => unreachable!("Expect section code, got {:x?}.", x),
     }
   }
 }
@@ -235,7 +301,8 @@ impl From<Option<u8>> for ValueTypes {
       Some(0x40) => ValueTypes::Empty,
       Some(0x7f) => ValueTypes::I32,
       Some(0x7e) => ValueTypes::I64,
-      x => unimplemented!("ValueTypes of {:?} does not implemented yet.", x),
+      Some(x) => unimplemented!("ValueTypes of {:x} does not implemented yet.", x),
+      None => unreachable!("ValueTypes not found"),
     }
   }
 }

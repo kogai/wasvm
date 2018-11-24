@@ -1,67 +1,46 @@
-use std::convert::From;
-// /* BitAndAssign, , BitOrAssign, , BitXorAssign, */
-use code::{Code, ExportDescriptionCode, SecionCode, ValueTypes};
+use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
+use function::{FunctionInstance, FunctionType};
 use inst::Inst;
-
-#[derive(Debug, PartialEq, Clone)]
-struct FunctionType {
-  parameters: Vec<ValueTypes>,
-  returns: Vec<ValueTypes>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct FunctionInstance {
-  export_name: Option<String>,
-  function_type: FunctionType,
-  locals: Vec<ValueTypes>,
-  type_idex: u32,
-  body: Vec<Inst>,
-}
-
-impl FunctionInstance {
-  pub fn call(&self) -> (Vec<Inst>, Vec<ValueTypes>) {
-    (self.body.to_owned(), self.locals.to_owned())
-  }
-
-  pub fn find(&self, key: &str) -> bool {
-    // FIXME: When using function_index, we might get exported function by O(1).
-    match &self.export_name {
-      Some(name) => name.as_str() == key,
-      _ => false,
-    }
-  }
-}
+use memory::{Data, Memory, MemoryInstance};
+use std::convert::From;
+use store::Store;
+use trap::{Result, Trap};
 
 macro_rules! leb128 {
-    ($t:ty, $fn_name: ident) => {
-      fn $fn_name(&mut self) -> Option<$t> {
-        let mut buf: $t = 0;
-        let mut shift = 0;
+  ($t:ty, $buf_size: ty, $fn_name: ident) => {
+    fn $fn_name(&mut self) -> Result<$t> {
+      let mut buf: $t = 0;
+      let mut shift = 0;
 
-        // Check whether leftmost bit is 1 or 0
-        // n     = 0b11111111 = 0b01111111
-        // _     = 0b10000000 = 0b10000000
-        // n & _ = 0b10000000 = 0b00000000
-        while (self.peek()? & 0b10000000) != 0 {
-          let num = (self.next()? ^ (0b10000000)) as $t; // If leftmost bit is 1, we drop it.
+      // Check whether leftmost bit is 1 or 0
+      // n     = 0b11111111 = 0b01111111
+      // _     = 0b10000000 = 0b10000000
+      // n & _ = 0b10000000 = 0b00000000
+      while (self.peek()? & 0b10000000) != 0 {
+        let num = (self.next()? ^ (0b10000000)) as $t; // If leftmost bit is 1, we drop it.
 
-          // buf =      00000000_00000000_10000000_00000000
-          // num =      00000000_00000000_00000000_00000001
-          // num << 7 = 00000000_00000000_00000000_10000000
-          // buf ^ num  00000000_00000000_10000000_10000000
-          buf = buf ^ (num << shift);
-          shift += 7;
-        }
-        let num = (self.next()?) as $t;
+        // buf =      00000000_00000000_10000000_00000000
+        // num =      00000000_00000000_00000000_00000001
+        // num << 7 = 00000000_00000000_00000000_10000000
+        // buf ^ num  00000000_00000000_10000000_10000000
         buf = buf ^ (num << shift);
-        if buf & (1 << (shift + 6)) != 0 {
-          Some(-((1 << (shift + 7)) - buf))
-        } else {
-          Some(buf)
-        }
+        shift += 7;
       }
-    };
-  }
+      let num = (self.next()?) as $t;
+      buf = buf ^ (num << shift);
+
+      let (msb_one, overflowed) = (1 as $buf_size).overflowing_shl(shift + 6);
+      if overflowed {
+        return Err(Trap::BitshiftOverflow)
+      }
+      if buf & (msb_one as $t) != 0 {
+        Ok(-((1 << (shift + 7)) - buf))
+      } else {
+        Ok(buf)
+      }
+    }
+  };
+}
 
 #[derive(Debug, PartialEq)]
 pub struct Byte {
@@ -97,8 +76,8 @@ impl Byte {
     el.map(|&x| x)
   }
 
-  leb128!(i32, decode_leb128_i32);
-  leb128!(i64, decode_leb128_i64);
+  leb128!(i32, u32, decode_leb128_i32);
+  leb128!(i64, u64, decode_leb128_i64);
 
   fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
@@ -116,10 +95,7 @@ impl Byte {
       for _ in 0..size_of_result {
         returns.push(ValueTypes::from(self.next()));
       }
-      function_types.push(FunctionType {
-        parameters,
-        returns,
-      })
+      function_types.push(FunctionType::new(parameters, returns))
     }
     Some(function_types)
   }
@@ -144,7 +120,19 @@ impl Byte {
     Some(exports)
   }
 
-  fn decode_section_code_internal(&mut self) -> Option<Vec<Inst>> {
+  fn decode_memory_inst(&mut self) -> Result<(u32, u32)> {
+    let align = self.decode_leb128_i32();
+    let offset = self.decode_leb128_i32();
+    match (align, offset) {
+      (Ok(align), Ok(offset)) => Ok((align as u32, offset as u32)),
+      (Err(Trap::BitshiftOverflow), _) | (_, Err(Trap::BitshiftOverflow)) => {
+        Err(Trap::MemoryAccessOutOfBounds)
+      }
+      _ => Err(Trap::Unknown),
+    }
+  }
+
+  fn decode_section_code_internal(&mut self) -> Result<Vec<Inst>> {
     let mut expressions = vec![];
     while !(Code::is_end_of_code(self.peek())) {
       match Code::from(self.next()) {
@@ -154,6 +142,101 @@ impl Byte {
         Code::GetLocal => expressions.push(Inst::GetLocal(self.next()? as usize)),
         Code::SetLocal => expressions.push(Inst::SetLocal(self.next()? as usize)),
         Code::TeeLocal => expressions.push(Inst::TeeLocal(self.next()? as usize)),
+
+        Code::I32Load => {
+          match self.decode_memory_inst() {
+            Ok((align, offset)) => expressions.push(Inst::I32Load(align, offset)),
+            Err(err) => return Err(err),
+          };
+        }
+        Code::I64Load => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load(align, offset));
+        }
+        Code::F32Load => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F32Load(align, offset));
+        }
+        Code::F64Load => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F64Load(align, offset));
+        }
+        Code::I32Load8Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load8Sign(align, offset));
+        }
+        Code::I32Load8Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load8Unsign(align, offset));
+        }
+        Code::I32Load16Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load16Sign(align, offset));
+        }
+        Code::I32Load16Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load16Unsign(align, offset));
+        }
+        Code::I64Load8Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load8Sign(align, offset));
+        }
+        Code::I64Load8Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load8Unsign(align, offset));
+        }
+        Code::I64Load16Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load16Sign(align, offset));
+        }
+        Code::I64Load16Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load16Unsign(align, offset));
+        }
+        Code::I64Load32Sign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load32Sign(align, offset));
+        }
+        Code::I64Load32Unsign => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Load32Unsign(align, offset));
+        }
+        Code::I32Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Store(align, offset));
+        }
+        Code::I64Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store(align, offset));
+        }
+        Code::F32Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F32Store(align, offset));
+        }
+        Code::F64Store => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::F64Store(align, offset));
+        }
+        Code::I32Store8 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Store8(align, offset));
+        }
+        Code::I32Store16 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Store16(align, offset));
+        }
+        Code::I64Store8 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store8(align, offset));
+        }
+        Code::I64Store16 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store16(align, offset));
+        }
+        Code::I64Store32 => {
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I64Store32(align, offset));
+        }
         Code::I32CountLeadingZero => expressions.push(Inst::I32CountLeadingZero),
         Code::I32CountTrailingZero => expressions.push(Inst::I32CountTrailingZero),
         Code::I32CountNonZero => expressions.push(Inst::I32CountNonZero),
@@ -230,10 +313,10 @@ impl Byte {
           }
         }
         Code::Else => {
-          return Some(expressions);
+          return Ok(expressions);
         }
         Code::End => {
-          return Some(expressions);
+          return Ok(expressions);
         }
         Code::Return => expressions.push(Inst::Return),
         Code::TypeValueI32 => expressions.push(Inst::TypeI32),
@@ -246,20 +329,21 @@ impl Byte {
       };
     }
     match Code::from(self.peek()) {
-      Code::Else => Some(expressions),
+      Code::Else => Ok(expressions),
       _ => {
         self.next(); // Drop End code.
-        Some(expressions)
+        Ok(expressions)
       }
     }
   }
 
-  fn decode_section_code(&mut self) -> Option<Vec<(Vec<Inst>, Vec<ValueTypes>)>> {
+  fn decode_section_code(&mut self) -> Result<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
     let mut codes = vec![];
     let count_of_code = self.decode_leb128_i32()?;
     for _idx_of_fn in 0..count_of_code {
-      let _size_of_function = self.decode_leb128_i32()?;
+      let size_of_function = self.decode_leb128_i32()?;
+      let end_of_function = self.byte_ptr + (size_of_function as usize);
       let count_of_locals = self.decode_leb128_i32()? as usize;
       // FIXME:
       let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
@@ -267,44 +351,107 @@ impl Byte {
         let _idx = self.next(); // NOTE: Index of local varibale type?
         locals.push(ValueTypes::from(self.next()));
       }
-      let mut expressions = self.decode_section_code_internal()?;
-      codes.push((expressions, locals));
+      match self.decode_section_code_internal() {
+        Ok(expressions) => {
+          codes.push(Ok((expressions, locals)));
+        }
+        Err(err) => {
+          self.byte_ptr = end_of_function;
+          codes.push(Err(err));
+        }
+      };
     }
-    Some(codes)
+    Ok(codes)
   }
 
-  fn decode_section_function(&mut self) -> Option<Vec<u32>> {
+  fn decode_section_function(&mut self) -> Result<Vec<u32>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
     let count_of_type_idx = self.decode_leb128_i32()?;
     let mut type_indexes = vec![];
     for _idx_of_fn in 0..count_of_type_idx {
       type_indexes.push(self.next()? as u32);
     }
-    Some(type_indexes)
+    Ok(type_indexes)
   }
 
-  pub fn decode(&mut self) -> Option<Vec<FunctionInstance>> {
+  fn decode_section_memory(&mut self) -> Result<Vec<Memory>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_memory = self.decode_leb128_i32()?;
+    let mut results = vec![];
+    for _ in 0..count_of_memory {
+      match self.next() {
+        Some(0x0) => {
+          let min = self.decode_leb128_i32()?;
+          results.push(Memory::NoUpperLimit(min as u32))
+        }
+        Some(0x1) => {
+          let min = self.decode_leb128_i32()?;
+          let max = self.decode_leb128_i32()?;
+          results.push(Memory::HasUpperLimit(min as u32, max as u32))
+        }
+        x => unreachable!("Expected limit of memory-type, got {:?}", x),
+      }
+    }
+    Ok(results)
+  }
+
+  fn decode_section_data(&mut self) -> Result<Vec<Data>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_data = self.decode_leb128_i32()?;
+    let mut datas = vec![];
+    for _ in 0..count_of_data {
+      let memidx = self.decode_leb128_i32()? as u32;
+      let offset = self.decode_section_code_internal()?;
+      let mut size_of_data = self.next()?;
+      let mut init = vec![];
+      while size_of_data != 0 {
+        size_of_data -= 1;
+        init.push(self.next()?);
+      }
+      datas.push(Data::new(memidx, offset, init))
+    }
+    Ok(datas)
+  }
+
+  pub fn decode(&mut self) -> Result<Store> {
     let mut function_types = vec![];
     let mut index_of_types = vec![];
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
+    let mut memories = vec![];
+    let mut data = vec![];
     while self.has_next() {
-      match SecionCode::from(self.next()) {
-        SecionCode::SectionType => {
+      match SectionCode::from(self.next()) {
+        SectionCode::Type => {
           function_types = self.decode_section_type()?;
         }
-        SecionCode::SectionFunction => {
+        SectionCode::Function => {
           index_of_types = self.decode_section_function()?;
         }
-        SecionCode::SectionExport => {
+        SectionCode::Export => {
           function_key_and_indexes = self.decode_section_export()?;
         }
-        SecionCode::SectionCode => {
+        SectionCode::Code => {
           list_of_expressions = self.decode_section_code()?;
+        }
+        SectionCode::Data => {
+          data = self.decode_section_data()?;
+        }
+        SectionCode::Memory => {
+          memories = self.decode_section_memory()?;
+        }
+        SectionCode::Custom
+        | SectionCode::Import
+        | SectionCode::Table
+        | SectionCode::Global
+        | SectionCode::Start
+        | SectionCode::Element => {
+          unimplemented!();
         }
       };
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
+    let memory_instances = MemoryInstance::new(data);
 
     for idx_of_fn in 0..list_of_expressions.len() {
       let export_name = function_key_and_indexes
@@ -313,17 +460,25 @@ impl Byte {
         .map(|(key, _)| key.to_owned());
       let &index_of_type = index_of_types.get(idx_of_fn)?;
       let function_type = function_types.get(index_of_type as usize)?;
-      let (expression, locals) = list_of_expressions.get(idx_of_fn)?;
-      let fnins = FunctionInstance {
-        export_name,
-        function_type: function_type.to_owned(),
-        locals: locals.to_owned(),
-        type_idex: index_of_type,
-        body: expression.to_owned(),
+      let fnins = match list_of_expressions.get(idx_of_fn)? {
+        Ok((expression, locals)) => FunctionInstance::new(
+          export_name,
+          Ok(function_type.to_owned()),
+          locals.to_owned(),
+          index_of_type,
+          expression.to_owned(),
+        ),
+        Err(err) => FunctionInstance::new(
+          export_name,
+          Err(err.to_owned()),
+          vec![],
+          index_of_type,
+          vec![],
+        ),
       };
       function_instances.push(fnins);
     }
-    Some(function_instances)
+    Ok(Store::new(function_instances, memory_instances))
   }
 }
 
@@ -346,7 +501,7 @@ mod tests {
         use self::Inst::*;
         let wasm = read_wasm(format!("./{}.wasm", $file_name)).unwrap();
         let mut bc = Byte::new(wasm);
-        assert_eq!(bc.decode().unwrap(), $fn_insts);
+        assert_eq!(bc.decode().unwrap().get_function_instance(), $fn_insts);
       }
     };
   }
@@ -354,105 +509,91 @@ mod tests {
   test_decode!(
     decode_cons8,
     "dist/cons8",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![I32Const(42)],
-    }]
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
+      vec![],
+      0,
+      vec![I32Const(42)],
+    )]
   );
-
   test_decode!(
     decode_cons16,
     "dist/cons16",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![I32Const(255)],
-    }]
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
+      vec![],
+      0,
+      vec![I32Const(255)],
+    )]
   );
-
   test_decode!(
     decode_signed,
     "dist/signed",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![I32Const(-129)],
-    }]
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
+      vec![],
+      0,
+      vec![I32Const(-129)],
+    )]
   );
-
   test_decode!(
     decode_add,
     "dist/add",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32, ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![GetLocal(1), GetLocal(0), I32Add],
-    }]
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(
+        vec![ValueTypes::I32, ValueTypes::I32],
+        vec![ValueTypes::I32],
+      )),
+      vec![],
+      0,
+      vec![GetLocal(1), GetLocal(0), I32Add],
+    )]
   );
-
   test_decode!(
     decode_sub,
     "dist/sub",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![I32Const(100), GetLocal(0), I32Sub],
-    }]
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(
+        vec![ValueTypes::I32],
+        vec![ValueTypes::I32],
+      )),
+      vec![],
+      0,
+      vec![I32Const(100), GetLocal(0), I32Sub],
+    )]
   );
-
   test_decode!(
     decode_add_five,
     "dist/add_five",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32, ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add],
-    }]
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(
+        vec![ValueTypes::I32, ValueTypes::I32],
+        vec![ValueTypes::I32],
+      )),
+      vec![],
+      0,
+      vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add],
+    )]
   );
 
   test_decode!(
     decode_if_lt,
     "dist/if_lt",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![ValueTypes::I32],
-      type_idex: 0,
-      body: vec![
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(
+        vec![ValueTypes::I32],
+        vec![ValueTypes::I32],
+      )),
+      vec![ValueTypes::I32],
+      0,
+      vec![
         GetLocal(0),
         I32Const(10),
         LessThanSign,
@@ -471,20 +612,20 @@ mod tests {
           ]
         ),
       ],
-    }]
+    )]
   );
   test_decode!(
     decode_if_gt,
     "dist/if_gt",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![ValueTypes::I32],
-      type_idex: 0,
-      body: vec![
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(
+        vec![ValueTypes::I32],
+        vec![ValueTypes::I32],
+      )),
+      vec![ValueTypes::I32],
+      0,
+      vec![
         GetLocal(0),
         I32Const(10),
         I32GreaterThanSign,
@@ -503,20 +644,20 @@ mod tests {
           ]
         ),
       ],
-    }]
+    )]
   );
   test_decode!(
     decode_if_eq,
     "dist/if_eq",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![],
-      type_idex: 0,
-      body: vec![
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(
+        vec![ValueTypes::I32],
+        vec![ValueTypes::I32],
+      )),
+      vec![],
+      0,
+      vec![
         GetLocal(0),
         I32Const(10),
         Equal,
@@ -524,20 +665,20 @@ mod tests {
         GetLocal(0),
         I32Add,
       ],
-    }]
+    )]
   );
   test_decode!(
     decode_count,
     "dist/count",
-    vec![FunctionInstance {
-      export_name: Some("_subject".to_owned()),
-      function_type: FunctionType {
-        parameters: vec![ValueTypes::I32],
-        returns: vec![ValueTypes::I32],
-      },
-      locals: vec![ValueTypes::I32],
-      type_idex: 0,
-      body: vec![
+    vec![FunctionInstance::new(
+      Some("_subject".to_owned()),
+      Ok(FunctionType::new(
+        vec![ValueTypes::I32],
+        vec![ValueTypes::I32],
+      )),
+      vec![ValueTypes::I32],
+      0,
+      vec![
         GetLocal(0),
         I32Const(0),
         I32LessEqualSign,
@@ -566,6 +707,6 @@ mod tests {
         I32WrapI64,
         I32Add,
       ],
-    }]
+    )]
   );
 }

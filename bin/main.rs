@@ -11,7 +11,7 @@ fn main() -> io::Result<()> {
   let (_, arguments) = arguments.split_at(1);
   match arguments.split_first() {
     Some((file_name, arguments)) => {
-      let mut file = fs::File::open(format!("./dist/{}.wasm", file_name))?;
+      let mut file = fs::File::open(format!("./{}.wasm", file_name))?;
       let mut tmp = [0; 4];
       let _drop_magic_number = file.read_exact(&mut tmp)?;
       let _drop_version = file.read_exact(&mut tmp)?;
@@ -19,8 +19,8 @@ fn main() -> io::Result<()> {
       let mut buffer = vec![];
       file.read_to_end(&mut buffer)?;
 
-      let mut vm = wasvm::Vm::new(buffer);
-      vm.run(
+      let mut vm = wasvm::Vm::new(buffer).unwrap();
+      let result = vm.run(
         "_subject",
         arguments
           .iter()
@@ -28,7 +28,7 @@ fn main() -> io::Result<()> {
           .map(|v| value::Values::I32(v))
           .collect::<Vec<value::Values>>(),
       );
-      println!("{:?}", vm.stack.pop().unwrap());
+      println!("{:?}", result);
     }
     _ => unreachable!("Should specify file-name"),
   };

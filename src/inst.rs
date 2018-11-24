@@ -8,6 +8,31 @@ pub enum Inst {
   GetLocal(usize),
   SetLocal(usize),
   TeeLocal(usize),
+
+  I32Load(u32, u32),
+  I64Load(u32, u32),
+  F32Load(u32, u32),
+  F64Load(u32, u32),
+  I32Load8Sign(u32, u32),
+  I32Load8Unsign(u32, u32),
+  I32Load16Sign(u32, u32),
+  I32Load16Unsign(u32, u32),
+  I64Load8Sign(u32, u32),
+  I64Load8Unsign(u32, u32),
+  I64Load16Sign(u32, u32),
+  I64Load16Unsign(u32, u32),
+  I64Load32Sign(u32, u32),
+  I64Load32Unsign(u32, u32),
+  I32Store(u32, u32),
+  I64Store(u32, u32),
+  F32Store(u32, u32),
+  F64Store(u32, u32),
+  I32Store8(u32, u32),
+  I32Store16(u32, u32),
+  I64Store8(u32, u32),
+  I64Store16(u32, u32),
+  I64Store32(u32, u32),
+
   I32CountLeadingZero,
   I32CountTrailingZero,
   I32CountNonZero,
@@ -73,15 +98,11 @@ pub enum Inst {
   I64GreaterEqualSign,
   I64GreaterEqualUnSign,
 
+  // Drop structuring instruction
   If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
   Return,
   TypeI32,
   TypeEmpty,
   I32WrapI64,
-}
-
-pub enum Trap {
-  DivisionOverflow,
-  DivisionByZero,
 }

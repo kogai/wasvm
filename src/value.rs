@@ -1,5 +1,5 @@
-use inst::Trap;
 use std::ops::{BitAnd, BitOr, BitXor};
+use trap::Trap;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Values {
@@ -211,12 +211,8 @@ macro_rules! impl_traits {
         if other == 0 {
           return Err(Trap::DivisionByZero);
         }
-        let (divined, overflowed) = self.overflowing_rem(other);
-        if overflowed {
-          Err(Trap::DivisionOverflow)
-        } else {
-          Ok(divined)
-        }
+        let (divined, _) = self.overflowing_rem(other);
+        Ok(divined)
       }
 
       fn rem_u(&self, other: Self) -> Result<Self, Trap> {
