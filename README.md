@@ -2,7 +2,6 @@
 
 ## TODO
 
-* [ ] Simplify evaluate_instructions
 * [ ] Test assert_trap and assert_malformed
 * [ ] Return Result from evaluate_inst
 * [ ] Show position where error occurred at docoding time

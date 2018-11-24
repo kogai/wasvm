@@ -9,7 +9,6 @@ pub struct Frame {
   pub return_ptr: usize,
 }
 
-// TODO: Do wrapping RC.
 #[derive(Debug, PartialEq)]
 pub enum StackEntry {
   Empty,

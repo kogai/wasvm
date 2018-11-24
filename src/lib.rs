@@ -13,7 +13,6 @@ pub mod value;
 use inst::Inst;
 use stack::Frame;
 use stack::{Stack, StackEntry};
-use std::rc::Rc;
 use store::Store;
 use trap::Result;
 use value::Values;
@@ -32,7 +31,15 @@ macro_rules! impl_load_inst {
             return None;
         };
         let data = $self.store.load_data(ea, ea + width, $value_kind);
-        $self.stack.push(Rc::new(StackEntry::Value(data)));
+        $self.stack.push(StackEntry::new_value(data));
+    }};
+}
+
+macro_rules! impl_unary_inst {
+    ($self: ident, $op: ident) => {{
+        let popped = $self.stack.pop_value();
+        let value = popped.$op();
+        $self.stack.push(StackEntry::new_value(value));
     }};
 }
 
@@ -42,6 +49,23 @@ macro_rules! impl_binary_inst {
         let left = $self.stack.pop_value();
         let value = left.$op(&right);
         $self.stack.push(StackEntry::new_value(value));
+    }};
+}
+
+macro_rules! impl_try_binary_inst {
+    ($self: ident, $op: ident) => {{
+        let right = $self.stack.pop_value();
+        let left = $self.stack.pop_value();
+        let value = left.$op(&right);
+        match value {
+            Ok(result) => {
+                $self.stack.push(StackEntry::new_value(result));
+            }
+            // FIXME: May handle trap properly.
+            Err(_trap) => {
+                return None;
+            }
+        }
     }};
 }
 
@@ -65,7 +89,7 @@ impl Vm {
     // FIXME: Change to return Result<()>
     fn evaluate_instructions(&mut self, expressions: &Vec<Inst>) -> Option<()> {
         use self::Inst::*;
-        let mut result = Some(());
+        let result = Some(());
         for expression in expressions.iter() {
             // println!("{:?}", &expression);
             match expression {
@@ -93,62 +117,10 @@ impl Vm {
                 I32Add | I64Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub => impl_binary_inst!(self, sub),
                 I32Mul | I64Mul => impl_binary_inst!(self, mul),
-                I32DivUnsign | I64DivUnsign => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    match left.div_u(&right) {
-                        Ok(result) => {
-                            self.stack.push(Rc::new(StackEntry::Value(result)));
-                        }
-                        // FIXME: May handle trap properly.
-                        Err(_trap) => {
-                            result = None;
-                            break;
-                        }
-                    }
-                }
-                I32DivSign | I64DivSign => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    match left.div_s(&right) {
-                        Ok(result) => {
-                            self.stack.push(Rc::new(StackEntry::Value(result)));
-                        }
-                        // FIXME: May handle trap properly.
-                        Err(_trap) => {
-                            result = None;
-                            break;
-                        }
-                    }
-                }
-                I32RemSign | I64RemSign => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    match left.rem_s(&right) {
-                        Ok(result) => {
-                            self.stack.push(Rc::new(StackEntry::Value(result)));
-                        }
-                        // FIXME: May handle trap properly.
-                        Err(_trap) => {
-                            result = None;
-                            break;
-                        }
-                    }
-                }
-                I32RemUnsign | I64RemUnsign => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    match left.rem_u(&right) {
-                        Ok(result) => {
-                            self.stack.push(Rc::new(StackEntry::Value(result)));
-                        }
-                        // FIXME: May handle trap properly.
-                        Err(_trap) => {
-                            result = None;
-                            break;
-                        }
-                    }
-                }
+                I32DivUnsign | I64DivUnsign => impl_try_binary_inst!(self, div_u),
+                I32DivSign | I64DivSign => impl_try_binary_inst!(self, div_s),
+                I32RemSign | I64RemSign => impl_try_binary_inst!(self, rem_s),
+                I32RemUnsign | I64RemUnsign => impl_try_binary_inst!(self, rem_u),
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n))),
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n))),
                 Select => {
@@ -156,9 +128,9 @@ impl Vm {
                     let false_br = self.stack.pop_value();
                     let true_br = self.stack.pop_value();
                     if cond.is_truthy() {
-                        self.stack.push(Rc::new(StackEntry::Value(true_br)));
+                        self.stack.push(StackEntry::new_value(true_br));
                     } else {
-                        self.stack.push(Rc::new(StackEntry::Value(false_br)));
+                        self.stack.push(StackEntry::new_value(false_br));
                     }
                 }
                 LessThanSign | I64LessThanSign => impl_binary_inst!(self, less_than),
@@ -195,11 +167,7 @@ impl Vm {
                 Return => {
                     unimplemented!();
                 }
-                I64ExtendUnsignI32 => {
-                    let value = &self.stack.pop_value();
-                    let result = value.extend_to_i64();
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
+                I64ExtendUnsignI32 => impl_unary_inst!(self, extend_to_i64),
                 I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
                 I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
                 I32ShiftRightUnsign | I64ShiftRightUnsign => {
@@ -207,44 +175,42 @@ impl Vm {
                 }
                 I32WrapI64 => {
                     let i = &self.stack.pop_value();
-                    if let Values::I64(n) = i {
-                        let result = (*n % 2_i64.pow(32)) as i32;
-                        self.stack
-                            .push(Rc::new(StackEntry::Value(Values::I32(result))));
-                    } else {
-                        unreachable!();
+                    match i {
+                        Values::I64(n) => {
+                            let result = (*n % 2_i64.pow(32)) as i32;
+                            self.stack.push(StackEntry::new_value(Values::I32(result)));
+                        }
+                        x => unreachable!("Expected i64 value, got {:?}", x),
                     }
                 }
                 I32RotateLeft | I64RotateLeft => impl_binary_inst!(self, wasm_rotate_left),
                 I32RotateRight | I64RotateRight => impl_binary_inst!(self, wasm_rotate_right),
                 I32CountLeadingZero | I64CountLeadingZero => {
-                    let l = &self.stack.pop_value();
-                    let result = l.count_leading_zero();
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                    impl_unary_inst!(self, count_leading_zero)
                 }
                 I32CountTrailingZero | I64CountTrailingZero => {
-                    let l = &self.stack.pop_value();
-                    let result = l.count_trailing_zero();
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                    impl_unary_inst!(self, count_trailing_zero)
                 }
-                I32CountNonZero | I64CountNonZero => {
-                    let l = &self.stack.pop_value();
-                    let result = l.pop_count();
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
+                I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
+                I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
                 TypeEmpty => unreachable!(),
 
-                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
-                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
-                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
-                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
+                I32Load8Unsign(_, offset) | I32Load8Sign(_, offset) => {
+                    impl_load_inst!(8, self, offset, "i32")
+                }
+                I32Load16Unsign(_, offset) | I32Load16Sign(_, offset) => {
+                    impl_load_inst!(16, self, offset, "i32")
+                }
                 I32Load(_, offset) => impl_load_inst!(32, self, offset, "i32"),
-                I64Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
-                I64Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
-                I64Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
-                I64Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
-                I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
-                I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+                I64Load8Unsign(_, offset) | I64Load8Sign(_, offset) => {
+                    impl_load_inst!(8, self, offset, "i64")
+                }
+                I64Load16Unsign(_, offset) | I64Load16Sign(_, offset) => {
+                    impl_load_inst!(16, self, offset, "i64")
+                }
+                I64Load32Sign(_, offset) | I64Load32Unsign(_, offset) => {
+                    impl_load_inst!(32, self, offset, "i64")
+                }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
 
                 F32Load(_, _offset)
@@ -259,11 +225,6 @@ impl Vm {
                 | I64Store16(_, _offset)
                 | I64Store32(_, _offset) => {
                     unimplemented!();
-                }
-                I32EqualZero | I64EqualZero => {
-                    let l = &self.stack.pop_value();
-                    let result = l.equal_zero();
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
             };
             // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
@@ -295,7 +256,7 @@ impl Vm {
             let popped = self.stack.pop().expect("Invalid popping stack.");
             match *popped {
                 StackEntry::Value(ref v) => {
-                    result = Some(StackEntry::Value(v.to_owned()));
+                    result = Some(StackEntry::new_value(v.to_owned()));
                     break;
                 }
                 StackEntry::Label(ref expressions) => {
@@ -317,9 +278,8 @@ impl Vm {
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
             }
         }
-        self.stack.push(Rc::new(
-            result.expect("Call stack may return with null value"),
-        ));
+        self.stack
+            .push(result.expect("Call stack may return with null value"));
         Ok(())
     }
 
@@ -358,8 +318,8 @@ mod tests {
     #[test]
     fn stack_ptr() {
         let mut stack = Stack::new(4);
-        stack.push(Rc::new(StackEntry::Value(Values::I32(1))));
-        stack.set(2, Rc::new(StackEntry::Value(Values::I32(2))));
+        stack.push(StackEntry::new_value(Values::I32(1)));
+        stack.set(2, StackEntry::new_value(Values::I32(2)));
         assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
         assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
     }
