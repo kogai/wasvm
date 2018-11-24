@@ -14,7 +14,7 @@ use inst::Inst;
 use stack::Frame;
 use stack::{Stack, StackEntry};
 use store::Store;
-use trap::Result;
+use trap::{Result, Trap};
 use value::Values;
 
 macro_rules! impl_load_inst {
@@ -26,9 +26,7 @@ macro_rules! impl_load_inst {
         } as u32;
         let ea = i + *$offset; // NOTE: What 'ea' stands for?
         if $self.store.data_size_small_than(ea + width) {
-            // FIXME:
-            // return Err(Trap::MemoryAccessOutOfBounds)
-            return None;
+            return Err(Trap::MemoryAccessOutOfBounds);
         };
         let data = $self.store.load_data(ea, ea + width, $value_kind);
         $self.stack.push(StackEntry::new_value(data));
@@ -61,9 +59,8 @@ macro_rules! impl_try_binary_inst {
             Ok(result) => {
                 $self.stack.push(StackEntry::new_value(result));
             }
-            // FIXME: May handle trap properly.
-            Err(_trap) => {
-                return None;
+            Err(trap) => {
+                return Err(trap);
             }
         }
     }};
@@ -86,12 +83,9 @@ impl Vm {
         }
     }
 
-    // FIXME: Change to return Result<()>
-    fn evaluate_instructions(&mut self, expressions: &Vec<Inst>) -> Option<()> {
+    fn evaluate_instructions(&mut self, expressions: &Vec<Inst>) -> Result<()> {
         use self::Inst::*;
-        let result = Some(());
         for expression in expressions.iter() {
-            // println!("{:?}", &expression);
             match expression {
                 GetLocal(idx) => {
                     let frame_ptr = self.stack.get_frame_ptr();
@@ -157,10 +151,10 @@ impl Vm {
                 If(_return_type, if_ops, else_ops) => {
                     let cond = &self.stack.pop_value();
                     if cond.is_truthy() {
-                        self.evaluate_instructions(if_ops);
+                        let _ = self.evaluate_instructions(if_ops);
                     } else {
                         if !else_ops.is_empty() {
-                            self.evaluate_instructions(else_ops);
+                            let _ = self.evaluate_instructions(else_ops);
                         }
                     }
                 }
@@ -227,18 +221,16 @@ impl Vm {
                     unimplemented!();
                 }
             };
-            // println!("[{}] {:?}", self.stack.stack_ptr, self.stack.entries);
-            // println!("");
         }
-        result
+        Ok(())
     }
 
-    fn evaluate_frame(&mut self, instructions: &Vec<Inst>) -> Option<()> {
+    fn evaluate_frame(&mut self, instructions: &Vec<Inst>) -> Result<()> {
         self.evaluate_instructions(instructions)?;
         let return_value = StackEntry::new_value(self.stack.pop_value());
         self.stack.update_frame_ptr();
         self.stack.push(return_value);
-        Some(())
+        Ok(())
     }
 
     fn call(&mut self, function_idx: usize, arguments: Vec<Values>) {
