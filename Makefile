@@ -1,4 +1,4 @@
-SRC := $(wildcard ./src/*.rs)
+SRC := $(wildcard ./*.rs)
 TRIPLE := wasm32-unknown-unknown
 CSRCS=$(wildcard ./fixtures/*.c)
 WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
@@ -34,10 +34,10 @@ target/release/main: $(SRC)
 
 .PHONY: report.txt
 report.txt: target/release/main Makefile
-	perf stat -o report.txt ./target/release/main fib 35
+	perf stat -o report.txt ./target/release/main dist/fib 35
 
 report.node.txt: Makefile
-	perf stat -o report.txt node run-wasm fib 35
+	perf stat -o report.txt node run-wasm dist/fib 35
 
 .PHONY: run
 run:

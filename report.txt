@@ -1,20 +1,20 @@
-# started on Sat Nov 17 22:58:16 2018
+# started on Sat Nov 24 17:49:38 2018
 
 
- Performance counter stats for './target/release/main fib 35':
+ Performance counter stats for './target/release/main dist/fib 35':
 
-      22607.564735      task-clock:u (msec)       #    1.000 CPUs utilized          
+         18,192.95 msec task-clock:u              #    1.000 CPUs utilized          
                  0      context-switches:u        #    0.000 K/sec                  
                  0      cpu-migrations:u          #    0.000 K/sec                  
-               262      page-faults:u             #    0.012 K/sec                  
-    72,936,906,091      cycles:u                  #    3.226 GHz                    
-   213,875,008,932      instructions:u            #    2.93  insn per cycle         
-    35,928,292,793      branches:u                # 1589.216 M/sec                  
-        65,658,859      branch-misses:u           #    0.18% of all branches        
+               511      page-faults:u             #   28.089 M/sec                  
+    61,367,964,571      cycles:u                  # 3373348.976 GHz                 
+   166,758,005,830      instructions:u            #    2.72  insn per cycle         
+    32,705,812,692      branches:u                # 1797812922.823 M/sec            
+        82,307,471      branch-misses:u           #    0.25% of all branches        
 
-      22.611073979 seconds time elapsed
+      18.196491565 seconds time elapsed
 
-      22.587515000 seconds user
-       0.000000000 seconds sys
+      18.169912000 seconds user
+       0.003091000 seconds sys
 
 
