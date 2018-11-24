@@ -35,6 +35,18 @@ enum TestCase {
     action: Action,
     expected: Vec<TypeValue>,
   },
+  #[serde(rename = "assert_return_canonical_nan")]
+  AssertReturnCanonicalNan {
+    line: usize,
+    action: Action,
+    expected: Vec<TypeValue>,
+  },
+  #[serde(rename = "assert_return_arithmetic_nan")]
+  AssertReturnArithmeticNan {
+    line: usize,
+    action: Action,
+    expected: Vec<TypeValue>,
+  },
   #[serde(rename = "assert_trap")]
   AssertTrap {
     line: usize,
@@ -64,36 +76,59 @@ fn is_module_type(x: Option<&TestCase>) -> bool {
   }
 }
 
-fn get_args(args: &Vec<TypeValue>) -> Vec<Values> {
-  args
-    .iter()
-    .map(|v| {
-      let value = v.value.to_owned().unwrap();
-      let value_type = v.value_type.to_owned();
-      match value_type.as_ref() {
-        "i32" => {
-          let actual_value = value.parse::<u32>().unwrap() as i32;
-          Values::I32(actual_value)
-        }
-        "i64" => {
-          let actual_value = value.parse::<u64>().unwrap() as i64;
-          Values::I64(actual_value)
-        }
-        x => unimplemented!("{:?} is not implemented yet", x),
-      }
-    })
-    .collect()
-}
-
-fn get_expectation(expected: &Vec<TypeValue>) -> String {
-  let exp = expected.get(0).unwrap().to_owned();
-  match (exp.value_type.as_ref(), exp.value) {
+fn from_string(value_type: String, value: Option<String>) -> String {
+  match (value_type.as_ref(), value) {
     ("i32", Some(value)) => {
       let actual_value = value.parse::<u32>().unwrap() as i32;
       format!("{}", actual_value)
     }
     ("i64", Some(value)) => {
       let actual_value = value.parse::<u64>().unwrap() as i64;
+      format!("{}", actual_value)
+    }
+    ("f32", Some(value)) => {
+      let actual_value = f32::from_bits(value.parse::<u32>().unwrap());
+      format!("{}", actual_value)
+    }
+    (_, None) => "".to_owned(),
+    _ => unimplemented!(),
+  }
+}
+
+fn get_args(args: &Vec<TypeValue>) -> Vec<Values> {
+  args
+    .iter()
+    .map(|v| match (v.value_type.as_ref(), v.value.clone()) {
+      ("i32", Some(value)) => {
+        let actual_value = value.parse::<u32>().unwrap() as i32;
+        Values::I32(actual_value)
+      }
+      ("i64", Some(value)) => {
+        let actual_value = value.parse::<u64>().unwrap() as i64;
+        Values::I64(actual_value)
+      }
+      ("f32", Some(value)) => {
+        let actual_value = f32::from_bits(value.parse::<u32>().unwrap());
+        Values::F32(actual_value)
+      }
+      _ => unimplemented!(),
+    })
+    .collect()
+}
+
+fn get_expectation(expected: &Vec<TypeValue>) -> String {
+  let v = expected.get(0).unwrap().to_owned();
+  match (v.value_type.as_ref(), v.value) {
+    ("i32", Some(value)) => {
+      let actual_value = value.parse::<u32>().unwrap() as i32;
+      format!("{}", actual_value)
+    }
+    ("i64", Some(value)) => {
+      let actual_value = value.parse::<u64>().unwrap() as i64;
+      format!("{}", actual_value)
+    }
+    ("f32", Some(value)) => {
+      let actual_value = f32::from_bits(value.parse::<u32>().unwrap());
       format!("{}", actual_value)
     }
     (_, None) => "".to_owned(),
@@ -137,7 +172,7 @@ macro_rules! impl_e2e {
                   }),
                   Ok(ref mut vm),
                 ) => {
-                  // if line != 60 {
+                  // if line != 2505 {
                   //   continue;
                   // };
                   println!("Testing spec at line:{}.", line);
@@ -146,7 +181,11 @@ macro_rules! impl_e2e {
                   assert_eq!(actual, expectation);
                 }
                 (Some(TestCase::AssertTrap { line, .. }), Err(_))
-                | (Some(TestCase::AssertTrap { line, .. }), Ok(_)) => {
+                | (Some(TestCase::AssertTrap { line, .. }), Ok(_))
+                | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Ok(_))
+                | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Ok(_))
+                | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Err(_))
+                | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Err(_)) => {
                   println!("Skip assert trap {}", line);
                 }
                 (None, _) => {
@@ -168,4 +207,5 @@ macro_rules! impl_e2e {
 
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
+impl_e2e!(test_f32, "f32");
 impl_e2e!(test_address, "address");

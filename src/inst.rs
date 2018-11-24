@@ -98,6 +98,21 @@ pub enum Inst {
   I64GreaterEqualSign,
   I64GreaterEqualUnSign,
 
+  F32Abs,
+  F32Neg,
+  F32Ceil,
+  F32Floor,
+  F32Trunc,
+  F32Nearest,
+  F32Sqrt,
+  F32Add,
+  F32Sub,
+  F32Mul,
+  F32Div,
+  F32Min,
+  F32Max,
+  F32Copysign,
+
   // Drop structuring instruction
   If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,

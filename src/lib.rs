@@ -108,13 +108,21 @@ impl Vm {
                     self.call(*idx, vec![operand]);
                     let _ = self.evaluate();
                 }
-                I32Add | I64Add => impl_binary_inst!(self, add),
-                I32Sub | I64Sub => impl_binary_inst!(self, sub),
-                I32Mul | I64Mul => impl_binary_inst!(self, mul),
+                I32Add | I64Add | F32Add => impl_binary_inst!(self, add),
+                I32Sub | I64Sub | F32Sub => impl_binary_inst!(self, sub),
+                I32Mul | I64Mul | F32Mul => impl_binary_inst!(self, mul),
                 I32DivUnsign | I64DivUnsign => impl_try_binary_inst!(self, div_u),
                 I32DivSign | I64DivSign => impl_try_binary_inst!(self, div_s),
+                F32Div => impl_binary_inst!(self, div_f),
                 I32RemSign | I64RemSign => impl_try_binary_inst!(self, rem_s),
                 I32RemUnsign | I64RemUnsign => impl_try_binary_inst!(self, rem_u),
+                F32Min => impl_binary_inst!(self, min),
+                F32Max => impl_binary_inst!(self, max),
+                F32Sqrt => impl_unary_inst!(self, sqrt),
+                F32Ceil => impl_unary_inst!(self, ceil),
+                F32Floor => impl_unary_inst!(self, floor),
+                F32Trunc => impl_unary_inst!(self, trunc),
+                F32Nearest => impl_unary_inst!(self, nearest),
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n))),
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n))),
                 Select => {
@@ -206,7 +214,9 @@ impl Vm {
                     impl_load_inst!(32, self, offset, "i64")
                 }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
-
+                F32Abs | F32Neg | F32Ceil | F32Floor | F32Trunc | F32Nearest | F32Copysign => {
+                    unimplemented!("{:?}", expression);
+                }
                 F32Load(_, _offset)
                 | F64Load(_, _offset)
                 | I32Store(_, _offset)
@@ -218,7 +228,7 @@ impl Vm {
                 | I64Store8(_, _offset)
                 | I64Store16(_, _offset)
                 | I64Store32(_, _offset) => {
-                    unimplemented!();
+                    unimplemented!("{:?}", expression);
                 }
             };
         }
@@ -282,6 +292,7 @@ impl Vm {
             Ok(_) => match self.stack.pop_value() {
                 Values::I32(v) => format!("{}", v),
                 Values::I64(v) => format!("{}", v),
+                Values::F32(v) => format!("{}", v),
             },
             Err(err) => String::from(err),
         }

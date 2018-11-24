@@ -5,7 +5,7 @@ use trap::Trap;
 pub enum Values {
   I32(i32),
   I64(i64),
-  // F32,
+  F32(f32),
   // F64,
 }
 
@@ -15,6 +15,7 @@ macro_rules! unary_inst {
       match self {
         Values::I32(l) => Values::I32(l.$op()),
         Values::I64(l) => Values::I64(l.$op()),
+        _ => unimplemented!()
       }
     }
   };
@@ -26,6 +27,7 @@ macro_rules! bynary_inst {
       match (self, other) {
         (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
         (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(*r)),
+        (Values::F32(l), Values::F32(r)) => Values::F32(l.$op(*r)),
         _ => unimplemented!(),
       }
     }
@@ -252,6 +254,102 @@ macro_rules! impl_traits {
   };
 }
 
+trait ArithmeticFloat {
+  fn bitand(&self, _: Self) -> Self
+  where
+    Self: Sized,
+  {
+    unreachable!();
+  }
+  fn bitor(&self, _: Self) -> Self
+  where
+    Self: Sized,
+  {
+    unreachable!();
+  }
+  fn bitxor(&self, _: Self) -> Self
+  where
+    Self: Sized,
+  {
+    unreachable!();
+  }
+  fn wrapping_add(&self, _: Self) -> Self;
+  fn wrapping_sub(&self, _: Self) -> Self;
+  fn wrapping_mul(&self, _: Self) -> Self;
+  fn less_than(&self, Self) -> Self;
+  fn less_than_equal(&self, Self) -> Self;
+  fn less_than_unsign(&self, Self) -> Self;
+  fn less_than_equal_unsign(&self, Self) -> Self;
+  fn greater_than(&self, Self) -> Self;
+  fn greater_than_equal(&self, Self) -> Self;
+  fn greater_than_unsign(&self, Self) -> Self;
+  fn greater_than_equal_unsign(&self, Self) -> Self;
+  fn equal(&self, Self) -> Self;
+  fn not_equal(&self, Self) -> Self;
+  fn shift_left(&self, Self) -> Self;
+  fn shift_right_sign(&self, Self) -> Self;
+  fn shift_right_unsign(&self, Self) -> Self;
+  fn wasm_rotate_left(&self, Self) -> Self;
+  fn wasm_rotate_right(&self, Self) -> Self;
+}
+
+impl ArithmeticFloat for f32 {
+  fn wrapping_add(&self, x: Self) -> Self {
+    self + x
+  }
+  fn wrapping_sub(&self, x: Self) -> Self {
+    self - x
+  }
+  fn wrapping_mul(&self, x: Self) -> Self {
+    self * x
+  }
+  fn less_than(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn less_than_equal(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn less_than_unsign(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn less_than_equal_unsign(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn greater_than(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn greater_than_equal(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn greater_than_unsign(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn greater_than_equal_unsign(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn equal(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn not_equal(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn shift_left(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn shift_right_sign(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn shift_right_unsign(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn wasm_rotate_left(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+  fn wasm_rotate_right(&self, x: Self) -> Self {
+    unimplemented!();
+  }
+}
+
 impl_traits!(i32, u32);
 impl_traits!(i64, u64);
 
@@ -301,6 +399,62 @@ impl Values {
   pub fn extend_to_i64(&self) -> Self {
     match self {
       Values::I32(l) => Values::I64(i64::from(*l)),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn div_f(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::F32(l), Values::F32(r)) => Values::F32(l / *r),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn min(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::F32(l), Values::F32(r)) => Values::F32(l.min(*r)),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn max(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::F32(l), Values::F32(r)) => Values::F32(l.max(*r)),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn sqrt(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.sqrt()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn ceil(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.ceil()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn floor(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.floor()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn trunc(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.trunc()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn nearest(&self) -> Self {
+    match self {
+      Values::F32(l) => {
+        if *l > 0.0 && *l <= 0.5 {
+          Values::F32(0.0)
+        } else if *l < 0.0 && *l >= -0.5 {
+          Values::F32(0.0)
+        } else {
+          Values::F32(l.round())
+        }
+      }
       _ => unimplemented!(),
     }
   }
