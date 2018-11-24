@@ -18,6 +18,21 @@ pub enum StackEntry {
   Frame(Frame),
 }
 
+impl StackEntry {
+  pub fn new_empty() -> Rc<Self> {
+    Rc::new(StackEntry::Empty)
+  }
+  pub fn new_value(value: Values) -> Rc<Self> {
+    Rc::new(StackEntry::Value(value))
+  }
+  pub fn new_label(label: Vec<Inst>) -> Rc<Self> {
+    Rc::new(StackEntry::Label(label))
+  }
+  pub fn new_fram(frame: Frame) -> Rc<Self> {
+    Rc::new(StackEntry::Frame(frame))
+  }
+}
+
 #[derive(Debug)]
 pub struct Stack {
   entries: Vec<Rc<StackEntry>>,
@@ -28,7 +43,7 @@ pub struct Stack {
 
 impl Stack {
   pub fn new(stack_size: usize) -> Self {
-    let entries = vec![Rc::new(StackEntry::Empty); stack_size];
+    let entries = vec![StackEntry::new_empty(); stack_size];
     Stack {
       entries,
       stack_ptr: 0,
@@ -48,7 +63,7 @@ impl Stack {
     }
   }
 
-  pub fn pop_frame_ptr(&mut self) {
+  pub fn update_frame_ptr(&mut self) {
     match self.frame_ptr.pop() {
       Some(p) => {
         self.stack_ptr = p;

@@ -36,6 +36,15 @@ macro_rules! impl_load_inst {
     }};
 }
 
+macro_rules! impl_binary_inst {
+    ($self: ident, $op: ident) => {{
+        let right = $self.stack.pop_value();
+        let left = $self.stack.pop_value();
+        let value = left.$op(&right);
+        $self.stack.push(StackEntry::new_value(value));
+    }};
+}
+
 pub struct Vm {
     store: Store,
     stack: Stack,
@@ -81,24 +90,9 @@ impl Vm {
                     self.call(*idx, vec![operand]);
                     let _ = self.evaluate();
                 }
-                I32Add | I64Add => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    let result = StackEntry::Value(left.add(&right));
-                    self.stack.push(Rc::new(result));
-                }
-                I32Sub | I64Sub => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    let result = StackEntry::Value(left.sub(&right));
-                    self.stack.push(Rc::new(result));
-                }
-                I32Mul | I64Mul => {
-                    let right = self.stack.pop_value();
-                    let left = self.stack.pop_value();
-                    let result = StackEntry::Value(left.mul(&right));
-                    self.stack.push(Rc::new(result));
-                }
+                I32Add | I64Add => impl_binary_inst!(self, add),
+                I32Sub | I64Sub => impl_binary_inst!(self, sub),
+                I32Mul | I64Mul => impl_binary_inst!(self, mul),
                 I32DivUnsign | I64DivUnsign => {
                     let right = self.stack.pop_value();
                     let left = self.stack.pop_value();
@@ -155,12 +149,8 @@ impl Vm {
                         }
                     }
                 }
-                I32Const(n) => {
-                    self.stack.push(Rc::new(StackEntry::Value(Values::I32(*n))));
-                }
-                I64Const(n) => {
-                    self.stack.push(Rc::new(StackEntry::Value(Values::I64(*n))));
-                }
+                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n))),
+                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n))),
                 Select => {
                     let cond = &self.stack.pop_value();
                     let false_br = self.stack.pop_value();
@@ -171,86 +161,27 @@ impl Vm {
                         self.stack.push(Rc::new(StackEntry::Value(false_br)));
                     }
                 }
-                LessThanSign | I64LessThanSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.less_than(right))));
-                }
-                LessThanUnsign | I64LessThanUnSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.less_than_unsign(right))));
-                }
-                I32LessEqualSign | I64LessEqualSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.less_than_equal(right))));
-                }
+                LessThanSign | I64LessThanSign => impl_binary_inst!(self, less_than),
+                LessThanUnsign | I64LessThanUnSign => impl_binary_inst!(self, less_than_unsign),
+                I32LessEqualSign | I64LessEqualSign => impl_binary_inst!(self, less_than_equal),
                 I32LessEqualUnsign | I64LessEqualUnSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack.push(Rc::new(StackEntry::Value(
-                        left.less_than_equal_unsign(right),
-                    )));
+                    impl_binary_inst!(self, less_than_equal_unsign)
                 }
                 I32GreaterEqualSign | I64GreaterEqualSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.greater_than_equal(right))));
+                    impl_binary_inst!(self, greater_than_equal)
                 }
-                I32GreaterThanSign | I64GreaterThanSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.greater_than(right))));
-                }
+                I32GreaterThanSign | I64GreaterThanSign => impl_binary_inst!(self, greater_than),
                 I32GreaterThanUnsign | I64GreaterThanUnSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.greater_than_unsign(right))));
+                    impl_binary_inst!(self, greater_than_unsign)
                 }
                 I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack.push(Rc::new(StackEntry::Value(
-                        left.greater_than_equal_unsign(right),
-                    )));
+                    impl_binary_inst!(self, greater_than_equal_unsign)
                 }
-                Equal | I64Equal => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.equal(right))));
-                }
-                NotEqual | I64NotEqual => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    self.stack
-                        .push(Rc::new(StackEntry::Value(left.not_equal(right))));
-                }
-                I32Or | I64Or => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    let result = left.or(right);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
-                I32Xor | I64Xor => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    let result = left.xor(right);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
-                I32And | I64And => {
-                    let right = &self.stack.pop_value();
-                    let left = &self.stack.pop_value();
-                    let result = left.and(right);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
+                Equal | I64Equal => impl_binary_inst!(self, equal),
+                NotEqual | I64NotEqual => impl_binary_inst!(self, not_equal),
+                I32Or | I64Or => impl_binary_inst!(self, or),
+                I32Xor | I64Xor => impl_binary_inst!(self, xor),
+                I32And | I64And => impl_binary_inst!(self, and),
                 If(_return_type, if_ops, else_ops) => {
                     let cond = &self.stack.pop_value();
                     if cond.is_truthy() {
@@ -269,23 +200,10 @@ impl Vm {
                     let result = value.extend_to_i64();
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
-                I32ShiftLeft | I64ShiftLeft => {
-                    let i2 = &self.stack.pop_value();
-                    let i1 = &self.stack.pop_value();
-                    let result = i1.shift_left(i2);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
-                I32ShiftRIghtSign | I64ShiftRightSign => {
-                    let i2 = &self.stack.pop_value();
-                    let i1 = &self.stack.pop_value();
-                    let result = i1.shift_right_sign(i2);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
+                I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
+                I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
                 I32ShiftRightUnsign | I64ShiftRightUnsign => {
-                    let i2 = &self.stack.pop_value();
-                    let i1 = &self.stack.pop_value();
-                    let result = i1.shift_right_unsign(i2);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
+                    impl_binary_inst!(self, shift_right_unsign)
                 }
                 I32WrapI64 => {
                     let i = &self.stack.pop_value();
@@ -297,18 +215,8 @@ impl Vm {
                         unreachable!();
                     }
                 }
-                I32RotateLeft | I64RotateLeft => {
-                    let i2 = &self.stack.pop_value();
-                    let i1 = &self.stack.pop_value();
-                    let result = i1.wasm_rotate_left(i2);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
-                I32RotateRight | I64RotateRight => {
-                    let i2 = &self.stack.pop_value();
-                    let i1 = &self.stack.pop_value();
-                    let result = i1.wasm_rotate_right(i2);
-                    self.stack.push(Rc::new(StackEntry::Value(result)));
-                }
+                I32RotateLeft | I64RotateLeft => impl_binary_inst!(self, wasm_rotate_left),
+                I32RotateRight | I64RotateRight => impl_binary_inst!(self, wasm_rotate_right),
                 I32CountLeadingZero | I64CountLeadingZero => {
                     let l = &self.stack.pop_value();
                     let result = l.count_leading_zero();
@@ -366,19 +274,19 @@ impl Vm {
 
     fn evaluate_frame(&mut self, instructions: &Vec<Inst>) -> Option<()> {
         self.evaluate_instructions(instructions)?;
-        let return_value = self.stack.pop_value();
-        self.stack.pop_frame_ptr();
-        self.stack.push(Rc::new(StackEntry::Value(return_value)));
+        let return_value = StackEntry::new_value(self.stack.pop_value());
+        self.stack.update_frame_ptr();
+        self.stack.push(return_value);
         Some(())
     }
 
     fn call(&mut self, function_idx: usize, arguments: Vec<Values>) {
-        let frame = StackEntry::Frame(Frame {
+        let frame = StackEntry::new_fram(Frame {
             locals: arguments,
             return_ptr: self.stack.stack_ptr,
             function_idx,
         });
-        self.stack.push(Rc::new(frame));
+        self.stack.push(frame);
     }
 
     fn evaluate(&mut self) -> Result<()> {
@@ -397,14 +305,14 @@ impl Vm {
                     let _offset = frame.locals.len();
                     self.stack.frame_ptr.push(frame.return_ptr);
                     for local in frame.clone().locals {
-                        self.stack.push(Rc::new(StackEntry::Value(local)));
+                        self.stack.push(StackEntry::new_value(local));
                     }
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    let label = StackEntry::Label(expressions);
+                    let label = StackEntry::new_label(expressions);
                     self.stack.increase(locals.len());
-                    self.stack.push(Rc::new(label));
+                    self.stack.push(label);
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
             }
