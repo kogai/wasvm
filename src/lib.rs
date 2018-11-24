@@ -5,86 +5,18 @@ mod code;
 mod function;
 mod inst;
 mod memory;
+mod stack;
 mod store;
 mod trap;
-mod utils;
 pub mod value;
 
 use inst::Inst;
+use stack::Frame;
+use stack::{Stack, StackEntry};
 use std::rc::Rc;
 use store::Store;
 use trap::Result;
 use value::Values;
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Frame {
-    locals: Vec<Values>,
-    function_idx: usize,
-    return_ptr: usize,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum StackEntry {
-    Empty,
-    Value(Values),
-    Label(Vec<Inst>),
-    Frame(Frame),
-}
-
-#[derive(Debug)]
-pub struct Stack {
-    entries: Vec<Rc<StackEntry>>,
-    stack_ptr: usize, // Start from 1
-    frame_ptr: Vec<usize>,
-    is_empty: bool,
-}
-
-impl Stack {
-    fn new(stack_size: usize) -> Self {
-        let entries = vec![Rc::new(StackEntry::Empty); stack_size];
-        Stack {
-            entries,
-            stack_ptr: 0,
-            frame_ptr: vec![],
-            is_empty: false,
-        }
-    }
-
-    fn increase(&mut self, count: usize) {
-        self.stack_ptr += count;
-    }
-
-    fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
-        self.entries.get(ptr).map(|rc| rc.clone())
-    }
-
-    fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) {
-        self.entries[ptr] = entry.clone();
-    }
-
-    fn push(&mut self, entry: Rc<StackEntry>) {
-        self.entries[self.stack_ptr] = entry.clone();
-        self.stack_ptr += 1;
-    }
-
-    pub fn pop(&mut self) -> Option<Rc<StackEntry>> {
-        if self.stack_ptr == 0 {
-            self.is_empty = true;
-            None
-        } else {
-            self.stack_ptr -= 1;
-            self.entries.get(self.stack_ptr).map(|rc| rc.clone())
-        }
-    }
-
-    fn pop_value(&mut self) -> Values {
-        let value = self.pop().expect("Expect to popp value but got None");
-        match *value {
-            StackEntry::Value(ref v) => v.to_owned(),
-            ref x => unreachable!(format!("Expect to popp value but got {:?}", x).as_str()),
-        }
-    }
-}
 
 macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
@@ -129,19 +61,19 @@ impl Vm {
             // println!("{:?}", &expression);
             match expression {
                 GetLocal(idx) => {
-                    let frame_ptr = self.stack.frame_ptr.last()?.clone();
+                    let frame_ptr = self.stack.get_frame_ptr();
                     let value = self.stack.get(*idx + frame_ptr)?;
                     self.stack.push(value);
                 }
                 SetLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
-                    let frame_ptr = self.stack.frame_ptr.last()?.clone();
+                    let frame_ptr = self.stack.get_frame_ptr();
                     self.stack.set(*idx + frame_ptr, value);
                 }
                 TeeLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
                     self.stack.push(value.clone());
-                    let frame_ptr = self.stack.frame_ptr.last()?.clone();
+                    let frame_ptr = self.stack.get_frame_ptr();
                     self.stack.set(*idx + frame_ptr, value);
                 }
                 Call(idx) => {
@@ -393,7 +325,6 @@ impl Vm {
                     self.stack.push(Rc::new(StackEntry::Value(result)));
                 }
                 TypeEmpty => unreachable!(),
-                TypeI32 => unreachable!(),
 
                 I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
                 I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
@@ -436,8 +367,7 @@ impl Vm {
     fn evaluate_frame(&mut self, instructions: &Vec<Inst>) -> Option<()> {
         self.evaluate_instructions(instructions)?;
         let return_value = self.stack.pop_value();
-        let frame_ptr = self.stack.frame_ptr.pop()?;
-        self.stack.stack_ptr = frame_ptr;
+        self.stack.pop_frame_ptr();
         self.stack.push(Rc::new(StackEntry::Value(return_value)));
         Some(())
     }
