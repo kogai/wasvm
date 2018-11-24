@@ -172,7 +172,7 @@ macro_rules! impl_e2e {
                   }),
                   Ok(ref mut vm),
                 ) => {
-                  // if line != 60 {
+                  // if line != 2505 {
                   //   continue;
                   // };
                   println!("Testing spec at line:{}.", line);
@@ -181,7 +181,11 @@ macro_rules! impl_e2e {
                   assert_eq!(actual, expectation);
                 }
                 (Some(TestCase::AssertTrap { line, .. }), Err(_))
-                | (Some(TestCase::AssertTrap { line, .. }), Ok(_)) => {
+                | (Some(TestCase::AssertTrap { line, .. }), Ok(_))
+                | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Ok(_))
+                | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Ok(_))
+                | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Err(_))
+                | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Err(_)) => {
                   println!("Skip assert trap {}", line);
                 }
                 (None, _) => {

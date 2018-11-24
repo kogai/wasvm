@@ -298,10 +298,10 @@ impl ArithmeticFloat for f32 {
     self + x
   }
   fn wrapping_sub(&self, x: Self) -> Self {
-    unimplemented!();
+    self - x
   }
   fn wrapping_mul(&self, x: Self) -> Self {
-    unimplemented!();
+    self * x
   }
   fn less_than(&self, x: Self) -> Self {
     unimplemented!();
@@ -399,6 +399,62 @@ impl Values {
   pub fn extend_to_i64(&self) -> Self {
     match self {
       Values::I32(l) => Values::I64(i64::from(*l)),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn div_f(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::F32(l), Values::F32(r)) => Values::F32(l / *r),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn min(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::F32(l), Values::F32(r)) => Values::F32(l.min(*r)),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn max(&self, other: &Self) -> Self {
+    match (self, other) {
+      (Values::F32(l), Values::F32(r)) => Values::F32(l.max(*r)),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn sqrt(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.sqrt()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn ceil(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.ceil()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn floor(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.floor()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn trunc(&self) -> Self {
+    match self {
+      Values::F32(l) => Values::F32(l.trunc()),
+      _ => unimplemented!(),
+    }
+  }
+  pub fn nearest(&self) -> Self {
+    match self {
+      Values::F32(l) => {
+        if *l > 0.0 && *l <= 0.5 {
+          Values::F32(0.0)
+        } else if *l < 0.0 && *l >= -0.5 {
+          Values::F32(0.0)
+        } else {
+          Values::F32(l.round())
+        }
+      }
       _ => unimplemented!(),
     }
   }
