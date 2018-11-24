@@ -321,6 +321,22 @@ impl Byte {
         }
         Code::Return => expressions.push(Inst::Return),
         Code::TypeValueEmpty => expressions.push(Inst::TypeEmpty),
+
+        Code::F32Abs => expressions.push(Inst::F32Abs),
+
+        Code::F32Neg => expressions.push(Inst::F32Neg),
+        Code::F32Ceil => expressions.push(Inst::F32Ceil),
+        Code::F32Floor => expressions.push(Inst::F32Floor),
+        Code::F32Trunc => expressions.push(Inst::F32Trunc),
+        Code::F32Nearest => expressions.push(Inst::F32Nearest),
+        Code::F32Sqrt => expressions.push(Inst::F32Sqrt),
+        Code::F32Add => expressions.push(Inst::F32Add),
+        Code::F32Sub => expressions.push(Inst::F32Sub),
+        Code::F32Mul => expressions.push(Inst::F32Mul),
+        Code::F32Div => expressions.push(Inst::F32Div),
+        Code::F32Min => expressions.push(Inst::F32Min),
+        Code::F32Max => expressions.push(Inst::F32Max),
+        Code::F32Copysign => expressions.push(Inst::F32Copysign),
         x => unimplemented!(
           "Code {:x?} does not supported yet. Current expressions -> {:?}",
           x,
@@ -490,9 +506,19 @@ mod tests {
 
   #[test]
   fn repl() {
-    println!("{:b}", 8u8);
-    println!("{:b}", 8u8 >> 2);
-    println!("{:b}", 8u8 << 2);
+    // println!("{:b}", (1.25f32).to_bits());
+    // println!("{:b}", (2147483600.0).to_bits());
+    // println!("{:b}", (2147483648.0).to_bits());
+    // 01111111111111111111111111010000
+    // 01000000111010000000000000000000
+    // 10000000000000000000000000000000
+    println!("{:b}", 2147483600);
+    println!("{:b}", 2147483648u64);
+
+    println!("{}", f32::from_bits(0b01000000111010000000000000000000));
+    println!("{}", f32::from_bits(0b01111111111111111111111111010000));
+    println!("{}", f32::from_bits(0b10000000000000000000000000000000));
+    println!("{}", f32::from_bits(2147483648));
   }
 
   macro_rules! test_decode {

@@ -109,6 +109,7 @@ impl Vm {
                     let _ = self.evaluate();
                 }
                 I32Add | I64Add => impl_binary_inst!(self, add),
+                F32Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub => impl_binary_inst!(self, sub),
                 I32Mul | I64Mul => impl_binary_inst!(self, mul),
                 I32DivUnsign | I64DivUnsign => impl_try_binary_inst!(self, div_u),
@@ -206,7 +207,10 @@ impl Vm {
                     impl_load_inst!(32, self, offset, "i64")
                 }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
-
+                F32Abs | F32Neg | F32Ceil | F32Floor | F32Trunc | F32Nearest | F32Sqrt | F32Sub
+                | F32Mul | F32Div | F32Min | F32Max | F32Copysign => {
+                    unimplemented!("{:?}", expression);
+                }
                 F32Load(_, _offset)
                 | F64Load(_, _offset)
                 | I32Store(_, _offset)
@@ -218,7 +222,7 @@ impl Vm {
                 | I64Store8(_, _offset)
                 | I64Store16(_, _offset)
                 | I64Store32(_, _offset) => {
-                    unimplemented!();
+                    unimplemented!("{:?}", expression);
                 }
             };
         }
@@ -282,6 +286,7 @@ impl Vm {
             Ok(_) => match self.stack.pop_value() {
                 Values::I32(v) => format!("{}", v),
                 Values::I64(v) => format!("{}", v),
+                Values::F32(v) => format!("{}", v),
             },
             Err(err) => String::from(err),
         }
