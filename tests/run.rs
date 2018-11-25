@@ -45,9 +45,9 @@ fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
             ref expected,
           },
       }) => {
-        if line != 47 {
-          continue;
-        };
+        // if line != 47 {
+        //   continue;
+        // };
         println!("Assert return at line:{}.", line);
         let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
         let actual = vm.run(field.as_ref(), get_args(args));
@@ -100,9 +100,20 @@ fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
       }
       Some(Command {
         line,
-        kind: CommandKind::AssertReturnArithmeticNan { action },
+        kind:
+          CommandKind::AssertReturnArithmeticNan {
+            action:
+              Action::Invoke {
+                ref field,
+                ref args,
+                ..
+              },
+          },
       }) => {
-        println!("Skip arithmetic NaN at line:{}.", line);
+        println!("Assert arithmetic NaN at line:{}.", line);
+        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        assert_eq!(&actual, "f32:NaN");
       }
       Some(Command {
         kind: CommandKind::Module { ref module, .. },
