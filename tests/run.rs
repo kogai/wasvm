@@ -4,7 +4,7 @@ extern crate wabt;
 extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
-use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
+use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
 use wasvm::value::Values;
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
@@ -29,6 +29,83 @@ fn get_expectation(expected: &Vec<Value>) -> String {
   }
 }
 
+fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
+  loop {
+    match parser.next().unwrap() {
+      Some(Command {
+        line,
+        kind:
+          CommandKind::AssertReturn {
+            action:
+              Action::Invoke {
+                ref field,
+                ref args,
+                ..
+              },
+            ref expected,
+          },
+      }) => {
+        // if line != 2505 {
+        //   continue;
+        // };
+        println!("Assert return at line:{}.", line);
+        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        let expectation = get_expectation(expected);
+        assert_eq!(actual, expectation);
+      }
+      Some(Command {
+        line,
+        kind:
+          CommandKind::AssertTrap {
+            action:
+              Action::Invoke {
+                ref field,
+                ref args,
+                ..
+              },
+            ref message,
+          },
+      }) => {
+        // if line != 194 {
+        //   continue;
+        // };
+        println!("Assert trap at line:{}.", line);
+        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        assert_eq!(&actual, message);
+      }
+      Some(Command {
+        line,
+        kind: CommandKind::AssertMalformed {
+          ref module,
+          ref message,
+        },
+      }) => {
+        println!("Skip malformed at line:{}.", line);
+      }
+      Some(Command {
+        line,
+        kind: CommandKind::AssertReturnCanonicalNan { .. },
+      }) => {
+        println!("Skip malformed at line:{}.", line);
+      }
+      Some(Command {
+        line,
+        kind: CommandKind::AssertReturnArithmeticNan { .. },
+      }) => {
+        println!("Skip malformed at line:{}.", line);
+      }
+      Some(Command {
+        kind: CommandKind::Module { ref module, .. },
+        ..
+      }) => do_test(parser, module),
+      None => break,
+      x => unimplemented!("{:?}", x),
+    }
+  }
+}
+
 macro_rules! impl_e2e {
   ($test_name: ident, $file_name: expr) => {
     #[test]
@@ -41,68 +118,7 @@ macro_rules! impl_e2e {
 
       while let Ok(Some(Command { kind, .. })) = parser.next() {
         match kind {
-          CommandKind::Module { ref module, .. } => {
-            loop {
-              match parser.next().unwrap() {
-                Some(Command {
-                  line,
-                  kind:
-                    CommandKind::AssertReturn {
-                      action:
-                        Action::Invoke {
-                          ref field,
-                          ref args,
-                          ..
-                        },
-                      ref expected,
-                    },
-                }) => {
-                  // if line != 2505 {
-                  //   continue;
-                  // };
-                  println!("Assert return at line:{}.", line);
-                  let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
-                  let actual = vm.run(field.as_ref(), get_args(args));
-                  let expectation = get_expectation(expected);
-                  assert_eq!(actual, expectation);
-                }
-                Some(Command {
-                  line,
-                  kind:
-                    CommandKind::AssertTrap {
-                      action:
-                        Action::Invoke {
-                          ref field,
-                          ref args,
-                          ..
-                        },
-                      ref message,
-                    },
-                }) => {
-                  // if line != 194 {
-                  //   continue;
-                  // };
-                  println!("Assert trap at line:{}.", line);
-                  let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
-                  let actual = vm.run(field.as_ref(), get_args(args));
-                  assert_eq!(&actual, message);
-                }
-                Some(Command {
-                  line,
-                  kind:
-                    CommandKind::AssertMalformed {
-                      ref module,
-                      ref message,
-                    },
-                }) => {
-                  println!("Assert malformed at line:{}.", line);
-                  unimplemented!();
-                }
-                None => break,
-                x => unimplemented!("{:?}", x),
-              }
-            }
-          }
+          CommandKind::Module { ref module, .. } => do_test(&mut parser, module),
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",
             x
@@ -112,13 +128,6 @@ macro_rules! impl_e2e {
     }
   };
 }
-//       | (Some(TestCase::AssertTrap { line, .. }), Ok(_))
-//       | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Ok(_))
-//       | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Ok(_))
-//       | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Err(_))
-//       | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Err(_)) => {
-//         println!("Skip assert trap {}", line);
-//       }
 
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
