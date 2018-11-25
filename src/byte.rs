@@ -50,6 +50,23 @@ pub struct Byte {
 }
 
 impl Byte {
+  leb128!(i32, u32, decode_leb128_i32);
+  leb128!(i64, u64, decode_leb128_i64);
+
+  // FIXME: Generalize with macro decoding signed integer.
+  fn decode_leb128_u32(&mut self) -> Result<u32> {
+    let mut buf: u32 = 0;
+    let mut shift = 0;
+    while (self.peek()? & 0b10000000) != 0 {
+      let num = (self.next()? ^ (0b10000000)) as u32;
+      buf = buf ^ (num << shift);
+      shift += 7;
+    }
+    let num = (self.next()?) as u32;
+    buf = buf ^ (num << shift);
+    Ok(buf)
+  }
+
   pub fn new(bytes: Vec<u8>) -> Self {
     let (_, bytes) = bytes.split_at(8);
     Byte {
@@ -76,9 +93,6 @@ impl Byte {
     self.byte_ptr += 1;
     el.map(|&x| x)
   }
-
-  leb128!(i32, u32, decode_leb128_i32);
-  leb128!(i64, u64, decode_leb128_i64);
 
   fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
@@ -122,11 +136,12 @@ impl Byte {
   }
 
   fn decode_memory_inst(&mut self) -> Result<(u32, u32)> {
-    let align = self.decode_leb128_i32();
-    let offset = self.decode_leb128_i32();
+    let align = self.decode_leb128_u32();
+    let offset = self.decode_leb128_u32();
     match (align, offset) {
       (Ok(align), Ok(offset)) => Ok((align as u32, offset as u32)),
       (Err(Trap::BitshiftOverflow), _) | (_, Err(Trap::BitshiftOverflow)) => {
+        println!("Decode int overflow");
         Err(Trap::MemoryAccessOutOfBounds)
       }
       _ => Err(Trap::Unknown),
@@ -143,6 +158,7 @@ impl Byte {
         Code::GetLocal => expressions.push(Inst::GetLocal(self.next()? as usize)),
         Code::SetLocal => expressions.push(Inst::SetLocal(self.next()? as usize)),
         Code::TeeLocal => expressions.push(Inst::TeeLocal(self.next()? as usize)),
+        Code::DropInst => expressions.push(Inst::DropInst),
 
         Code::I32Load => {
           match self.decode_memory_inst() {

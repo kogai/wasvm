@@ -116,6 +116,7 @@ pub enum Inst {
   // Drop structuring instruction
   If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
+  DropInst,
   Return,
   TypeEmpty,
   I32WrapI64,

@@ -78,6 +78,7 @@ pub enum Code {
 
   Call,
   Select,
+  DropInst,
 
   I32EqualZero,
   // TODO: Add prefix to indicate data-type like I32
@@ -135,6 +136,7 @@ impl From<Option<u8>> for Code {
       Some(0x0b) => End,
       Some(0x0f) => Return,
       Some(0x10) => Call,
+      Some(0x1a) => DropInst,
       Some(0x1b) => Select,
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,

@@ -1,5 +1,4 @@
 #![feature(try_trait)]
-
 mod byte;
 mod code;
 mod function;
@@ -24,11 +23,15 @@ macro_rules! impl_load_inst {
             Values::I32(i) => i,
             x => unreachable!("{:?}", x),
         } as u32;
-        let ea = i + *$offset; // NOTE: What 'ea' stands for?
-        if $self.store.data_size_small_than(ea + width) {
+        let (ea, overflowed) = i.overflowing_add(*$offset); // NOTE: What 'ea' stands for?
+        if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        let data = $self.store.load_data(ea, ea + width, $value_kind);
+        let (ptr, overflowed) = ea.overflowing_add(width);
+        if overflowed || $self.store.data_size_small_than(ptr) {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        let data = $self.store.load_data(ea, ptr, $value_kind);
         $self.stack.push(StackEntry::new_value(data));
     }};
 }
@@ -135,6 +138,9 @@ impl Vm {
                         self.stack.push(StackEntry::new_value(false_br));
                     }
                 }
+                DropInst => {
+                    self.stack.pop_value();
+                }
                 LessThanSign | I64LessThanSign => impl_binary_inst!(self, less_than),
                 LessThanUnsign | I64LessThanUnSign => impl_binary_inst!(self, less_than_unsign),
                 I32LessEqualSign | I64LessEqualSign => impl_binary_inst!(self, less_than_equal),
@@ -214,11 +220,11 @@ impl Vm {
                     impl_load_inst!(32, self, offset, "i64")
                 }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
-                F32Abs | F32Neg | F32Ceil | F32Floor | F32Trunc | F32Nearest | F32Copysign => {
+                F32Abs | F32Neg | F32Copysign => {
                     unimplemented!("{:?}", expression);
                 }
-                F32Load(_, _offset)
-                | F64Load(_, _offset)
+                F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
+                F64Load(_, _offset)
                 | I32Store(_, _offset)
                 | I64Store(_, _offset)
                 | F32Store(_, _offset)
@@ -290,9 +296,9 @@ impl Vm {
         self.call(start_idx, arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
-                Values::I32(v) => format!("{}", v),
-                Values::I64(v) => format!("{}", v),
-                Values::F32(v) => format!("{}", v),
+                Values::I32(v) => format!("i32:{}", v),
+                Values::I64(v) => format!("i64:{}", v),
+                Values::F32(v) => format!("f32:{}", v),
             },
             Err(err) => String::from(err),
         }
@@ -314,7 +320,7 @@ mod tests {
                 let _ = file.read_to_end(&mut buffer);
                 let mut vm = Vm::new(buffer).unwrap();
                 let actual = vm.run("_subject", $call_arguments);
-                assert_eq!(actual, format!("{}", $expect_value));
+                assert_eq!(actual, format!("i32:{}", $expect_value));
             }
         };
     }
