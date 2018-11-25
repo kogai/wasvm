@@ -223,8 +223,8 @@ impl Vm {
                 F32Abs | F32Neg | F32Copysign => {
                     unimplemented!("{:?}", expression);
                 }
-                F32Load(_, _offset)
-                | F64Load(_, _offset)
+                F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
+                F64Load(_, _offset)
                 | I32Store(_, _offset)
                 | I64Store(_, _offset)
                 | F32Store(_, _offset)
@@ -296,9 +296,9 @@ impl Vm {
         self.call(start_idx, arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
-                Values::I32(v) => format!("{}", v),
-                Values::I64(v) => format!("{}", v),
-                Values::F32(v) => format!("{}", v),
+                Values::I32(v) => format!("i32:{}", v),
+                Values::I64(v) => format!("i64:{}", v),
+                Values::F32(v) => format!("f32:{}", v),
             },
             Err(err) => String::from(err),
         }

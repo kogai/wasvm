@@ -22,10 +22,10 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
 fn get_expectation(expected: &Vec<Value>) -> String {
   let v = expected.get(0).unwrap().to_owned();
   match v {
-    Value::I32(value) => format!("{}", value),
-    Value::I64(value) => format!("{}", value),
-    Value::F32(value) => format!("{}", value),
-    Value::F64(value) => format!("{}", value),
+    Value::I32(value) => format!("i32:{}", value),
+    Value::I64(value) => format!("i64:{}", value),
+    Value::F32(value) => format!("f32:{}", value),
+    Value::F64(value) => format!("f64:{}", value),
   }
 }
 
@@ -78,8 +78,8 @@ fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
       Some(Command {
         line,
         kind: CommandKind::AssertMalformed {
-          ref module,
-          ref message,
+          module: _,
+          message: _,
         },
       }) => {
         println!("Skip malformed at line:{}.", line);
