@@ -520,23 +520,6 @@ mod tests {
   use std::fs::File;
   use std::io::Read;
 
-  #[test]
-  fn repl() {
-    // println!("{:b}", (1.25f32).to_bits());
-    // println!("{:b}", (2147483600.0).to_bits());
-    // println!("{:b}", (2147483648.0).to_bits());
-    // 01111111111111111111111111010000
-    // 01000000111010000000000000000000
-    // 10000000000000000000000000000000
-    println!("{:b}", 2147483600);
-    println!("{:b}", 2147483648u64);
-
-    println!("{}", f32::from_bits(0b01000000111010000000000000000000));
-    println!("{}", f32::from_bits(0b01111111111111111111111111010000));
-    println!("{}", f32::from_bits(0b10000000000000000000000000000000));
-    println!("{}", f32::from_bits(2147483648));
-  }
-
   macro_rules! test_decode {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
       #[test]

@@ -5,7 +5,7 @@ extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
 use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
-use wasvm::value::{Values, F32};
+use wasvm::value::Values;
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -13,7 +13,7 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
     .map(|v| match v {
       Value::I32(value) => Values::I32(*value),
       Value::I64(value) => Values::I64(*value),
-      Value::F32(value) => Values::F32(F32::Value(*value)),
+      Value::F32(value) => Values::F32(*value),
       _ => unimplemented!(),
     })
     .collect()
@@ -45,9 +45,9 @@ fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
             ref expected,
           },
       }) => {
-        // if line != 2505 {
-        //   continue;
-        // };
+        if line != 47 {
+          continue;
+        };
         println!("Assert return at line:{}.", line);
         let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
         let actual = vm.run(field.as_ref(), get_args(args));
@@ -67,10 +67,7 @@ fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
             ref message,
           },
       }) => {
-        // if line != 194 {
-        //   continue;
-        // };
-        println!("Assert trap at line:{}.", line);
+        println!("Assert trap at line:{}.", line,);
         let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
         let actual = vm.run(field.as_ref(), get_args(args));
         assert_eq!(&actual, message);
@@ -86,15 +83,26 @@ fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
       }
       Some(Command {
         line,
-        kind: CommandKind::AssertReturnCanonicalNan { .. },
+        kind:
+          CommandKind::AssertReturnCanonicalNan {
+            action:
+              Action::Invoke {
+                ref field,
+                ref args,
+                ..
+              },
+          },
       }) => {
-        println!("Skip malformed at line:{}.", line);
+        println!("Assert canonical NaN at line:{}.", line);
+        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        assert_eq!(&actual, "f32:NaN");
       }
       Some(Command {
         line,
-        kind: CommandKind::AssertReturnArithmeticNan { .. },
+        kind: CommandKind::AssertReturnArithmeticNan { action },
       }) => {
-        println!("Skip malformed at line:{}.", line);
+        println!("Skip arithmetic NaN at line:{}.", line);
       }
       Some(Command {
         kind: CommandKind::Module { ref module, .. },

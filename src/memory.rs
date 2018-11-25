@@ -1,5 +1,5 @@
 use inst::Inst;
-use value::{Values, F32};
+use value::Values;
 
 const MEMORY_MAX: usize = 65536;
 
@@ -70,7 +70,7 @@ impl MemoryInstance {
     match value_kind {
       "i32" => Values::I32(self.load_data_i32(from, to)),
       "i64" => Values::I64(self.load_data_i64(from, to)),
-      "f32" => Values::F32(F32::Value(self.load_data_f32(from, to))),
+      "f32" => Values::F32(self.load_data_f32(from, to)),
       _ => unreachable!(),
     }
   }

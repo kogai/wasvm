@@ -324,6 +324,12 @@ mod tests {
             }
         };
     }
+
+    #[test]
+    fn repl() {
+        println!("{}", std::f32::NAN);
+        println!("{}", std::f32::INFINITY);
+    }
     #[test]
     fn stack_ptr() {
         let mut stack = Stack::new(4);
