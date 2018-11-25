@@ -43,63 +43,63 @@ macro_rules! impl_e2e {
         match kind {
           CommandKind::Module { ref module, .. } => {
             loop {
-              match (
-                parser.next().unwrap(),
-                wasvm::Vm::new(module.clone().into_vec()),
-              ) {
-                (
-                  Some(Command {
-                    line,
-                    kind:
-                      CommandKind::AssertReturn {
-                        action:
-                          Action::Invoke {
-                            ref field,
-                            ref args,
-                            ..
-                          },
-                        ref expected,
-                      },
-                  }),
-                  Ok(ref mut vm),
-                ) => {
+              match parser.next().unwrap() {
+                Some(Command {
+                  line,
+                  kind:
+                    CommandKind::AssertReturn {
+                      action:
+                        Action::Invoke {
+                          ref field,
+                          ref args,
+                          ..
+                        },
+                      ref expected,
+                    },
+                }) => {
                   // if line != 2505 {
                   //   continue;
                   // };
                   println!("Assert return at line:{}.", line);
+                  let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
                   let actual = vm.run(field.as_ref(), get_args(args));
                   let expectation = get_expectation(expected);
                   assert_eq!(actual, expectation);
                 }
-                (
-                  Some(Command {
-                    line,
-                    kind:
-                      CommandKind::AssertTrap {
-                        action:
-                          Action::Invoke {
-                            ref field,
-                            ref args,
-                            ..
-                          },
-                        ref message,
-                      },
-                  }),
-                  Ok(ref mut vm),
-                ) => {
+                Some(Command {
+                  line,
+                  kind:
+                    CommandKind::AssertTrap {
+                      action:
+                        Action::Invoke {
+                          ref field,
+                          ref args,
+                          ..
+                        },
+                      ref message,
+                    },
+                }) => {
+                  // if line != 194 {
+                  //   continue;
+                  // };
                   println!("Assert trap at line:{}.", line);
+                  let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
                   let actual = vm.run(field.as_ref(), get_args(args));
                   assert_eq!(&actual, message);
                 }
-                //       | (Some(TestCase::AssertTrap { line, .. }), Ok(_))
-                //       | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Ok(_))
-                //       | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Ok(_))
-                //       | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Err(_))
-                //       | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Err(_)) => {
-                //         println!("Skip assert trap {}", line);
-                //       }
-                (None, _) => break,
-                (x, _) => unimplemented!("{:?}", x),
+                Some(Command {
+                  line,
+                  kind:
+                    CommandKind::AssertMalformed {
+                      ref module,
+                      ref message,
+                    },
+                }) => {
+                  println!("Assert malformed at line:{}.", line);
+                  unimplemented!();
+                }
+                None => break,
+                x => unimplemented!("{:?}", x),
               }
             }
           }
@@ -112,6 +112,13 @@ macro_rules! impl_e2e {
     }
   };
 }
+//       | (Some(TestCase::AssertTrap { line, .. }), Ok(_))
+//       | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Ok(_))
+//       | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Ok(_))
+//       | (Some(TestCase::AssertReturnArithmeticNan { line, .. }), Err(_))
+//       | (Some(TestCase::AssertReturnCanonicalNan { line, .. }), Err(_)) => {
+//         println!("Skip assert trap {}", line);
+//       }
 
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");

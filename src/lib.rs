@@ -23,11 +23,15 @@ macro_rules! impl_load_inst {
             Values::I32(i) => i,
             x => unreachable!("{:?}", x),
         } as u32;
-        let ea = i + *$offset; // NOTE: What 'ea' stands for?
-        if $self.store.data_size_small_than(ea + width) {
+        let (ea, overflowed) = i.overflowing_add(*$offset); // NOTE: What 'ea' stands for?
+        if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        let data = $self.store.load_data(ea, ea + width, $value_kind);
+        let (ptr, overflowed) = ea.overflowing_add(width);
+        if overflowed || $self.store.data_size_small_than(ptr) {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        let data = $self.store.load_data(ea, ptr, $value_kind);
         $self.stack.push(StackEntry::new_value(data));
     }};
 }
@@ -134,6 +138,9 @@ impl Vm {
                         self.stack.push(StackEntry::new_value(false_br));
                     }
                 }
+                DropInst => {
+                    self.stack.pop_value();
+                }
                 LessThanSign | I64LessThanSign => impl_binary_inst!(self, less_than),
                 LessThanUnsign | I64LessThanUnSign => impl_binary_inst!(self, less_than_unsign),
                 I32LessEqualSign | I64LessEqualSign => impl_binary_inst!(self, less_than_equal),
@@ -213,7 +220,7 @@ impl Vm {
                     impl_load_inst!(32, self, offset, "i64")
                 }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
-                F32Abs | F32Neg | F32Ceil | F32Floor | F32Trunc | F32Nearest | F32Copysign => {
+                F32Abs | F32Neg | F32Copysign => {
                     unimplemented!("{:?}", expression);
                 }
                 F32Load(_, _offset)
