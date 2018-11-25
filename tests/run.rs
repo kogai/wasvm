@@ -29,102 +29,6 @@ fn get_expectation(expected: &Vec<Value>) -> String {
   }
 }
 
-fn do_test(parser: &mut ScriptParser, module: &ModuleBinary) {
-  loop {
-    match parser.next().unwrap() {
-      Some(Command {
-        line,
-        kind:
-          CommandKind::AssertReturn {
-            action:
-              Action::Invoke {
-                ref field,
-                ref args,
-                ..
-              },
-            ref expected,
-          },
-      }) => {
-        // if line != 47 {
-        //   continue;
-        // };
-        println!("Assert return at line:{}.", line);
-        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
-        let actual = vm.run(field.as_ref(), get_args(args));
-        let expectation = get_expectation(expected);
-        assert_eq!(actual, expectation);
-      }
-      Some(Command {
-        line,
-        kind:
-          CommandKind::AssertTrap {
-            action:
-              Action::Invoke {
-                ref field,
-                ref args,
-                ..
-              },
-            ref message,
-          },
-      }) => {
-        println!("Assert trap at line:{}.", line,);
-        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
-        let actual = vm.run(field.as_ref(), get_args(args));
-        assert_eq!(&actual, message);
-      }
-      Some(Command {
-        line,
-        kind: CommandKind::AssertMalformed {
-          module: _,
-          message: _,
-        },
-      }) => {
-        println!("Skip malformed at line:{}.", line);
-      }
-      Some(Command {
-        line,
-        kind:
-          CommandKind::AssertReturnCanonicalNan {
-            action:
-              Action::Invoke {
-                ref field,
-                ref args,
-                ..
-              },
-          },
-      }) => {
-        println!("Assert canonical NaN at line:{}.", line);
-        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
-        let actual = vm.run(field.as_ref(), get_args(args));
-        assert_eq!(&actual, "f32:NaN");
-      }
-      Some(Command {
-        line,
-        kind:
-          CommandKind::AssertReturnArithmeticNan {
-            action:
-              Action::Invoke {
-                ref field,
-                ref args,
-                ..
-              },
-          },
-      }) => {
-        println!("Assert arithmetic NaN at line:{}.", line);
-        let mut vm = wasvm::Vm::new(module.clone().into_vec()).unwrap();
-        let actual = vm.run(field.as_ref(), get_args(args));
-        assert_eq!(&actual, "f32:NaN");
-      }
-      Some(Command {
-        kind: CommandKind::Module { ref module, .. },
-        ..
-      }) => do_test(parser, module),
-      None => break,
-      x => unimplemented!("{:?}", x),
-    }
-  }
-}
-
 macro_rules! impl_e2e {
   ($test_name: ident, $file_name: expr) => {
     #[test]
@@ -134,10 +38,77 @@ macro_rules! impl_e2e {
       let mut json = File::open(&test_filename).unwrap();
       json.read_to_string(&mut buf).unwrap();
       let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
+      let mut current_module = vec![];
 
-      while let Ok(Some(Command { kind, .. })) = parser.next() {
+      while let Ok(Some(Command { kind, line, .. })) = parser.next() {
         match kind {
-          CommandKind::Module { ref module, .. } => do_test(&mut parser, module),
+          CommandKind::Module { ref module, .. } => {
+            current_module = module.clone().into_vec();
+          }
+
+          CommandKind::AssertReturn {
+            action: Action::Invoke {
+              ref field,
+              ref args,
+              ..
+            },
+            ref expected,
+          } => {
+            // if line != 527 {
+            //   continue;
+            // };
+            println!("Assert return at line:{}.", line);
+            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let actual = vm.run(field.as_ref(), get_args(args));
+            let expectation = get_expectation(expected);
+            assert_eq!(actual, expectation);
+          }
+          CommandKind::AssertTrap {
+            action: Action::Invoke {
+              ref field,
+              ref args,
+              ..
+            },
+            ref message,
+          } => {
+            // continue;
+            println!("Assert trap at line:{}.", line,);
+            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let actual = vm.run(field.as_ref(), get_args(args));
+            assert_eq!(&actual, message);
+          }
+          CommandKind::AssertMalformed {
+            module: _,
+            message: _,
+          } => {
+            println!("Skip malformed at line:{}.", line);
+          }
+          CommandKind::AssertReturnCanonicalNan {
+            action: Action::Invoke {
+              ref field,
+              ref args,
+              ..
+            },
+          } => {
+            // continue;
+            println!("Assert canonical NaN at line:{}.", line);
+            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let actual = vm.run(field.as_ref(), get_args(args));
+            assert_eq!(&actual, "f32:NaN");
+          }
+          CommandKind::AssertReturnArithmeticNan {
+            action: Action::Invoke {
+              ref field,
+              ref args,
+              ..
+            },
+          } => {
+            // continue;
+            println!("Assert arithmetic NaN at line:{}.", line);
+            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let actual = vm.run(field.as_ref(), get_args(args));
+            assert_eq!(&actual, "f32:NaN");
+          }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",
             x
