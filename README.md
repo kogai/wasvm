@@ -3,10 +3,10 @@
 ## TODO
 
 * [ ] Test assert_trap and assert_malformed
-* [ ] Return Result from evaluate_inst
+* [x] Return Result from evaluate_inst
 * [ ] Show position where error occurred at docoding time
 * [ ] Separate Runtime-error "Trap" and Decoding-time-error
-* [ ] Build wasm from wast at CI
+* [x] Build wasm from wast at CI
 
 ## Debug
 
