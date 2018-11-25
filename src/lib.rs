@@ -1,5 +1,4 @@
 #![feature(try_trait)]
-
 mod byte;
 mod code;
 mod function;

@@ -27,9 +27,9 @@ impl From<Trap> for String {
   fn from(x: Trap) -> Self {
     use self::Trap::*;
     match x {
-      DivisionOverflow => "division overflow",
-      DivisionByZero => "division by zero",
-      MemoryAccessOutOfBounds => "memory access out of bounds",
+      DivisionOverflow => "integer overflow",
+      DivisionByZero => "integer divide by zero",
+      MemoryAccessOutOfBounds => "out of bounds memory access",
       BitshiftOverflow => "bit shift overflow",
       Unknown => "unknown",
     }
