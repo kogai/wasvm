@@ -39,6 +39,18 @@ macro_rules! unary_inst {
   };
 }
 
+macro_rules! unary_logical_inst {
+  ($fn_name: ident,$op: ident) => {
+    pub fn $fn_name(&self) -> Self {
+      match self {
+        Values::I32(l) => Values::I32(l.$op()),
+        Values::I64(l) => Values::I32(l.$op() as i32),
+        _ => unimplemented!()
+      }
+    }
+  };
+}
+
 macro_rules! bynary_inst {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Self {
@@ -46,6 +58,22 @@ macro_rules! bynary_inst {
         (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
         (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(*r)),
         (Values::F32(l), Values::F32(r)) => Values::F32(l.$op(r.to_owned())),
+        _ => unimplemented!(),
+      }
+    }
+  };
+}
+
+macro_rules! bynary_logical_inst {
+  ($fn_name: ident,$op: ident) => {
+    pub fn $fn_name(&self, other: &Self) -> Self {
+      match (self, other) {
+        (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
+        (Values::I64(l), Values::I64(r)) => Values::I32(l.$op(*r) as i32),
+        (Values::F32(l), Values::F32(r)) => Values::I32(match l.$op(r.to_owned()) {
+          F32::Value(v) => v as i32,
+          x => unreachable!(x),
+        }),
         _ => unimplemented!(),
       }
     }
@@ -388,17 +416,17 @@ impl Values {
   bynary_inst!(sub, wrapping_sub);
   bynary_inst!(mul, wrapping_mul);
 
-  bynary_inst!(less_than, less_than);
-  bynary_inst!(less_than_equal, less_than_equal);
-  bynary_inst!(less_than_unsign, less_than_unsign);
-  bynary_inst!(less_than_equal_unsign, less_than_equal_unsign);
+  bynary_logical_inst!(less_than, less_than);
+  bynary_logical_inst!(less_than_equal, less_than_equal);
+  bynary_logical_inst!(less_than_unsign, less_than_unsign);
+  bynary_logical_inst!(less_than_equal_unsign, less_than_equal_unsign);
 
-  bynary_inst!(greater_than, greater_than);
-  bynary_inst!(greater_than_equal, greater_than_equal);
-  bynary_inst!(greater_than_unsign, greater_than_unsign);
-  bynary_inst!(greater_than_equal_unsign, greater_than_equal_unsign);
-  bynary_inst!(equal, equal);
-  bynary_inst!(not_equal, not_equal);
+  bynary_logical_inst!(greater_than, greater_than);
+  bynary_logical_inst!(greater_than_equal, greater_than_equal);
+  bynary_logical_inst!(greater_than_unsign, greater_than_unsign);
+  bynary_logical_inst!(greater_than_equal_unsign, greater_than_equal_unsign);
+  bynary_logical_inst!(equal, equal);
+  bynary_logical_inst!(not_equal, not_equal);
 
   bynary_inst!(shift_left, shift_left);
   bynary_inst!(shift_right_sign, shift_right_sign);
@@ -411,7 +439,7 @@ impl Values {
   bynary_try_inst!(div_s, div_s);
   bynary_try_inst!(div_u, div_u);
 
-  unary_inst!(equal_zero, equal_zero);
+  unary_logical_inst!(equal_zero, equal_zero);
   unary_inst!(count_leading_zero, count_leading_zero);
   unary_inst!(count_trailing_zero, count_trailing_zero);
   unary_inst!(pop_count, pop_count);
