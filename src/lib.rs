@@ -320,7 +320,7 @@ mod tests {
                 let _ = file.read_to_end(&mut buffer);
                 let mut vm = Vm::new(buffer).unwrap();
                 let actual = vm.run("_subject", $call_arguments);
-                assert_eq!(actual, format!("{}", $expect_value));
+                assert_eq!(actual, format!("i32:{}", $expect_value));
             }
         };
     }

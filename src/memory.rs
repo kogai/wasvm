@@ -1,5 +1,5 @@
 use inst::Inst;
-use value::Values;
+use value::{Values, F32};
 
 const MEMORY_MAX: usize = 65536;
 
@@ -31,7 +31,7 @@ pub struct MemoryInstance {
 }
 macro_rules! impl_load_data {
   ($name: ident, $ty: ty, $value_ty:ty, $return_type: path) => {
-    fn $name(&self, from: u32, to: u32) -> Values {
+    fn $name(&self, from: u32, to: u32) -> $value_ty {
       let data = &self.data[(from as usize)..(to as usize)];
       let width = data.len();
       let mut bit_buf: $ty = 0;
@@ -39,7 +39,7 @@ macro_rules! impl_load_data {
         let bits = (data[idx] as $ty) << idx * 8;
         bit_buf = bit_buf ^ bits;
       }
-      $return_type(bit_buf as $value_ty)
+      bit_buf as $value_ty
     }
   };
 }
@@ -68,9 +68,9 @@ impl MemoryInstance {
 
   pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
     match value_kind {
-      "i32" => self.load_data_i32(from, to),
-      "i64" => self.load_data_i64(from, to),
-      "f32" => self.load_data_f32(from, to),
+      "i32" => Values::I32(self.load_data_i32(from, to)),
+      "i64" => Values::I64(self.load_data_i64(from, to)),
+      "f32" => Values::F32(F32::Value(self.load_data_f32(from, to))),
       _ => unreachable!(),
     }
   }

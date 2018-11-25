@@ -5,7 +5,7 @@ extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
 use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
-use wasvm::value::Values;
+use wasvm::value::{Values, F32};
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -13,7 +13,7 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
     .map(|v| match v {
       Value::I32(value) => Values::I32(*value),
       Value::I64(value) => Values::I64(*value),
-      Value::F32(value) => Values::F32(*value),
+      Value::F32(value) => Values::F32(F32::Value(*value)),
       _ => unimplemented!(),
     })
     .collect()
