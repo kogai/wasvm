@@ -6,8 +6,9 @@ matrix:
     rust: nightly-2018-11-23
   - os: osx
     rust: nightly-2018-11-23
-  - os: windows
-    rust: nightly-2018-11-23
+  # FIXME: Disable windows build until wabt-rs support it.
+  # - os: windows
+  #   rust: nightly-2018-11-23
 notifications:
   email:
     on_success: change
@@ -16,8 +17,7 @@ git:
   submodules: false
 
 before_install:
-  - sed -i 's/git@github.com:/https:\/\/github.com\//' '.gitmodules'
-  - git submodule update --init --recursive
+  - ./submodule.sh
 #   - sudo apt-get update 
 #   - sudo apt-get install -y wabt
 #   - make

@@ -224,8 +224,8 @@ impl Vm {
                     unimplemented!("{:?}", expression);
                 }
                 F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
-                F64Load(_, _offset)
-                | I32Store(_, _offset)
+                F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
+                I32Store(_, _offset)
                 | I64Store(_, _offset)
                 | F32Store(_, _offset)
                 | F64Store(_, _offset)
@@ -299,6 +299,7 @@ impl Vm {
                 Values::I32(v) => format!("i32:{}", v),
                 Values::I64(v) => format!("i64:{}", v),
                 Values::F32(v) => format!("f32:{}", v),
+                Values::F64(v) => format!("f64:{}", v),
             },
             Err(err) => String::from(err),
         }
@@ -323,6 +324,12 @@ mod tests {
                 assert_eq!(actual, format!("i32:{}", $expect_value));
             }
         };
+    }
+
+    #[test]
+    fn repl() {
+        println!("{}", std::f32::NAN);
+        println!("{}", std::f32::INFINITY);
     }
     #[test]
     fn stack_ptr() {
