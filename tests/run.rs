@@ -22,10 +22,16 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
 fn get_expectation(expected: &Vec<Value>) -> String {
   let v = expected.get(0).unwrap().to_owned();
   match v {
-    Value::I32(value) => format!("i32:{}", value),
-    Value::I64(value) => format!("i64:{}", value),
-    Value::F32(value) => format!("f32:{}", value),
-    Value::F64(value) => format!("f64:{}", value),
+    Value::I32(v) => format!("i32:{}", v),
+    Value::I64(v) => format!("i64:{}", v),
+    Value::F32(v) => {
+      let prefix = if v.is_nan() { "" } else { "f32:" };
+      format!("{}{}", prefix, v)
+    }
+    Value::F64(v) => {
+      let prefix = if v.is_nan() { "" } else { "f64:" };
+      format!("{}{}", prefix, v)
+    }
   }
 }
 
