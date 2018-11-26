@@ -4,7 +4,7 @@ extern crate wabt;
 extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
-use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
+use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 use wasvm::value::Values;
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
@@ -71,7 +71,6 @@ macro_rules! impl_e2e {
             },
             ref message,
           } => {
-            // continue;
             println!("Assert trap at line:{}.", line,);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
@@ -90,7 +89,6 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            // continue;
             println!("Assert canonical NaN at line:{}.", line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
@@ -103,7 +101,6 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            // continue;
             println!("Assert arithmetic NaN at line:{}.", line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));

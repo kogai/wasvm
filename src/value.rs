@@ -1,4 +1,4 @@
-use std::f32::{INFINITY, NAN};
+use std::f32::NAN;
 use std::ops::{BitAnd, BitOr, BitXor};
 use trap::Trap;
 
