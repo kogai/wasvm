@@ -14,7 +14,7 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
       Value::I32(value) => Values::I32(*value),
       Value::I64(value) => Values::I64(*value),
       Value::F32(value) => Values::F32(*value),
-      _ => unimplemented!(),
+      Value::F64(value) => Values::F64(*value),
     })
     .collect()
 }
@@ -22,10 +22,16 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
 fn get_expectation(expected: &Vec<Value>) -> String {
   let v = expected.get(0).unwrap().to_owned();
   match v {
-    Value::I32(value) => format!("i32:{}", value),
-    Value::I64(value) => format!("i64:{}", value),
-    Value::F32(value) => format!("f32:{}", value),
-    Value::F64(value) => format!("f64:{}", value),
+    Value::I32(v) => format!("i32:{}", v),
+    Value::I64(v) => format!("i64:{}", v),
+    Value::F32(v) => {
+      let prefix = if v.is_nan() { "" } else { "f32:" };
+      format!("{}{}", prefix, v)
+    }
+    Value::F64(v) => {
+      let prefix = if v.is_nan() { "" } else { "f64:" };
+      format!("{}{}", prefix, v)
+    }
   }
 }
 
@@ -92,7 +98,7 @@ macro_rules! impl_e2e {
             println!("Assert canonical NaN at line:{}.", line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
-            assert_eq!(&actual, "f32:NaN");
+            assert_eq!(&actual, "NaN");
           }
           CommandKind::AssertReturnArithmeticNan {
             action: Action::Invoke {
@@ -104,7 +110,7 @@ macro_rules! impl_e2e {
             println!("Assert arithmetic NaN at line:{}.", line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
-            assert_eq!(&actual, "f32:NaN");
+            assert_eq!(&actual, "NaN");
           }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",
@@ -118,5 +124,6 @@ macro_rules! impl_e2e {
 
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
-impl_e2e!(test_address, "address");
 impl_e2e!(test_f32, "f32");
+impl_e2e!(test_f64, "f64");
+impl_e2e!(test_address, "address");

@@ -113,6 +113,21 @@ pub enum Inst {
   F32Max,
   F32Copysign,
 
+  F64Abs,
+  F64Neg,
+  F64Ceil,
+  F64Floor,
+  F64Trunc,
+  F64Nearest,
+  F64Sqrt,
+  F64Add,
+  F64Sub,
+  F64Mul,
+  F64Div,
+  F64Min,
+  F64Max,
+  F64Copysign,
+
   // Drop structuring instruction
   If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,

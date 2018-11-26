@@ -1,4 +1,5 @@
-use std::f32::NAN;
+use std::f32;
+use std::f64;
 use std::ops::{BitAnd, BitOr, BitXor};
 use trap::Trap;
 
@@ -41,6 +42,7 @@ macro_rules! bynary_inst {
         (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
         (Values::I64(l), Values::I64(r)) => Values::I64(l.$op(*r)),
         (Values::F32(l), Values::F32(r)) => Values::F32(l.$op(r.to_owned())),
+        (Values::F64(l), Values::F64(r)) => Values::F64(l.$op(r.to_owned())),
         _ => unimplemented!(),
       }
     }
@@ -54,6 +56,7 @@ macro_rules! bynary_logical_inst {
         (Values::I32(l), Values::I32(r)) => Values::I32(l.$op(*r)),
         (Values::I64(l), Values::I64(r)) => Values::I32(l.$op(*r) as i32),
         (Values::F32(l), Values::F32(r)) => Values::I32(l.$op(*r) as i32),
+        (Values::F64(l), Values::F64(r)) => Values::I32(l.$op(*r) as i32),
         _ => unimplemented!(),
       }
     }
@@ -319,65 +322,71 @@ trait ArithmeticFloat {
   fn wasm_rotate_right(&self, Self) -> Self;
 }
 
-impl ArithmeticFloat for f32 {
-  fn wrapping_add(&self, x: Self) -> Self {
-    self + x
-  }
-  fn wrapping_sub(&self, x: Self) -> Self {
-    self - x
-  }
-  fn wrapping_mul(&self, x: Self) -> Self {
-    self * x
-  }
-  fn less_than(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn less_than_equal(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn less_than_unsign(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn less_than_equal_unsign(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn greater_than(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn greater_than_equal(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn greater_than_unsign(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn greater_than_equal_unsign(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn equal(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn not_equal(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn shift_left(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn shift_right_sign(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn shift_right_unsign(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn wasm_rotate_left(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
-  fn wasm_rotate_right(&self, _x: Self) -> Self {
-    unimplemented!();
-  }
+macro_rules! impl_float_traits {
+  ($ty: ty) => {
+    impl ArithmeticFloat for $ty {
+      fn wrapping_add(&self, x: Self) -> Self {
+        self + x
+      }
+      fn wrapping_sub(&self, x: Self) -> Self {
+        self - x
+      }
+      fn wrapping_mul(&self, x: Self) -> Self {
+        self * x
+      }
+      fn less_than(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn less_than_equal(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn less_than_unsign(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn less_than_equal_unsign(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn greater_than(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn greater_than_equal(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn greater_than_unsign(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn greater_than_equal_unsign(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn equal(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn not_equal(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn shift_left(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn shift_right_sign(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn shift_right_unsign(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn wasm_rotate_left(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+      fn wasm_rotate_right(&self, _x: Self) -> Self {
+        unimplemented!();
+      }
+    }
+  };
 }
 
 impl_traits!(i32, u32);
 impl_traits!(i64, u64);
+impl_float_traits!(f32);
+impl_float_traits!(f64);
 
 impl Values {
   bynary_inst!(and, bitand);
@@ -431,6 +440,7 @@ impl Values {
   pub fn div_f(&self, other: &Self) -> Self {
     match (self, other) {
       (Values::F32(l), Values::F32(r)) => Values::F32(l / *r),
+      (Values::F64(l), Values::F64(r)) => Values::F64(l / *r),
       _ => unimplemented!(),
     }
   }
@@ -438,9 +448,16 @@ impl Values {
     match (self, other) {
       (Values::F32(l), Values::F32(r)) => {
         if l.is_nan() || r.is_nan() {
-          Values::F32(NAN)
+          Values::F32(f32::NAN)
         } else {
           Values::F32(l.min(*r))
+        }
+      }
+      (Values::F64(l), Values::F64(r)) => {
+        if l.is_nan() || r.is_nan() {
+          Values::F64(f64::NAN)
+        } else {
+          Values::F64(l.min(*r))
         }
       }
       _ => unimplemented!(),
@@ -450,9 +467,16 @@ impl Values {
     match (self, other) {
       (Values::F32(l), Values::F32(r)) => {
         if l.is_nan() || r.is_nan() {
-          Values::F32(NAN)
+          Values::F32(f32::NAN)
         } else {
           Values::F32(l.max(*r))
+        }
+      }
+      (Values::F64(l), Values::F64(r)) => {
+        if l.is_nan() || r.is_nan() {
+          Values::F64(f64::NAN)
+        } else {
+          Values::F64(l.max(*r))
         }
       }
       _ => unimplemented!(),
@@ -461,24 +485,28 @@ impl Values {
   pub fn sqrt(&self) -> Self {
     match self {
       Values::F32(l) => Values::F32(l.sqrt()),
+      Values::F64(l) => Values::F64(l.sqrt()),
       _ => unimplemented!(),
     }
   }
   pub fn ceil(&self) -> Self {
     match self {
       Values::F32(l) => Values::F32(l.ceil()),
+      Values::F64(l) => Values::F64(l.ceil()),
       _ => unimplemented!(),
     }
   }
   pub fn floor(&self) -> Self {
     match self {
       Values::F32(l) => Values::F32(l.floor()),
+      Values::F64(l) => Values::F64(l.floor()),
       _ => unimplemented!(),
     }
   }
   pub fn trunc(&self) -> Self {
     match self {
       Values::F32(l) => Values::F32(l.trunc()),
+      Values::F64(l) => Values::F64(l.trunc()),
       _ => unimplemented!(),
     }
   }
@@ -491,6 +519,15 @@ impl Values {
           Values::F32(0.0)
         } else {
           Values::F32(l.round())
+        }
+      }
+      Values::F64(l) => {
+        if *l > 0.0 && *l <= 0.5 {
+          Values::F64(0.0)
+        } else if *l < 0.0 && *l >= -0.5 {
+          Values::F64(0.0)
+        } else {
+          Values::F64(l.round())
         }
       }
       _ => unimplemented!(),
