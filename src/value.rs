@@ -1,6 +1,6 @@
 use std::f32;
 use std::f64;
-use std::ops::{BitAnd, BitOr, BitXor};
+use std::ops::{BitAnd, BitOr, BitXor, Neg};
 use trap::Trap;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -17,7 +17,8 @@ macro_rules! unary_inst {
       match self {
         Values::I32(l) => Values::I32(l.$op()),
         Values::I64(l) => Values::I64(l.$op()),
-        _ => unimplemented!()
+        Values::F32(l) => Values::F32(l.$op()),
+        Values::F64(l) => Values::F64(l.$op()),
       }
     }
   };
@@ -75,7 +76,15 @@ macro_rules! bynary_try_inst {
   };
 }
 
-trait Arithmetic {
+trait Arithmetic {}
+
+macro_rules! impl_traits {
+  ($ty: ty) => {
+    impl Arithmetic for $ty {}
+  };
+}
+
+trait ArithmeticInteger {
   fn equal_zero(&self) -> Self;
   fn count_leading_zero(&self) -> Self;
   fn count_trailing_zero(&self) -> Self;
@@ -113,11 +122,12 @@ trait Arithmetic {
   fn div_u(&self, other: Self) -> Result<Self, Trap>
   where
     Self: Sized;
+  fn copy_sign(&self, other: Self) -> Self;
 }
 
-macro_rules! impl_traits {
+macro_rules! impl_intger_traits {
   ($ty: ty, $unsign: ty) => {
-    impl Arithmetic for $ty {
+    impl ArithmeticInteger for $ty {
       fn equal_zero(&self) -> Self {
         if self == &0 {
           1
@@ -279,6 +289,13 @@ macro_rules! impl_traits {
           Ok(divined)
         }
       }
+      fn copy_sign(&self, other: Self) -> Self {
+        if self.signum() == other.signum() {
+          *self
+        } else {
+          self.neg()
+        }
+      }
     }
   };
 }
@@ -330,6 +347,11 @@ trait ArithmeticFloat {
     unreachable!();
   }
 
+  fn equal_zero(&self) -> Self;
+  fn count_leading_zero(&self) -> Self;
+  fn count_trailing_zero(&self) -> Self;
+  fn pop_count(&self) -> Self;
+
   fn wrapping_add(&self, _: Self) -> Self;
   fn wrapping_sub(&self, _: Self) -> Self;
   fn wrapping_mul(&self, _: Self) -> Self;
@@ -344,11 +366,24 @@ trait ArithmeticFloat {
   fn shift_right_unsign(&self, Self) -> Self;
   fn wasm_rotate_left(&self, Self) -> Self;
   fn wasm_rotate_right(&self, Self) -> Self;
+  fn copy_sign(&self, Self) -> Self;
 }
 
 macro_rules! impl_float_traits {
   ($ty: ty) => {
     impl ArithmeticFloat for $ty {
+      fn equal_zero(&self) -> Self {
+        unimplemented!()
+      }
+      fn count_leading_zero(&self) -> Self {
+        unimplemented!()
+      }
+      fn count_trailing_zero(&self) -> Self {
+        unimplemented!()
+      }
+      fn pop_count(&self) -> Self {
+        unimplemented!()
+      }
       fn wrapping_add(&self, x: Self) -> Self {
         self + x
       }
@@ -415,12 +450,26 @@ macro_rules! impl_float_traits {
       fn wasm_rotate_right(&self, _x: Self) -> Self {
         unimplemented!();
       }
+      fn copy_sign(&self, other: Self) -> Self {
+        if (self.is_sign_positive() == other.is_sign_positive())
+          || (self.is_sign_negative() == other.is_sign_negative())
+        {
+          *self
+        } else {
+          -*self
+        }
+      }
     }
   };
 }
 
-impl_traits!(i32, u32);
-impl_traits!(i64, u64);
+impl_traits!(i32);
+impl_traits!(i64);
+impl_traits!(f32);
+impl_traits!(f64);
+
+impl_intger_traits!(i32, u32);
+impl_intger_traits!(i64, u64);
 impl_float_traits!(f32);
 impl_float_traits!(f64);
 
@@ -449,6 +498,7 @@ impl Values {
   bynary_inst!(shift_right_unsign, shift_right_unsign);
   bynary_inst!(wasm_rotate_left, wasm_rotate_left);
   bynary_inst!(wasm_rotate_right, wasm_rotate_right);
+  bynary_inst!(copy_sign, copy_sign);
 
   bynary_try_inst!(rem_s, rem_s);
   bynary_try_inst!(rem_u, rem_u);
@@ -459,6 +509,8 @@ impl Values {
   unary_inst!(count_leading_zero, count_leading_zero);
   unary_inst!(count_trailing_zero, count_trailing_zero);
   unary_inst!(pop_count, pop_count);
+  unary_inst!(abs, abs);
+  unary_inst!(neg, neg);
 
   pub fn is_truthy(&self) -> bool {
     match &self {

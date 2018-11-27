@@ -209,7 +209,6 @@ impl Vm {
                 }
                 I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
                 I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
-                TypeEmpty => unreachable!(),
 
                 I32Load8Unsign(_, offset) | I32Load8Sign(_, offset) => {
                     impl_load_inst!(8, self, offset, "i32")
@@ -228,9 +227,9 @@ impl Vm {
                     impl_load_inst!(32, self, offset, "i64")
                 }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
-                F64Abs | F64Neg | F64Copysign | F32Abs | F32Neg | F32Copysign => {
-                    unimplemented!("{:?}", expression);
-                }
+                F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
+                F32Abs | F64Abs => impl_unary_inst!(self, abs),
+                F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
                 F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
 
@@ -245,6 +244,7 @@ impl Vm {
                 | I64Store32(_, _offset) => {
                     unimplemented!("{:?}", expression);
                 }
+                TypeEmpty => unreachable!(),
             };
         }
         Ok(())

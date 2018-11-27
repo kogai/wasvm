@@ -139,6 +139,8 @@ impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
 impl_e2e!(test_f32, "f32");
 impl_e2e!(test_f32_cmp, "f32_cmp");
+impl_e2e!(test_f32_bitwise, "f32_bitwise");
 impl_e2e!(test_f64, "f64");
 impl_e2e!(test_f64_cmp, "f64_cmp");
+impl_e2e!(test_f64_bitwise, "f64_bitwise");
 impl_e2e!(test_address, "address");
