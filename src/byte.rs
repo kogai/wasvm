@@ -317,6 +317,20 @@ impl Byte {
         Code::I32LessEqualUnsign => expressions.push(Inst::I32LessEqualUnsign),
         Code::I32GreaterEqualSign => expressions.push(Inst::I32GreaterEqualSign),
         Code::I32GreaterEqualUnsign => expressions.push(Inst::I32GreaterEqualUnsign),
+
+        Code::F32Equal => expressions.push(Inst::F32Equal),
+        Code::F32NotEqual => expressions.push(Inst::F32NotEqual),
+        Code::F32LessThan => expressions.push(Inst::F32LessThan),
+        Code::F32GreaterThan => expressions.push(Inst::F32GreaterThan),
+        Code::F32LessEqual => expressions.push(Inst::F32LessEqual),
+        Code::F32GreaterEqual => expressions.push(Inst::F32GreaterEqual),
+        Code::F64Equal => expressions.push(Inst::F64Equal),
+        Code::F64NotEqual => expressions.push(Inst::F64NotEqual),
+        Code::F64LessThan => expressions.push(Inst::F64LessThan),
+        Code::F64GreaterThan => expressions.push(Inst::F64GreaterThan),
+        Code::F64LessEqual => expressions.push(Inst::F64LessEqual),
+        Code::F64GreaterEqual => expressions.push(Inst::F64GreaterEqual),
+
         Code::Select => expressions.push(Inst::Select),
         Code::If => {
           let return_type = ValueTypes::from(self.next());
@@ -368,11 +382,6 @@ impl Byte {
         Code::F64Min => expressions.push(Inst::F64Min),
         Code::F64Max => expressions.push(Inst::F64Max),
         Code::F64Copysign => expressions.push(Inst::F64Copysign),
-        x => unimplemented!(
-          "Code {:x?} does not supported yet. Current expressions -> {:?}",
-          x,
-          expressions
-        ),
       };
     }
     match Code::from(self.peek()) {

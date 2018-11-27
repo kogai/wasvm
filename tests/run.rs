@@ -83,10 +83,23 @@ macro_rules! impl_e2e {
             assert_eq!(&actual, message);
           }
           CommandKind::AssertMalformed {
-            module: _,
-            message: _,
+            ref module,
+            ref message,
           } => {
-            println!("Skip malformed at line:{}.", line);
+            match String::from_utf8(module.clone().into_vec()) {
+              Ok(_text_format) => {
+                println!("Skip malformed text form at line:{}.", line);
+              }
+              Err(_) => {
+                let mut vm = wasvm::Vm::new(module.clone().into_vec());
+                match vm {
+                  Ok(_) => unreachable!(),
+                  Err(err) => {
+                    assert_eq!(&String::from(err), message);
+                  }
+                }
+              }
+            };
           }
           CommandKind::AssertReturnCanonicalNan {
             action: Action::Invoke {
@@ -125,5 +138,9 @@ macro_rules! impl_e2e {
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
 impl_e2e!(test_f32, "f32");
+impl_e2e!(test_f32_cmp, "f32_cmp");
+impl_e2e!(test_f32_bitwise, "f32_bitwise");
 impl_e2e!(test_f64, "f64");
+impl_e2e!(test_f64_cmp, "f64_cmp");
+impl_e2e!(test_f64_bitwise, "f64_bitwise");
 impl_e2e!(test_address, "address");
