@@ -6,7 +6,6 @@ pub enum Code {
   ConstI64,
 
   TypeValueEmpty,
-  TypeFunction,
 
   GetLocal,
   TeeLocal,
@@ -104,6 +103,19 @@ pub enum Code {
   I64LessEqualUnSign,
   I64GreaterEqualSign,
   I64GreaterEqualUnSign,
+
+  F32Equal,
+  F32NotEqual,
+  F32LessThan,
+  F32GreaterThan,
+  F32LessEqual,
+  F32GreaterEqual,
+  F64Equal,
+  F64NotEqual,
+  F64LessThan,
+  F64GreaterThan,
+  F64LessEqual,
+  F64GreaterEqual,
 
   F32Abs,
   F32Neg,
@@ -206,7 +218,20 @@ impl From<Option<u8>> for Code {
       Some(0x58) => I64LessEqualUnSign,
       Some(0x59) => I64GreaterEqualSign,
       Some(0x5a) => I64GreaterEqualUnSign,
-      Some(0x60) => TypeFunction,
+
+      Some(0x5B) => F32Equal,
+      Some(0x5C) => F32NotEqual,
+      Some(0x5D) => F32LessThan,
+      Some(0x5E) => F32GreaterThan,
+      Some(0x5F) => F32LessEqual,
+      Some(0x60) => F32GreaterEqual,
+      Some(0x61) => F64Equal,
+      Some(0x62) => F64NotEqual,
+      Some(0x63) => F64LessThan,
+      Some(0x64) => F64GreaterThan,
+      Some(0x65) => F64LessEqual,
+      Some(0x66) => F64GreaterEqual,
+
       Some(0x67) => I32CountLeadingZero,
       Some(0x68) => I32CountTrailingZero,
       Some(0x69) => I32CountNonZero,
@@ -360,6 +385,7 @@ impl From<Option<u8>> for ValueTypes {
   fn from(code: Option<u8>) -> Self {
     match code {
       Some(0x40) => ValueTypes::Empty,
+      // Some(0x60) => TypeFunction,
       Some(0x7f) => ValueTypes::I32,
       Some(0x7e) => ValueTypes::I64,
       Some(0x7d) => ValueTypes::F32,

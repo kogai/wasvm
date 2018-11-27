@@ -302,17 +302,41 @@ trait ArithmeticFloat {
   {
     unreachable!();
   }
+  fn less_than_unsign(&self, Self) -> Self
+  where
+    Self: Sized,
+  {
+    unreachable!();
+  }
+
+  fn less_than_equal_unsign(&self, Self) -> Self
+  where
+    Self: Sized,
+  {
+    unreachable!();
+  }
+
+  fn greater_than_unsign(&self, Self) -> Self
+  where
+    Self: Sized,
+  {
+    unreachable!();
+  }
+
+  fn greater_than_equal_unsign(&self, Self) -> Self
+  where
+    Self: Sized,
+  {
+    unreachable!();
+  }
+
   fn wrapping_add(&self, _: Self) -> Self;
   fn wrapping_sub(&self, _: Self) -> Self;
   fn wrapping_mul(&self, _: Self) -> Self;
   fn less_than(&self, Self) -> Self;
   fn less_than_equal(&self, Self) -> Self;
-  fn less_than_unsign(&self, Self) -> Self;
-  fn less_than_equal_unsign(&self, Self) -> Self;
   fn greater_than(&self, Self) -> Self;
   fn greater_than_equal(&self, Self) -> Self;
-  fn greater_than_unsign(&self, Self) -> Self;
-  fn greater_than_equal_unsign(&self, Self) -> Self;
   fn equal(&self, Self) -> Self;
   fn not_equal(&self, Self) -> Self;
   fn shift_left(&self, Self) -> Self;
@@ -334,35 +358,47 @@ macro_rules! impl_float_traits {
       fn wrapping_mul(&self, x: Self) -> Self {
         self * x
       }
-      fn less_than(&self, _x: Self) -> Self {
-        unimplemented!();
+      fn less_than(&self, x: Self) -> Self {
+        if self < &x {
+          1.0
+        } else {
+          0.0
+        }
       }
-      fn less_than_equal(&self, _x: Self) -> Self {
-        unimplemented!();
+      fn less_than_equal(&self, x: Self) -> Self {
+        if self <= &x {
+          1.0
+        } else {
+          0.0
+        }
       }
-      fn less_than_unsign(&self, _x: Self) -> Self {
-        unimplemented!();
+      fn greater_than(&self, x: Self) -> Self {
+        if self > &x {
+          1.0
+        } else {
+          0.0
+        }
       }
-      fn less_than_equal_unsign(&self, _x: Self) -> Self {
-        unimplemented!();
+      fn greater_than_equal(&self, x: Self) -> Self {
+        if self >= &x {
+          1.0
+        } else {
+          0.0
+        }
       }
-      fn greater_than(&self, _x: Self) -> Self {
-        unimplemented!();
+      fn equal(&self, x: Self) -> Self {
+        if self == &x {
+          1.0
+        } else {
+          0.0
+        }
       }
-      fn greater_than_equal(&self, _x: Self) -> Self {
-        unimplemented!();
-      }
-      fn greater_than_unsign(&self, _x: Self) -> Self {
-        unimplemented!();
-      }
-      fn greater_than_equal_unsign(&self, _x: Self) -> Self {
-        unimplemented!();
-      }
-      fn equal(&self, _x: Self) -> Self {
-        unimplemented!();
-      }
-      fn not_equal(&self, _x: Self) -> Self {
-        unimplemented!();
+      fn not_equal(&self, x: Self) -> Self {
+        if self != &x {
+          1.0
+        } else {
+          0.0
+        }
       }
       fn shift_left(&self, _x: Self) -> Self {
         unimplemented!();

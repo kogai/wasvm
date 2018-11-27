@@ -141,24 +141,32 @@ impl Vm {
                 DropInst => {
                     self.stack.pop_value();
                 }
-                LessThanSign | I64LessThanSign => impl_binary_inst!(self, less_than),
+                LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => {
+                    impl_binary_inst!(self, less_than)
+                }
                 LessThanUnsign | I64LessThanUnSign => impl_binary_inst!(self, less_than_unsign),
-                I32LessEqualSign | I64LessEqualSign => impl_binary_inst!(self, less_than_equal),
+                I32LessEqualSign | I64LessEqualSign | F32LessEqual | F64LessEqual => {
+                    impl_binary_inst!(self, less_than_equal)
+                }
                 I32LessEqualUnsign | I64LessEqualUnSign => {
                     impl_binary_inst!(self, less_than_equal_unsign)
                 }
-                I32GreaterEqualSign | I64GreaterEqualSign => {
+                I32GreaterEqualSign | I64GreaterEqualSign | F64GreaterEqual | F32GreaterEqual => {
                     impl_binary_inst!(self, greater_than_equal)
                 }
-                I32GreaterThanSign | I64GreaterThanSign => impl_binary_inst!(self, greater_than),
+                I32GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
+                    impl_binary_inst!(self, greater_than)
+                }
                 I32GreaterThanUnsign | I64GreaterThanUnSign => {
                     impl_binary_inst!(self, greater_than_unsign)
                 }
                 I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
                     impl_binary_inst!(self, greater_than_equal_unsign)
                 }
-                Equal | I64Equal => impl_binary_inst!(self, equal),
-                NotEqual | I64NotEqual => impl_binary_inst!(self, not_equal),
+                Equal | I64Equal | F32Equal | F64Equal => impl_binary_inst!(self, equal),
+                NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => {
+                    impl_binary_inst!(self, not_equal)
+                }
                 I32Or | I64Or => impl_binary_inst!(self, or),
                 I32Xor | I64Xor => impl_binary_inst!(self, xor),
                 I32And | I64And => impl_binary_inst!(self, and),
