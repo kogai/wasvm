@@ -143,4 +143,5 @@ impl_e2e!(test_f32_bitwise, "f32_bitwise");
 impl_e2e!(test_f64, "f64");
 impl_e2e!(test_f64_cmp, "f64_cmp");
 impl_e2e!(test_f64_bitwise, "f64_bitwise");
+impl_e2e!(test_float_exprs, "float_exprs");
 impl_e2e!(test_address, "address");

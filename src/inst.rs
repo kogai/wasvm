@@ -4,6 +4,9 @@ use code::ValueTypes;
 pub enum Inst {
   I32Const(i32),
   I64Const(i64),
+  F32Const(f32),
+  F64Const(f64),
+
   // FIXME: Change to u32
   GetLocal(usize),
   SetLocal(usize),
@@ -70,7 +73,6 @@ pub enum Inst {
   I64ShiftRightUnsign,
   I64RotateLeft,
   I64RotateRight,
-  I64ExtendUnsignI32,
 
   // FIXME: Change to u32
   Call(usize),
@@ -148,4 +150,29 @@ pub enum Inst {
   Return,
   TypeEmpty,
   I32WrapI64,
+
+  I32TruncSignF32,
+  I32TruncUnsignF32,
+  I32TruncSignF64,
+  I32TruncUnsignF64,
+  I64ExtendSignI32,
+  I64ExtendUnsignI32,
+  I64TruncSignF32,
+  I64TruncUnsignF32,
+  I64TruncSignF64,
+  I64TruncUnsignF64,
+  F32ConvertSignI32,
+  F32ConvertUnsignI32,
+  F32ConvertSignI64,
+  F32ConvertUnsignI64,
+  F32DemoteF64,
+  F64ConvertSignI32,
+  F64ConvertUnsignI32,
+  F64ConvertSignI64,
+  F64ConvertUnsignI64,
+  F64PromoteF32,
+  I32ReinterpretF32,
+  I64ReinterpretF64,
+  F32ReinterpretI32,
+  F64ReinterpretI64,
 }

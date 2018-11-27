@@ -3,6 +3,7 @@ use function::{FunctionInstance, FunctionType};
 use inst::Inst;
 use memory::{Data, Memory, MemoryInstance};
 use std::convert::From;
+use std::{f32, f64};
 use store::Store;
 use trap::{Result, Trap};
 
@@ -42,6 +43,21 @@ macro_rules! leb128 {
   };
 }
 
+macro_rules! decode_float {
+  ($ty: ty, $buf_ty: ty, $fn_name: ident, $convert: path, $bitwidth: expr) => {
+    fn $fn_name(&mut self) -> Result<$ty> {
+      let mut buf: $buf_ty = 0;
+      let mut shift = 0;
+      for _ in 0..($bitwidth / 8) {
+        let num = self.next()? as $buf_ty;
+        buf = buf ^ (num << shift);
+        shift += 8;
+      }
+      Ok($convert(buf))
+    }
+  };
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Byte {
   bytes: Vec<u8>,
@@ -52,6 +68,8 @@ pub struct Byte {
 impl Byte {
   leb128!(i32, u32, decode_leb128_i32);
   leb128!(i64, u64, decode_leb128_i64);
+  decode_float!(f32, u32, decode_f32, f32::from_bits, 32);
+  decode_float!(f64, u64, decode_f64, f64::from_bits, 64);
 
   // FIXME: Generalize with macro decoding signed integer.
   fn decode_leb128_u32(&mut self) -> Result<u32> {
@@ -154,6 +172,8 @@ impl Byte {
       match Code::from(self.next()) {
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
         Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
+        Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
+        Code::F64Const => expressions.push(Inst::F64Const(self.decode_f64()?)),
         // NOTE: It might be need to decode as LEB128 integer, too.
         Code::GetLocal => expressions.push(Inst::GetLocal(self.next()? as usize)),
         Code::SetLocal => expressions.push(Inst::SetLocal(self.next()? as usize)),
@@ -382,6 +402,31 @@ impl Byte {
         Code::F64Min => expressions.push(Inst::F64Min),
         Code::F64Max => expressions.push(Inst::F64Max),
         Code::F64Copysign => expressions.push(Inst::F64Copysign),
+
+        Code::I32TruncSignF32 => expressions.push(Inst::I32TruncSignF32),
+        Code::I32TruncUnsignF32 => expressions.push(Inst::I32TruncUnsignF32),
+        Code::I32TruncSignF64 => expressions.push(Inst::I32TruncSignF64),
+        Code::I32TruncUnsignF64 => expressions.push(Inst::I32TruncUnsignF64),
+        Code::I64ExtendSignI32 => expressions.push(Inst::I64ExtendSignI32),
+        Code::I64ExtendUnsignI32 => expressions.push(Inst::I64ExtendUnsignI32),
+        Code::I64TruncSignF32 => expressions.push(Inst::I64TruncSignF32),
+        Code::I64TruncUnsignF32 => expressions.push(Inst::I64TruncUnsignF32),
+        Code::I64TruncSignF64 => expressions.push(Inst::I64TruncSignF64),
+        Code::I64TruncUnsignF64 => expressions.push(Inst::I64TruncUnsignF64),
+        Code::F32ConvertSignI32 => expressions.push(Inst::F32ConvertSignI32),
+        Code::F32ConvertUnsignI32 => expressions.push(Inst::F32ConvertUnsignI32),
+        Code::F32ConvertSignI64 => expressions.push(Inst::F32ConvertSignI64),
+        Code::F32ConvertUnsignI64 => expressions.push(Inst::F32ConvertUnsignI64),
+        Code::F32DemoteF64 => expressions.push(Inst::F32DemoteF64),
+        Code::F64ConvertSignI32 => expressions.push(Inst::F64ConvertSignI32),
+        Code::F64ConvertUnsignI32 => expressions.push(Inst::F64ConvertUnsignI32),
+        Code::F64ConvertSignI64 => expressions.push(Inst::F64ConvertSignI64),
+        Code::F64ConvertUnsignI64 => expressions.push(Inst::F64ConvertUnsignI64),
+        Code::F64PromoteF32 => expressions.push(Inst::F64PromoteF32),
+        Code::I32ReinterpretF32 => expressions.push(Inst::I32ReinterpretF32),
+        Code::I64ReinterpretF64 => expressions.push(Inst::I64ReinterpretF64),
+        Code::F32ReinterpretI32 => expressions.push(Inst::F32ReinterpretI32),
+        Code::F64ReinterpretI64 => expressions.push(Inst::F64ReinterpretI64),
       };
     }
     match Code::from(self.peek()) {

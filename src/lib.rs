@@ -111,6 +111,11 @@ impl Vm {
                     self.call(*idx, vec![operand]);
                     let _ = self.evaluate();
                 }
+                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n))),
+                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n))),
+                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n))),
+                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n))),
+
                 I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
                 I32Mul | I64Mul | F32Mul | F64Mul => impl_binary_inst!(self, mul),
@@ -126,8 +131,6 @@ impl Vm {
                 F32Floor | F64Floor => impl_unary_inst!(self, floor),
                 F32Trunc | F64Trunc => impl_unary_inst!(self, trunc),
                 F32Nearest | F64Nearest => impl_unary_inst!(self, nearest),
-                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n))),
-                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n))),
                 Select => {
                     let cond = &self.stack.pop_value();
                     let false_br = self.stack.pop_value();
@@ -183,7 +186,6 @@ impl Vm {
                 Return => {
                     unimplemented!();
                 }
-                I64ExtendUnsignI32 => impl_unary_inst!(self, extend_to_i64),
                 I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
                 I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
                 I32ShiftRightUnsign | I64ShiftRightUnsign => {
@@ -232,7 +234,15 @@ impl Vm {
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
                 F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
-
+                I64ExtendUnsignI32 => impl_unary_inst!(self, extend_to_i64),
+                I32TruncSignF32 | I32TruncUnsignF32 | I32TruncSignF64 | I32TruncUnsignF64
+                | I64ExtendSignI32 | I64ExtendUnsignI32 | I64TruncSignF32 | I64TruncUnsignF32
+                | I64TruncSignF64 | I64TruncUnsignF64 | F32ConvertSignI32 | F32ConvertUnsignI32
+                | F32ConvertSignI64 | F32ConvertUnsignI64 | F32DemoteF64 | F64ConvertSignI32
+                | F64ConvertUnsignI32 | F64ConvertSignI64 | F64ConvertUnsignI64 | F64PromoteF32
+                | I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
+                    unimplemented!();
+                }
                 I32Store(_, _offset)
                 | I64Store(_, _offset)
                 | F32Store(_, _offset)
