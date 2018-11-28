@@ -310,7 +310,6 @@ impl Byte {
         Code::I64ShiftRightUnsign => expressions.push(Inst::I64ShiftRightUnsign),
         Code::I64RotateLeft => expressions.push(Inst::I64RotateLeft),
         Code::I64RotateRight => expressions.push(Inst::I64RotateRight),
-        Code::I64ExtendUnsignI32 => expressions.push(Inst::I64ExtendUnsignI32),
 
         Code::I64EqualZero => expressions.push(Inst::I64EqualZero),
         Code::I64Equal => expressions.push(Inst::I64Equal),
