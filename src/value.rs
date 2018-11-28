@@ -512,40 +512,26 @@ impl Values {
   unary_inst!(abs, abs);
   unary_inst!(neg, neg);
 
-  pub fn promote_f64_to_f32(&self) -> Self {
+  pub fn promote_f32_to_f64(&self) -> Self {
     match &self {
       Values::F32(n) => {
         if n.is_nan() {
-          Values::F32(f32::NAN)
+          Values::F64(f64::NAN)
         } else {
-          self.clone()
-        }
-      }
-      Values::F64(n) => {
-        if n.is_nan() {
-          Values::F32(f32::NAN)
-        } else {
-          self.clone()
+          Values::F64(*n as f64)
         }
       }
       _ => unreachable!(),
     }
   }
 
-  pub fn demote_f32_to_f64(&self) -> Self {
+  pub fn demote_f64_to_f32(&self) -> Self {
     match &self {
-      Values::F32(n) => {
-        if n.is_nan() {
-          Values::F64(f64::NAN)
-        } else {
-          self.clone()
-        }
-      }
       Values::F64(n) => {
         if n.is_nan() {
-          Values::F64(f64::NAN)
+          Values::F32(f32::NAN)
         } else {
-          self.clone()
+          Values::F32(*n as f32)
         }
       }
       _ => unreachable!(),
@@ -564,10 +550,57 @@ impl Values {
       _ => unreachable!(),
     }
   }
+  pub fn convert_sign_i64_to_f64(&self) -> Self {
+    match self {
+      Values::I64(n) => Values::F64(*n as f64),
+      _ => unreachable!(),
+    }
+  }
+  pub fn convert_unsign_i64_to_f64(&self) -> Self {
+    match self {
+      Values::I64(n) => Values::F64((*n as u64) as f64),
+      _ => unreachable!(),
+    }
+  }
+  pub fn convert_sign_i32_to_f64(&self) -> Self {
+    match self {
+      Values::I32(n) => Values::F64(*n as f64),
+      _ => unreachable!(),
+    }
+  }
+  pub fn convert_unsign_i32_to_f64(&self) -> Self {
+    match self {
+      Values::I32(n) => Values::F64((*n as u32) as f64),
+      _ => unreachable!(),
+    }
+  }
+  pub fn convert_sign_i64_to_f32(&self) -> Self {
+    match self {
+      Values::I64(n) => Values::F32(*n as f32),
+      _ => unreachable!(),
+    }
+  }
+  pub fn convert_unsign_i64_to_f32(&self) -> Self {
+    match self {
+      Values::I64(n) => Values::F32((*n as u64) as f32),
+      _ => unreachable!(),
+    }
+  }
 
   pub fn trunc_f32_to_sign_i32(&self) -> Result<Self, Trap> {
     match self {
       Values::F32(n) => {
+        if n.is_nan() || n.is_infinite() {
+          return Err(Trap::Undefined);
+        }
+        Ok(Values::I32(n.trunc() as i32))
+      }
+      _ => unreachable!(),
+    }
+  }
+  pub fn trunc_f64_to_sign_i32(&self) -> Result<Self, Trap> {
+    match self {
+      Values::F64(n) => {
         if n.is_nan() || n.is_infinite() {
           return Err(Trap::Undefined);
         }
@@ -584,6 +617,65 @@ impl Values {
           return Err(Trap::Undefined);
         }
         Ok(Values::I32((n.trunc() as u32) as i32))
+      }
+      _ => unreachable!(),
+    }
+  }
+
+  pub fn trunc_f64_to_unsign_i32(&self) -> Result<Self, Trap> {
+    match self {
+      Values::F64(n) => {
+        if n.is_nan() || n.is_infinite() {
+          return Err(Trap::Undefined);
+        }
+        Ok(Values::I32((n.trunc() as u32) as i32))
+      }
+      _ => unreachable!(),
+    }
+  }
+
+  pub fn trunc_f64_to_sign_i64(&self) -> Result<Self, Trap> {
+    match self {
+      Values::F64(n) => {
+        if n.is_nan() || n.is_infinite() {
+          return Err(Trap::Undefined);
+        }
+        Ok(Values::I64(n.trunc() as i64))
+      }
+      _ => unreachable!(),
+    }
+  }
+
+  pub fn trunc_f64_to_unsign_i64(&self) -> Result<Self, Trap> {
+    match self {
+      Values::F64(n) => {
+        if n.is_nan() || n.is_infinite() {
+          return Err(Trap::Undefined);
+        }
+        Ok(Values::I64((n.trunc() as u64) as i64))
+      }
+      _ => unreachable!(),
+    }
+  }
+  pub fn trunc_f32_to_sign_i64(&self) -> Result<Self, Trap> {
+    match self {
+      Values::F32(n) => {
+        if n.is_nan() || n.is_infinite() {
+          return Err(Trap::Undefined);
+        }
+        Ok(Values::I64(n.trunc() as i64))
+      }
+      _ => unreachable!(),
+    }
+  }
+
+  pub fn trunc_f32_to_unsign_i64(&self) -> Result<Self, Trap> {
+    match self {
+      Values::F32(n) => {
+        if n.is_nan() || n.is_infinite() {
+          return Err(Trap::Undefined);
+        }
+        Ok(Values::I64((n.trunc() as u64) as i64))
       }
       _ => unreachable!(),
     }
