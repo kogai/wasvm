@@ -143,12 +143,9 @@ pub enum Inst {
   F64Max,
   F64Copysign,
 
-  // Drop structuring instruction
-  If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
   DropInst,
   Return,
-  TypeEmpty,
   I32WrapI64,
 
   I32TruncSignF32,
@@ -175,4 +172,66 @@ pub enum Inst {
   I64ReinterpretF64,
   F32ReinterpretI32,
   F64ReinterpretI64,
+
+  If,
+  Else,
+  End,
+  RuntimeValue(ValueTypes),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Instructions {
+  index: usize,
+  expressions: Vec<Inst>,
+}
+
+impl Instructions {
+  pub fn new(expressions: Vec<Inst>) -> Self {
+    Instructions {
+      index: 0,
+      expressions,
+    }
+  }
+  pub fn peek(&self) -> Option<&Inst> {
+    self.expressions.get(self.index)
+  }
+  pub fn pop(&mut self) -> Option<Inst> {
+    let head = self.expressions.get(self.index).map(|x| x.clone());
+    self.index += 1;
+    head
+  }
+  pub fn is_next_end(&self) -> bool {
+    match self.peek() {
+      Some(Inst::End) | None => true,
+      _ => false,
+    }
+  }
+  pub fn is_next_else(&self) -> bool {
+    match self.peek() {
+      Some(Inst::Else) => true,
+      _ => false,
+    }
+  }
+  pub fn is_next_end_or_else(&self) -> bool {
+    self.is_next_end() || self.is_next_else()
+  }
+  pub fn skip_until_end_or_else(&mut self) {
+    while !self.is_next_end_or_else() {
+      match self.peek() {
+        Some(Inst::If) => {
+          let _ = self.pop();
+          self.skip_until_end_or_else();
+          if self.is_next_else() {
+            let _ = self.pop();
+            self.skip_until_end_or_else();
+          } else {
+            let _ = self.pop();
+          }
+        }
+        _ => {
+          let _ = self.pop();
+        }
+      }
+    }
+  }
 }

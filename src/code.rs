@@ -357,9 +357,9 @@ impl From<Option<u8>> for Code {
 }
 
 impl Code {
-  pub fn is_end_of_code(code: Option<u8>) -> bool {
+  pub fn is_else_or_end(code: Option<u8>) -> bool {
     match code {
-      Some(0x0b) => true,
+      Some(0x5) | Some(0x0b) => true,
       _ => false,
     }
   }

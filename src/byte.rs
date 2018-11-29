@@ -102,10 +102,6 @@ impl Byte {
     self.bytes.get(self.byte_ptr).map(|&x| x)
   }
 
-  fn peek_before(&self) -> Option<u8> {
-    self.bytes.get(self.byte_ptr - 1).map(|&x| x)
-  }
-
   fn next(&mut self) -> Option<u8> {
     let el = self.bytes.get(self.byte_ptr);
     self.byte_ptr += 1;
@@ -168,8 +164,9 @@ impl Byte {
 
   fn decode_section_code_internal(&mut self) -> Result<Vec<Inst>> {
     let mut expressions = vec![];
-    while !(Code::is_end_of_code(self.peek())) {
-      match Code::from(self.next()) {
+    while !Code::is_else_or_end(self.peek()) {
+      let code = Code::from(self.next());
+      match code {
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
         Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
         Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
@@ -350,29 +347,7 @@ impl Byte {
         Code::F64LessEqual => expressions.push(Inst::F64LessEqual),
         Code::F64GreaterEqual => expressions.push(Inst::F64GreaterEqual),
 
-        Code::Select => expressions.push(Inst::Select),
-        Code::If => {
-          let return_type = ValueTypes::from(self.next());
-          let if_insts = self.decode_section_code_internal()?;
-          match Code::from(self.peek_before()) {
-            Code::Else => {
-              let else_insts = self.decode_section_code_internal()?;
-              expressions.push(Inst::If(return_type, if_insts, else_insts));
-            }
-            _ => expressions.push(Inst::If(return_type, if_insts, vec![])),
-          }
-        }
-        Code::Else => {
-          return Ok(expressions);
-        }
-        Code::End => {
-          return Ok(expressions);
-        }
-        Code::Return => expressions.push(Inst::Return),
-        Code::TypeValueEmpty => expressions.push(Inst::TypeEmpty),
-
         Code::F32Abs => expressions.push(Inst::F32Abs),
-
         Code::F32Neg => expressions.push(Inst::F32Neg),
         Code::F32Ceil => expressions.push(Inst::F32Ceil),
         Code::F32Floor => expressions.push(Inst::F32Floor),
@@ -426,15 +401,36 @@ impl Byte {
         Code::I64ReinterpretF64 => expressions.push(Inst::I64ReinterpretF64),
         Code::F32ReinterpretI32 => expressions.push(Inst::F32ReinterpretI32),
         Code::F64ReinterpretI64 => expressions.push(Inst::F64ReinterpretI64),
+
+        Code::Select => expressions.push(Inst::Select),
+        Code::If => {
+          let return_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
+          let mut if_insts = self.decode_section_code_internal()?;
+          let last = if_insts.last().map(|x| x.clone());
+          expressions.push(Inst::If);
+          expressions.push(return_type);
+          expressions.append(&mut if_insts);
+
+          match last {
+            Some(Inst::Else) => {
+              // NOTE: Else clause
+              expressions.append(&mut self.decode_section_code_internal()?);
+            }
+            Some(Inst::End) => continue,
+            x => unreachable!("{:?}", x),
+          }
+        }
+        Code::Return => expressions.push(Inst::Return),
+        Code::TypeValueEmpty => expressions.push(Inst::RuntimeValue(ValueTypes::Empty)),
+        Code::End | Code::Else => unreachable!("{:?}", code),
       };
     }
-    match Code::from(self.peek()) {
-      Code::Else => Ok(expressions),
-      _ => {
-        self.next(); // Drop End code.
-        Ok(expressions)
-      }
+    match Code::from(self.next()) {
+      Code::Else => expressions.push(Inst::Else),
+      Code::End => expressions.push(Inst::End),
+      x => unreachable!("{:?}", x),
     }
+    Ok(expressions)
   }
 
   fn decode_section_code(&mut self) -> Result<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>> {
@@ -610,7 +606,7 @@ mod tests {
       Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
       vec![],
       0,
-      vec![I32Const(42)],
+      vec![I32Const(42), End],
     )]
   );
   test_decode!(
@@ -621,7 +617,7 @@ mod tests {
       Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
       vec![],
       0,
-      vec![I32Const(255)],
+      vec![I32Const(255), End],
     )]
   );
   test_decode!(
@@ -632,7 +628,7 @@ mod tests {
       Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
       vec![],
       0,
-      vec![I32Const(-129)],
+      vec![I32Const(-129), End],
     )]
   );
   test_decode!(
@@ -646,7 +642,7 @@ mod tests {
       )),
       vec![],
       0,
-      vec![GetLocal(1), GetLocal(0), I32Add],
+      vec![GetLocal(1), GetLocal(0), I32Add, End],
     )]
   );
   test_decode!(
@@ -660,7 +656,7 @@ mod tests {
       )),
       vec![],
       0,
-      vec![I32Const(100), GetLocal(0), I32Sub],
+      vec![I32Const(100), GetLocal(0), I32Sub, End],
     )]
   );
   test_decode!(
@@ -674,7 +670,7 @@ mod tests {
       )),
       vec![],
       0,
-      vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add],
+      vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add, End],
     )]
   );
 
@@ -693,20 +689,27 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         LessThanSign,
-        If(
-          ValueTypes::I32,
-          vec![GetLocal(0), I32Const(10), I32Add],
-          vec![
-            GetLocal(0),
-            I32Const(15),
-            I32Add,
-            SetLocal(1),
-            GetLocal(0),
-            I32Const(10),
-            Equal,
-            If(ValueTypes::I32, vec![I32Const(15),], vec![GetLocal(1)]),
-          ]
-        ),
+        If,
+        RuntimeValue(ValueTypes::I32),
+        GetLocal(0),
+        I32Const(10),
+        I32Add,
+        Else,
+        GetLocal(0),
+        I32Const(15),
+        I32Add,
+        SetLocal(1),
+        GetLocal(0),
+        I32Const(10),
+        Equal,
+        If,
+        RuntimeValue(ValueTypes::I32),
+        I32Const(15),
+        Else,
+        GetLocal(1),
+        End,
+        End,
+        End,
       ],
     )]
   );
@@ -725,20 +728,27 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         I32GreaterThanSign,
-        If(
-          ValueTypes::I32,
-          vec![GetLocal(0), I32Const(10), I32Add],
-          vec![
-            GetLocal(0),
-            I32Const(15),
-            I32Add,
-            SetLocal(1),
-            GetLocal(0),
-            I32Const(10),
-            Equal,
-            If(ValueTypes::I32, vec![I32Const(15)], vec![GetLocal(1)]),
-          ]
-        ),
+        If,
+        RuntimeValue(ValueTypes::I32),
+        GetLocal(0),
+        I32Const(10),
+        I32Add,
+        Else,
+        GetLocal(0),
+        I32Const(15),
+        I32Add,
+        SetLocal(1),
+        GetLocal(0),
+        I32Const(10),
+        Equal,
+        If,
+        RuntimeValue(ValueTypes::I32),
+        I32Const(15),
+        Else,
+        GetLocal(1),
+        End,
+        End,
+        End,
       ],
     )]
   );
@@ -757,9 +767,15 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If(ValueTypes::I32, vec![I32Const(5)], vec![I32Const(10)]),
+        If,
+        RuntimeValue(ValueTypes::I32),
+        I32Const(5),
+        Else,
+        I32Const(10),
+        End,
         GetLocal(0),
         I32Add,
+        End,
       ],
     )]
   );
@@ -778,7 +794,11 @@ mod tests {
         GetLocal(0),
         I32Const(0),
         I32LessEqualSign,
-        If(ValueTypes::Empty, vec![I32Const(0), Return], vec![]),
+        If,
+        RuntimeValue(ValueTypes::Empty),
+        I32Const(0),
+        Return,
+        End,
         GetLocal(0),
         I32Const(-1),
         I32Add,
@@ -802,6 +822,7 @@ mod tests {
         I64ShiftRightUnsign,
         I32WrapI64,
         I32Add,
+        End,
       ],
     )]
   );
