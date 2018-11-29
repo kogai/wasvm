@@ -44,6 +44,21 @@ macro_rules! impl_unary_inst {
     }};
 }
 
+macro_rules! impl_try_unary_inst {
+    ($self: ident, $op: ident) => {{
+        let popped = $self.stack.pop_value();
+        let value = popped.$op();
+        match value {
+            Ok(result) => {
+                $self.stack.push(StackEntry::new_value(result));
+            }
+            Err(trap) => {
+                return Err(trap);
+            }
+        }
+    }};
+}
+
 macro_rules! impl_binary_inst {
     ($self: ident, $op: ident) => {{
         let right = $self.stack.pop_value();
@@ -234,14 +249,33 @@ impl Vm {
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
                 F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
+
                 I64ExtendUnsignI32 => impl_unary_inst!(self, extend_to_i64),
-                I32TruncSignF32 | I32TruncUnsignF32 | I32TruncSignF64 | I32TruncUnsignF64
-                | I64ExtendSignI32 | I64ExtendUnsignI32 | I64TruncSignF32 | I64TruncUnsignF32
-                | I64TruncSignF64 | I64TruncUnsignF64 | F32ConvertSignI32 | F32ConvertUnsignI32
-                | F32ConvertSignI64 | F32ConvertUnsignI64 | F32DemoteF64 | F64ConvertSignI32
-                | F64ConvertUnsignI32 | F64ConvertSignI64 | F64ConvertUnsignI64 | F64PromoteF32
-                | I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
-                    unimplemented!();
+
+                F32ConvertSignI32 => impl_unary_inst!(self, convert_sign_i32_to_f32),
+                F32ConvertUnsignI32 => impl_unary_inst!(self, convert_unsign_i32_to_f32),
+                F64ConvertSignI64 => impl_unary_inst!(self, convert_sign_i64_to_f64),
+                F64ConvertUnsignI64 => impl_unary_inst!(self, convert_unsign_i64_to_f64),
+                F64ConvertSignI32 => impl_unary_inst!(self, convert_sign_i32_to_f64),
+                F64ConvertUnsignI32 => impl_unary_inst!(self, convert_unsign_i32_to_f64),
+                F32ConvertSignI64 => impl_unary_inst!(self, convert_sign_i64_to_f32),
+                F32ConvertUnsignI64 => impl_unary_inst!(self, convert_unsign_i64_to_f32),
+
+                I32TruncSignF32 => impl_try_unary_inst!(self, trunc_f32_to_sign_i32),
+                I32TruncUnsignF32 => impl_try_unary_inst!(self, trunc_f32_to_unsign_i32),
+                I64TruncSignF64 => impl_try_unary_inst!(self, trunc_f64_to_sign_i64),
+                I64TruncUnsignF64 => impl_try_unary_inst!(self, trunc_f64_to_unsign_i64),
+                I32TruncSignF64 => impl_try_unary_inst!(self, trunc_f64_to_sign_i32),
+                I32TruncUnsignF64 => impl_try_unary_inst!(self, trunc_f64_to_unsign_i32),
+                I64TruncSignF32 => impl_try_unary_inst!(self, trunc_f32_to_sign_i64),
+                I64TruncUnsignF32 => impl_try_unary_inst!(self, trunc_f32_to_unsign_i64),
+
+                F64PromoteF32 => impl_unary_inst!(self, promote_f32_to_f64),
+                F32DemoteF64 => impl_unary_inst!(self, demote_f64_to_f32),
+
+                I64ExtendSignI32 | I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32
+                | F64ReinterpretI64 => {
+                    unimplemented!("{:?}", expression);
                 }
                 I32Store(_, _offset)
                 | I64Store(_, _offset)
@@ -356,7 +390,9 @@ mod tests {
         println!("{}", std::f32::NAN);
         println!("{}", std::f32::INFINITY);
         println!("{}", std::f64::NAN);
-        println!("{}", std::f64::INFINITY);
+        println!("{}", 16777216u32);
+        println!("{}", 16777216i32);
+        println!("{}", 0x1000000);
     }
     #[test]
     fn stack_ptr() {

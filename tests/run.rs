@@ -60,10 +60,10 @@ macro_rules! impl_e2e {
             },
             ref expected,
           } => {
-            // if line != 527 {
+            // if line != 742 {
             //   continue;
             // };
-            println!("Assert return at line:{}.", line);
+            println!("Assert return at {}:{}.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             let expectation = get_expectation(expected);
@@ -77,7 +77,7 @@ macro_rules! impl_e2e {
             },
             ref message,
           } => {
-            println!("Assert trap at line:{}.", line,);
+            println!("Assert trap at {}:{}.", field, line,);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, message);
@@ -108,7 +108,7 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            println!("Assert canonical NaN at line:{}.", line);
+            println!("Assert canonical NaN at {}:{}.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
@@ -120,10 +120,16 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            println!("Assert arithmetic NaN at line:{}.", line);
+            println!("Assert arithmetic NaN at {}:{}.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
+          }
+          CommandKind::PerformAction(Action::Invoke {
+            ref field, args: _, ..
+          }) => {
+            println!("Skip perform action at {}:{}.", field, line);
+            break;
           }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",

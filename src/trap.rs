@@ -9,6 +9,7 @@ pub enum Trap {
   MemoryAccessOutOfBounds,
   BitshiftOverflow,
   Unknown,
+  Undefined,
 }
 
 impl From<Trap> for NoneError {
@@ -32,6 +33,7 @@ impl From<Trap> for String {
       MemoryAccessOutOfBounds => "out of bounds memory access",
       BitshiftOverflow => "bit shift overflow",
       Unknown => "unknown",
+      Undefined => "undefined behavior occurred",
     }
     .to_owned()
   }
