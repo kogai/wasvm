@@ -192,7 +192,7 @@ impl Instructions {
       expressions,
     }
   }
-  fn peek(&self) -> Option<&Inst> {
+  pub fn peek(&self) -> Option<&Inst> {
     self.expressions.get(self.index)
   }
   pub fn pop(&mut self) -> Option<Inst> {
@@ -213,6 +213,25 @@ impl Instructions {
     }
   }
   pub fn is_next_end_or_else(&self) -> bool {
-    self.is_next_end() && self.is_next_else()
+    self.is_next_end() || self.is_next_else()
+  }
+  pub fn skip_until_end_or_else(&mut self) {
+    while !self.is_next_end_or_else() {
+      match self.peek() {
+        Some(Inst::If) => {
+          let _ = self.pop();
+          self.skip_until_end_or_else();
+          if self.is_next_else() {
+            let _ = self.pop();
+            self.skip_until_end_or_else();
+          } else {
+            let _ = self.pop();
+          }
+        }
+        _ => {
+          let _ = self.pop();
+        }
+      }
+    }
   }
 }

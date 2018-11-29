@@ -102,10 +102,6 @@ impl Byte {
     self.bytes.get(self.byte_ptr).map(|&x| x)
   }
 
-  fn peek_before(&self) -> Option<u8> {
-    self.bytes.get(self.byte_ptr - 1).map(|&x| x)
-  }
-
   fn next(&mut self) -> Option<u8> {
     let el = self.bytes.get(self.byte_ptr);
     self.byte_ptr += 1;

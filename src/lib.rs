@@ -189,26 +189,28 @@ impl Vm {
                 I32Or | I64Or => impl_binary_inst!(self, or),
                 I32Xor | I64Xor => impl_binary_inst!(self, xor),
                 I32And | I64And => impl_binary_inst!(self, and),
-                // If(_return_type, if_ops, else_ops) => {
-                //     let cond = &self.stack.pop_value();
-                //     if cond.is_truthy() {
-                //         let mut instructions = Instructions::new(if_ops);
-                //         let _ = self.evaluate_instructions(&mut instructions);
-                //     } else {
-                //         if !else_ops.is_empty() {
-                //             let mut instructions = Instructions::new(else_ops);
-                //             let _ = self.evaluate_instructions(&mut instructions);
-                //         }
-                //     }
-                //     // unimplemented!();
-                // }
                 If => {
-                    // let return_type = se
-                    unimplemented!();
+                    let cond = &self.stack.pop_value();
+                    let _return_type = expressions.pop().unwrap();
+                    if cond.is_truthy() {
+                        let _ = self.evaluate_instructions(expressions);
+                        expressions.pop(); // Drop Else
+                        expressions.skip_until_end_or_else();
+                        expressions.pop(); // Drop End
+                    } else {
+                        expressions.skip_until_end_or_else();
+                        if expressions.is_next_else() {
+                            expressions.pop(); // Drop Else
+                            let _ = self.evaluate_instructions(expressions);
+                            expressions.pop(); // Drop End
+                        } else {
+                            expressions.pop(); // Drop Else
+                            continue;
+                        }
+                    }
                 }
-                Else | End => {
-                    unimplemented!();
-                }
+                Else => unreachable!(),
+                End => break,
                 Return => {
                     unimplemented!();
                 }
@@ -299,7 +301,7 @@ impl Vm {
                 | I64Store32(_, _offset) => {
                     unimplemented!("{:?}", expression);
                 }
-                TypeEmpty => unreachable!(),
+                RuntimeValue(t) => unreachable!("{:?}", t),
             };
         }
         Ok(())
