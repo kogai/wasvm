@@ -1,4 +1,4 @@
-use inst::Inst;
+use inst::Instructions;
 use std::rc::Rc;
 use value::Values;
 
@@ -13,7 +13,7 @@ pub struct Frame {
 pub enum StackEntry {
   Empty,
   Value(Values),
-  Label(Vec<Inst>),
+  Label(Instructions),
   Frame(Frame),
 }
 
@@ -24,7 +24,7 @@ impl StackEntry {
   pub fn new_value(value: Values) -> Rc<Self> {
     Rc::new(StackEntry::Value(value))
   }
-  pub fn new_label(label: Vec<Inst>) -> Rc<Self> {
+  pub fn new_label(label: Instructions) -> Rc<Self> {
     Rc::new(StackEntry::Label(label))
   }
   pub fn new_fram(frame: Frame) -> Rc<Self> {
@@ -95,10 +95,10 @@ impl Stack {
   }
 
   pub fn pop_value(&mut self) -> Values {
-    let value = self.pop().expect("Expect to popp value but got None");
+    let value = self.pop().expect("Expect to pop up value, but got None");
     match *value {
       StackEntry::Value(ref v) => v.to_owned(),
-      ref x => unreachable!(format!("Expect to popp value but got {:?}", x).as_str()),
+      ref x => unreachable!(format!("Expect to pop value,  but got {:?}", x).as_str()),
     }
   }
 }

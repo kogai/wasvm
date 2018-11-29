@@ -1,4 +1,5 @@
 use code::ValueTypes;
+use std::collections::LinkedList;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
@@ -143,8 +144,6 @@ pub enum Inst {
   F64Max,
   F64Copysign,
 
-  // Drop structuring instruction
-  If(ValueTypes, Vec<Inst>, Vec<Inst>),
   Select,
   DropInst,
   Return,
@@ -175,4 +174,47 @@ pub enum Inst {
   I64ReinterpretF64,
   F32ReinterpretI32,
   F64ReinterpretI64,
+
+  // Drop structuring instruction
+  If(ValueTypes, Vec<Inst>, Vec<Inst>),
+  Else,
+  End,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Instructions {
+  index: usize,
+  expressions: Vec<Inst>,
+}
+
+impl Instructions {
+  pub fn new(expressions: Vec<Inst>) -> Self {
+    Instructions {
+      index: 0,
+      expressions,
+    }
+  }
+  fn peek(&self) -> Option<&Inst> {
+    self.expressions.get(self.index)
+  }
+  pub fn pop(&mut self) -> Option<Inst> {
+    let head = self.expressions.get(self.index).map(|x| x.clone());
+    self.index += 1;
+    head
+  }
+  pub fn is_next_end(&self) -> bool {
+    match self.peek() {
+      Some(Inst::End) | None => true,
+      _ => false,
+    }
+  }
+  pub fn is_next_else(&self) -> bool {
+    match self.peek() {
+      Some(Inst::Else) => true,
+      _ => false,
+    }
+  }
+  pub fn is_next_end_or_else(&self) -> bool {
+    self.is_next_end() && self.is_next_else()
+  }
 }

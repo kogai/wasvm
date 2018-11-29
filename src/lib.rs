@@ -9,7 +9,7 @@ mod store;
 mod trap;
 pub mod value;
 
-use inst::Inst;
+use inst::{Inst, Instructions};
 use stack::Frame;
 use stack::{Stack, StackEntry};
 use store::Store;
@@ -23,7 +23,7 @@ macro_rules! impl_load_inst {
             Values::I32(i) => i,
             x => unreachable!("{:?}", x),
         } as u32;
-        let (ea, overflowed) = i.overflowing_add(*$offset); // NOTE: What 'ea' stands for?
+        let (ea, overflowed) = i.overflowing_add($offset); // NOTE: What 'ea' stands for?
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
@@ -101,35 +101,36 @@ impl Vm {
         }
     }
 
-    fn evaluate_instructions(&mut self, expressions: &Vec<Inst>) -> Result<()> {
+    fn evaluate_instructions(&mut self, expressions: &mut Instructions) -> Result<()> {
         use self::Inst::*;
-        for expression in expressions.iter() {
+        while !expressions.is_next_end() {
+            let expression = expressions.pop().unwrap();
             match expression {
                 GetLocal(idx) => {
                     let frame_ptr = self.stack.get_frame_ptr();
-                    let value = self.stack.get(*idx + frame_ptr)?;
+                    let value = self.stack.get(idx + frame_ptr)?;
                     self.stack.push(value);
                 }
                 SetLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
                     let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set(*idx + frame_ptr, value);
+                    self.stack.set(idx + frame_ptr, value);
                 }
                 TeeLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
                     self.stack.push(value.clone());
                     let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set(*idx + frame_ptr, value);
+                    self.stack.set(idx + frame_ptr, value);
                 }
                 Call(idx) => {
                     let operand = self.stack.pop_value();
-                    self.call(*idx, vec![operand]);
+                    self.call(idx, vec![operand]);
                     let _ = self.evaluate();
                 }
-                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n))),
-                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n))),
-                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n))),
-                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n))),
+                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n))),
+                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n))),
+                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(n))),
+                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(n))),
 
                 I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
@@ -191,12 +192,18 @@ impl Vm {
                 If(_return_type, if_ops, else_ops) => {
                     let cond = &self.stack.pop_value();
                     if cond.is_truthy() {
-                        let _ = self.evaluate_instructions(if_ops);
+                        let mut instructions = Instructions::new(if_ops);
+                        let _ = self.evaluate_instructions(&mut instructions);
                     } else {
                         if !else_ops.is_empty() {
-                            let _ = self.evaluate_instructions(else_ops);
+                            let mut instructions = Instructions::new(else_ops);
+                            let _ = self.evaluate_instructions(&mut instructions);
                         }
                     }
+                    // unimplemented!();
+                }
+                Else | End => {
+                    unimplemented!();
                 }
                 Return => {
                     unimplemented!();
@@ -294,7 +301,7 @@ impl Vm {
         Ok(())
     }
 
-    fn evaluate_frame(&mut self, instructions: &Vec<Inst>) -> Result<()> {
+    fn evaluate_frame(&mut self, instructions: &mut Instructions) -> Result<()> {
         self.evaluate_instructions(instructions)?;
         let return_value = StackEntry::new_value(self.stack.pop_value());
         self.stack.update_frame_ptr();
@@ -320,8 +327,9 @@ impl Vm {
                     result = Some(StackEntry::new_value(v.to_owned()));
                     break;
                 }
-                StackEntry::Label(ref expressions) => {
-                    self.evaluate_frame(&expressions)?;
+                StackEntry::Label(ref instructions) => {
+                    let mut insts = instructions.clone();
+                    self.evaluate_frame(&mut insts)?;
                 }
                 StackEntry::Frame(ref frame) => {
                     let _offset = frame.locals.len();
@@ -332,7 +340,7 @@ impl Vm {
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    let label = StackEntry::new_label(expressions);
+                    let label = StackEntry::new_label(Instructions::new(expressions));
                     self.stack.increase(locals.len());
                     self.stack.push(label);
                 }
