@@ -1,5 +1,4 @@
 use code::ValueTypes;
-use std::collections::LinkedList;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
@@ -147,7 +146,6 @@ pub enum Inst {
   Select,
   DropInst,
   Return,
-  TypeEmpty,
   I32WrapI64,
 
   I32TruncSignF32,
@@ -175,10 +173,10 @@ pub enum Inst {
   F32ReinterpretI32,
   F64ReinterpretI64,
 
-  // Drop structuring instruction
-  If(ValueTypes, Vec<Inst>, Vec<Inst>),
+  If,
   Else,
   End,
+  RuntimeValue(ValueTypes),
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -103,7 +103,7 @@ impl Vm {
 
     fn evaluate_instructions(&mut self, expressions: &mut Instructions) -> Result<()> {
         use self::Inst::*;
-        while !expressions.is_next_end() {
+        while !expressions.is_next_end_or_else() {
             let expression = expressions.pop().unwrap();
             match expression {
                 GetLocal(idx) => {
@@ -189,18 +189,22 @@ impl Vm {
                 I32Or | I64Or => impl_binary_inst!(self, or),
                 I32Xor | I64Xor => impl_binary_inst!(self, xor),
                 I32And | I64And => impl_binary_inst!(self, and),
-                If(_return_type, if_ops, else_ops) => {
-                    let cond = &self.stack.pop_value();
-                    if cond.is_truthy() {
-                        let mut instructions = Instructions::new(if_ops);
-                        let _ = self.evaluate_instructions(&mut instructions);
-                    } else {
-                        if !else_ops.is_empty() {
-                            let mut instructions = Instructions::new(else_ops);
-                            let _ = self.evaluate_instructions(&mut instructions);
-                        }
-                    }
-                    // unimplemented!();
+                // If(_return_type, if_ops, else_ops) => {
+                //     let cond = &self.stack.pop_value();
+                //     if cond.is_truthy() {
+                //         let mut instructions = Instructions::new(if_ops);
+                //         let _ = self.evaluate_instructions(&mut instructions);
+                //     } else {
+                //         if !else_ops.is_empty() {
+                //             let mut instructions = Instructions::new(else_ops);
+                //             let _ = self.evaluate_instructions(&mut instructions);
+                //         }
+                //     }
+                //     // unimplemented!();
+                // }
+                If => {
+                    // let return_type = se
+                    unimplemented!();
                 }
                 Else | End => {
                     unimplemented!();

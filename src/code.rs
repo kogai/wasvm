@@ -363,6 +363,12 @@ impl Code {
       _ => false,
     }
   }
+  pub fn is_else_or_end(code: Option<u8>) -> bool {
+    match code {
+      Some(0x5) | Some(0x0b) => true,
+      _ => false,
+    }
+  }
 }
 
 #[derive(Debug, PartialEq, Clone)]
