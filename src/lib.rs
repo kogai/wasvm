@@ -6,6 +6,7 @@ mod inst;
 mod memory;
 mod stack;
 mod store;
+mod table;
 mod trap;
 pub mod value;
 

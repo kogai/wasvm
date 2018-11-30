@@ -4,7 +4,7 @@ use value::Values;
 const MEMORY_MAX: usize = 65536;
 
 #[derive(Debug)]
-pub enum Memory {
+pub enum Limit {
   NoUpperLimit(u32),
   HasUpperLimit(u32, u32),
 }

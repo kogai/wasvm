@@ -1,17 +1,24 @@
 use function::FunctionInstance;
 use memory::MemoryInstance;
+use table::TableInstance;
 use value::Values;
 
 pub struct Store {
   function_instances: Vec<FunctionInstance>,
   memory_instance: MemoryInstance,
+  table_instances: Vec<TableInstance>,
 }
 
 impl Store {
-  pub fn new(function_instances: Vec<FunctionInstance>, memory_instance: MemoryInstance) -> Self {
+  pub fn new(
+    function_instances: Vec<FunctionInstance>,
+    memory_instance: MemoryInstance,
+    table_instances: Vec<TableInstance>,
+  ) -> Self {
     Store {
       function_instances,
       memory_instance,
+      table_instances,
     }
   }
 

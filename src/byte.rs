@@ -1,10 +1,11 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use function::{FunctionInstance, FunctionType};
 use inst::Inst;
-use memory::{Data, Memory, MemoryInstance};
+use memory::{Data, Limit, MemoryInstance};
 use std::convert::From;
 use std::{f32, f64};
 use store::Store;
+use table::{ElementType, TableInstance};
 use trap::{Result, Trap};
 
 macro_rules! leb128 {
@@ -470,23 +471,28 @@ impl Byte {
     Ok(type_indexes)
   }
 
-  fn decode_section_memory(&mut self) -> Result<Vec<Memory>> {
+  fn decode_limit(&mut self) -> Result<Limit> {
+    match self.next() {
+      Some(0x0) => {
+        let min = self.decode_leb128_i32()?;
+        Ok(Limit::NoUpperLimit(min as u32))
+      }
+      Some(0x1) => {
+        let min = self.decode_leb128_i32()?;
+        let max = self.decode_leb128_i32()?;
+        Ok(Limit::HasUpperLimit(min as u32, max as u32))
+      }
+      x => unreachable!("Expected limit code, got {:?}", x),
+    }
+  }
+
+  fn decode_section_memory(&mut self) -> Result<Vec<Limit>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
     let count_of_memory = self.decode_leb128_i32()?;
     let mut results = vec![];
     for _ in 0..count_of_memory {
-      match self.next() {
-        Some(0x0) => {
-          let min = self.decode_leb128_i32()?;
-          results.push(Memory::NoUpperLimit(min as u32))
-        }
-        Some(0x1) => {
-          let min = self.decode_leb128_i32()?;
-          let max = self.decode_leb128_i32()?;
-          results.push(Memory::HasUpperLimit(min as u32, max as u32))
-        }
-        x => unreachable!("Expected limit of memory-type, got {:?}", x),
-      }
+      let limit = self.decode_limit()?;
+      results.push(limit);
     }
     Ok(results)
   }
@@ -509,6 +515,18 @@ impl Byte {
     Ok(datas)
   }
 
+  fn decode_section_table(&mut self) -> Result<Vec<TableInstance>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_data = self.decode_leb128_i32()?;
+    let mut tables = vec![];
+    for _ in 0..count_of_data {
+      let element_type = ElementType::from(self.next());
+      let limit = self.decode_limit()?;
+      tables.push(TableInstance::new(element_type, limit));
+    }
+    Ok(tables)
+  }
+
   pub fn decode(&mut self) -> Result<Store> {
     let mut function_types = vec![];
     let mut index_of_types = vec![];
@@ -516,8 +534,10 @@ impl Byte {
     let mut list_of_expressions = vec![];
     let mut _memories = vec![];
     let mut data = vec![];
+    let mut table_instances = vec![];
     while self.has_next() {
-      match SectionCode::from(self.next()) {
+      let code = SectionCode::from(self.next());
+      match code {
         SectionCode::Type => {
           function_types = self.decode_section_type()?;
         }
@@ -536,13 +556,15 @@ impl Byte {
         SectionCode::Memory => {
           _memories = self.decode_section_memory()?;
         }
+        SectionCode::Table => {
+          table_instances = self.decode_section_table()?;
+        }
         SectionCode::Custom
         | SectionCode::Import
-        | SectionCode::Table
         | SectionCode::Global
         | SectionCode::Start
         | SectionCode::Element => {
-          unimplemented!();
+          unimplemented!("{:?}", code);
         }
       };
     }
@@ -574,7 +596,11 @@ impl Byte {
       };
       function_instances.push(fnins);
     }
-    Ok(Store::new(function_instances, memory_instances))
+    Ok(Store::new(
+      function_instances,
+      memory_instances,
+      table_instances,
+    ))
   }
 }
 
