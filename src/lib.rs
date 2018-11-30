@@ -2,6 +2,7 @@
 mod byte;
 mod code;
 mod function;
+mod global;
 mod inst;
 mod memory;
 mod stack;

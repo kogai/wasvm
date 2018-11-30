@@ -1,6 +1,7 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use function::{FunctionInstance, FunctionType};
-use inst::Inst;
+use global::{Global, GlobalType};
+use inst::{Inst, Instructions};
 use memory::{Data, Limit, MemoryInstance};
 use std::convert::From;
 use std::{f32, f64};
@@ -525,6 +526,17 @@ impl Byte {
     })
   }
 
+  fn decode_section_global(&mut self) -> Result<Vec<Global>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count = self.decode_leb128_u32()?;
+    Byte::decode_vec(count, || {
+      let value_type = ValueTypes::from(self.next());
+      let global_type = GlobalType::new(self.next(), value_type);
+      let init = self.decode_section_code_internal()?;
+      Ok(Global::new(global_type, Instructions::new(init)))
+    })
+  }
+
   pub fn decode(&mut self) -> Result<Store> {
     let mut function_types = vec![];
     let mut index_of_types = vec![];
@@ -533,35 +545,19 @@ impl Byte {
     let mut _memories = vec![];
     let mut data = vec![];
     let mut table_instances = vec![];
+    let mut global_instances = vec![];
     while self.has_next() {
       let code = SectionCode::from(self.next());
       match code {
-        SectionCode::Type => {
-          function_types = self.decode_section_type()?;
-        }
-        SectionCode::Function => {
-          index_of_types = self.decode_section_function()?;
-        }
-        SectionCode::Export => {
-          function_key_and_indexes = self.decode_section_export()?;
-        }
-        SectionCode::Code => {
-          list_of_expressions = self.decode_section_code()?;
-        }
-        SectionCode::Data => {
-          data = self.decode_section_data()?;
-        }
-        SectionCode::Memory => {
-          _memories = self.decode_section_memory()?;
-        }
-        SectionCode::Table => {
-          table_instances = self.decode_section_table()?;
-        }
-        SectionCode::Custom
-        | SectionCode::Import
-        | SectionCode::Global
-        | SectionCode::Start
-        | SectionCode::Element => {
+        SectionCode::Type => function_types = self.decode_section_type()?,
+        SectionCode::Function => index_of_types = self.decode_section_function()?,
+        SectionCode::Export => function_key_and_indexes = self.decode_section_export()?,
+        SectionCode::Code => list_of_expressions = self.decode_section_code()?,
+        SectionCode::Data => data = self.decode_section_data()?,
+        SectionCode::Memory => _memories = self.decode_section_memory()?,
+        SectionCode::Table => table_instances = self.decode_section_table()?,
+        SectionCode::Global => global_instances = self.decode_section_global()?,
+        SectionCode::Custom | SectionCode::Import | SectionCode::Start | SectionCode::Element => {
           unimplemented!("{:?}", code);
         }
       };
@@ -598,6 +594,7 @@ impl Byte {
       function_instances,
       memory_instances,
       table_instances,
+      global_instances,
     ))
   }
 }
