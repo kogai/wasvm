@@ -109,11 +109,22 @@ impl Byte {
     el.map(|&x| x)
   }
 
-  fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
+  fn decode_vec<T, F>(count_of_elements: u32, mut f: F) -> Result<Vec<T>>
+  where
+    F: FnMut() -> Result<T>,
+  {
+    let mut buf = vec![];
+    for _ in 0..count_of_elements {
+      let element = f()?;
+      buf.push(element);
+    }
+    Ok(buf)
+  }
+
+  fn decode_section_type(&mut self) -> Result<Vec<FunctionType>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_type = self.decode_leb128_i32()?;
-    let mut function_types = vec![];
-    for _ in 0..count_of_type {
+    let count_of_type = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_type, || {
       let mut parameters = vec![];
       let mut returns = vec![];
       let _type_function = Code::from(self.next());
@@ -125,17 +136,15 @@ impl Byte {
       for _ in 0..size_of_result {
         returns.push(ValueTypes::from(self.next()));
       }
-      function_types.push(FunctionType::new(parameters, returns))
-    }
-    Some(function_types)
+      Ok(FunctionType::new(parameters, returns))
+    })
   }
 
-  fn decode_section_export(&mut self) -> Option<Vec<(String, usize)>> {
+  fn decode_section_export(&mut self) -> Result<Vec<(String, usize)>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_exports = self.decode_leb128_i32()?;
-    let mut exports = vec![];
-    for _ in 0..count_of_exports {
-      let size_of_name = self.decode_leb128_i32()?;
+    let count_of_exports = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_exports, || {
+      let size_of_name = self.decode_leb128_u32()?;
       let mut buf = vec![];
       for _ in 0..size_of_name {
         buf.push(self.next()?);
@@ -143,11 +152,10 @@ impl Byte {
       let key = String::from_utf8(buf).expect("To encode export name has been failured.");
       let idx_of_fn = match ExportDescriptionCode::from(self.next()) {
         ExportDescriptionCode::ExportDescFunctionIdx => self.next()?,
-        _ => unimplemented!(),
+        x => unimplemented!("{:?}", x),
       };
-      exports.push((key, idx_of_fn as usize));
-    }
-    Some(exports)
+      Ok((key, idx_of_fn as usize))
+    })
   }
 
   fn decode_memory_inst(&mut self) -> Result<(u32, u32)> {
@@ -463,12 +471,11 @@ impl Byte {
 
   fn decode_section_function(&mut self) -> Result<Vec<u32>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_type_idx = self.decode_leb128_i32()?;
-    let mut type_indexes = vec![];
-    for _idx_of_fn in 0..count_of_type_idx {
-      type_indexes.push(self.next()? as u32);
-    }
-    Ok(type_indexes)
+    let count_of_type_idx = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_type_idx, || {
+      let idx = self.next()? as u32;
+      Ok(idx)
+    })
   }
 
   fn decode_limit(&mut self) -> Result<Limit> {
@@ -488,20 +495,14 @@ impl Byte {
 
   fn decode_section_memory(&mut self) -> Result<Vec<Limit>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_memory = self.decode_leb128_i32()?;
-    let mut results = vec![];
-    for _ in 0..count_of_memory {
-      let limit = self.decode_limit()?;
-      results.push(limit);
-    }
-    Ok(results)
+    let count_of_memory = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_memory, || self.decode_limit())
   }
 
   fn decode_section_data(&mut self) -> Result<Vec<Data>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_data = self.decode_leb128_i32()?;
-    let mut datas = vec![];
-    for _ in 0..count_of_data {
+    let count_of_data = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_data, || {
       let memidx = self.decode_leb128_i32()? as u32;
       let offset = self.decode_section_code_internal()?;
       let mut size_of_data = self.next()?;
@@ -510,21 +511,18 @@ impl Byte {
         size_of_data -= 1;
         init.push(self.next()?);
       }
-      datas.push(Data::new(memidx, offset, init))
-    }
-    Ok(datas)
+      Ok(Data::new(memidx, offset, init))
+    })
   }
 
   fn decode_section_table(&mut self) -> Result<Vec<TableInstance>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_data = self.decode_leb128_i32()?;
-    let mut tables = vec![];
-    for _ in 0..count_of_data {
+    let count_of_data = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_data, || {
       let element_type = ElementType::from(self.next());
       let limit = self.decode_limit()?;
-      tables.push(TableInstance::new(element_type, limit));
-    }
-    Ok(tables)
+      Ok(TableInstance::new(element_type, limit))
+    })
   }
 
   pub fn decode(&mut self) -> Result<Store> {

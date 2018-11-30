@@ -402,6 +402,7 @@ impl From<Option<u8>> for SectionCode {
   }
 }
 
+#[derive(Debug)]
 pub enum ExportDescriptionCode {
   ExportDescFunctionIdx,
   ExportDescTableIdx,
