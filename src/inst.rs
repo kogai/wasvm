@@ -2,6 +2,15 @@ use code::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
+  Unreachable,
+  Nop,
+  Block,
+  Loop,
+  If,
+  Else,
+  End,
+  Return,
+
   I32Const(i32),
   I64Const(i64),
   F32Const(f32),
@@ -145,7 +154,6 @@ pub enum Inst {
 
   Select,
   DropInst,
-  Return,
   I32WrapI64,
 
   I32TruncSignF32,
@@ -173,9 +181,6 @@ pub enum Inst {
   F32ReinterpretI32,
   F64ReinterpretI64,
 
-  If,
-  Else,
-  End,
   RuntimeValue(ValueTypes),
 }
 

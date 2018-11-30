@@ -2,6 +2,15 @@ use std::convert::From;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {
+  Unreachable,
+  Nop,
+  Block,
+  Loop,
+  If,
+  Else,
+  Return,
+  End,
+
   ConstI32,
   ConstI64,
   F32Const,
@@ -148,11 +157,6 @@ pub enum Code {
   F64Max,
   F64Copysign,
 
-  If,
-  Else,
-  Return,
-  End,
-
   I32TruncSignF32,
   I32TruncUnsignF32,
   I32TruncSignF64,
@@ -184,6 +188,10 @@ impl From<Option<u8>> for Code {
     use self::Code::*;
 
     match code {
+      Some(0x0) => Unreachable,
+      Some(0x1) => Nop,
+      Some(0x2) => Block,
+      Some(0x3) => Loop,
       Some(0x4) => If,
       Some(0x5) => Else,
       Some(0x0b) => End,

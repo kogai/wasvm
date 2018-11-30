@@ -1,4 +1,5 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
+use element::Element;
 use function::{FunctionInstance, FunctionType};
 use global::{Global, GlobalType};
 use inst::{Inst, Instructions};
@@ -177,6 +178,30 @@ impl Byte {
     while !Code::is_else_or_end(self.peek()) {
       let code = Code::from(self.next());
       match code {
+        Code::Unreachable => expressions.push(Inst::Unreachable),
+        Code::Nop => expressions.push(Inst::Nop),
+        Code::Block => expressions.push(Inst::Block),
+        Code::Loop => expressions.push(Inst::Loop),
+        Code::If => {
+          let return_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
+          let mut if_insts = self.decode_section_code_internal()?;
+          let last = if_insts.last().map(|x| x.clone());
+          expressions.push(Inst::If);
+          expressions.push(return_type);
+          expressions.append(&mut if_insts);
+
+          match last {
+            Some(Inst::Else) => {
+              // NOTE: Else clause
+              expressions.append(&mut self.decode_section_code_internal()?);
+            }
+            Some(Inst::End) => continue,
+            x => unreachable!("{:?}", x),
+          }
+        }
+        Code::Return => expressions.push(Inst::Return),
+        // NOTE: Consume at decoding If instruction,
+        Code::End | Code::Else => unreachable!("{:?}", code),
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
         Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
         Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
@@ -413,26 +438,7 @@ impl Byte {
         Code::F64ReinterpretI64 => expressions.push(Inst::F64ReinterpretI64),
 
         Code::Select => expressions.push(Inst::Select),
-        Code::If => {
-          let return_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
-          let mut if_insts = self.decode_section_code_internal()?;
-          let last = if_insts.last().map(|x| x.clone());
-          expressions.push(Inst::If);
-          expressions.push(return_type);
-          expressions.append(&mut if_insts);
-
-          match last {
-            Some(Inst::Else) => {
-              // NOTE: Else clause
-              expressions.append(&mut self.decode_section_code_internal()?);
-            }
-            Some(Inst::End) => continue,
-            x => unreachable!("{:?}", x),
-          }
-        }
-        Code::Return => expressions.push(Inst::Return),
         Code::TypeValueEmpty => expressions.push(Inst::RuntimeValue(ValueTypes::Empty)),
-        Code::End | Code::Else => unreachable!("{:?}", code),
       };
     }
     match Code::from(self.next()) {
@@ -536,6 +542,20 @@ impl Byte {
       Ok(Global::new(global_type, Instructions::new(init)))
     })
   }
+  fn decode_function_idx(&mut self) -> Result<Vec<u32>> {
+    let count = self.decode_leb128_u32()?;
+    Byte::decode_vec(count, || self.decode_leb128_u32())
+  }
+  fn decode_section_element(&mut self) -> Result<Vec<Element>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count = self.decode_leb128_u32()?;
+    Byte::decode_vec(count, || {
+      let table_idx = self.decode_leb128_u32()?;
+      let offset = self.decode_section_code_internal()?;
+      let init = self.decode_function_idx()?;
+      Ok(Element::new(table_idx, Instructions::new(offset), init))
+    })
+  }
 
   pub fn decode(&mut self) -> Result<Store> {
     let mut function_types = vec![];
@@ -546,6 +566,7 @@ impl Byte {
     let mut data = vec![];
     let mut table_instances = vec![];
     let mut global_instances = vec![];
+    let mut elements = vec![];
     while self.has_next() {
       let code = SectionCode::from(self.next());
       match code {
@@ -557,7 +578,8 @@ impl Byte {
         SectionCode::Memory => _memories = self.decode_section_memory()?,
         SectionCode::Table => table_instances = self.decode_section_table()?,
         SectionCode::Global => global_instances = self.decode_section_global()?,
-        SectionCode::Custom | SectionCode::Import | SectionCode::Start | SectionCode::Element => {
+        SectionCode::Element => elements = self.decode_section_element()?,
+        SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
           unimplemented!("{:?}", code);
         }
       };

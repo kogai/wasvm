@@ -1,6 +1,7 @@
 #![feature(try_trait)]
 mod byte;
 mod code;
+mod element;
 mod function;
 mod global;
 mod inst;
@@ -108,6 +109,9 @@ impl Vm {
         while !expressions.is_next_end_or_else() {
             let expression = expressions.pop().unwrap();
             match expression {
+                Unreachable | Nop | Block | Loop => {
+                    unimplemented!();
+                }
                 GetLocal(idx) => {
                     let frame_ptr = self.stack.get_frame_ptr();
                     let value = self.stack.get(idx + frame_ptr)?;
