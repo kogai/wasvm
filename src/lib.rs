@@ -1,11 +1,14 @@
 #![feature(try_trait)]
 mod byte;
 mod code;
+mod element;
 mod function;
+mod global;
 mod inst;
 mod memory;
 mod stack;
 mod store;
+mod table;
 mod trap;
 pub mod value;
 
@@ -106,26 +109,44 @@ impl Vm {
         while !expressions.is_next_end_or_else() {
             let expression = expressions.pop().unwrap();
             match expression {
-                GetLocal(idx) => {
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    let value = self.stack.get(idx + frame_ptr)?;
-                    self.stack.push(value);
+                Unreachable | Nop | Block | Loop | Return => {
+                    unimplemented!("{:?}", expression);
                 }
-                SetLocal(idx) => {
-                    let value = self.stack.pop().map(|s| s.to_owned())?;
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set(idx + frame_ptr, value);
+                Br(_) | BrIf(_) => {
+                    unimplemented!("{:?}", expression);
                 }
-                TeeLocal(idx) => {
-                    let value = self.stack.pop().map(|s| s.to_owned())?;
-                    self.stack.push(value.clone());
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set(idx + frame_ptr, value);
+                BrTable(_, _) => {
+                    unimplemented!("{:?}", expression);
                 }
                 Call(idx) => {
                     let operand = self.stack.pop_value();
                     self.call(idx, vec![operand]);
                     let _ = self.evaluate();
+                }
+                CallIndirect(idx) => {
+                    unimplemented!("{:?}", expression);
+                }
+                GetLocal(idx) => {
+                    let frame_ptr = self.stack.get_frame_ptr();
+                    let value = self.stack.get((idx as usize) + frame_ptr)?;
+                    self.stack.push(value);
+                }
+                SetLocal(idx) => {
+                    let value = self.stack.pop().map(|s| s.to_owned())?;
+                    let frame_ptr = self.stack.get_frame_ptr();
+                    self.stack.set((idx as usize) + frame_ptr, value);
+                }
+                TeeLocal(idx) => {
+                    let value = self.stack.pop().map(|s| s.to_owned())?;
+                    self.stack.push(value.clone());
+                    let frame_ptr = self.stack.get_frame_ptr();
+                    self.stack.set((idx as usize) + frame_ptr, value);
+                }
+                GetGlobal(_idx) => {
+                    unimplemented!();
+                }
+                SetGlobal(_idx) => {
+                    unimplemented!();
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n))),
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n))),
@@ -211,9 +232,6 @@ impl Vm {
                 }
                 Else => unreachable!(),
                 End => break,
-                Return => {
-                    unimplemented!();
-                }
                 I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
                 I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
                 I32ShiftRightUnsign | I64ShiftRightUnsign => {
@@ -361,6 +379,7 @@ impl Vm {
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
         self.call(start_idx, arguments);
+
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Values::I32(v) => format!("i32:{}", v),

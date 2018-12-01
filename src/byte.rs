@@ -1,10 +1,13 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
+use element::Element;
 use function::{FunctionInstance, FunctionType};
-use inst::Inst;
-use memory::{Data, Memory, MemoryInstance};
+use global::{Global, GlobalType};
+use inst::{Inst, Instructions};
+use memory::{Data, Limit, MemoryInstance};
 use std::convert::From;
 use std::{f32, f64};
 use store::Store;
+use table::{ElementType, TableInstance};
 use trap::{Result, Trap};
 
 macro_rules! leb128 {
@@ -108,11 +111,22 @@ impl Byte {
     el.map(|&x| x)
   }
 
-  fn decode_section_type(&mut self) -> Option<Vec<FunctionType>> {
+  fn decode_vec<T, F>(count_of_elements: u32, mut f: F) -> Result<Vec<T>>
+  where
+    F: FnMut() -> Result<T>,
+  {
+    let mut buf = vec![];
+    for _ in 0..count_of_elements {
+      let element = f()?;
+      buf.push(element);
+    }
+    Ok(buf)
+  }
+
+  fn decode_section_type(&mut self) -> Result<Vec<FunctionType>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_type = self.decode_leb128_i32()?;
-    let mut function_types = vec![];
-    for _ in 0..count_of_type {
+    let count_of_type = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_type, || {
       let mut parameters = vec![];
       let mut returns = vec![];
       let _type_function = Code::from(self.next());
@@ -124,17 +138,15 @@ impl Byte {
       for _ in 0..size_of_result {
         returns.push(ValueTypes::from(self.next()));
       }
-      function_types.push(FunctionType::new(parameters, returns))
-    }
-    Some(function_types)
+      Ok(FunctionType::new(parameters, returns))
+    })
   }
 
-  fn decode_section_export(&mut self) -> Option<Vec<(String, usize)>> {
+  fn decode_section_export(&mut self) -> Result<Vec<(String, usize)>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_exports = self.decode_leb128_i32()?;
-    let mut exports = vec![];
-    for _ in 0..count_of_exports {
-      let size_of_name = self.decode_leb128_i32()?;
+    let count_of_exports = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_exports, || {
+      let size_of_name = self.decode_leb128_u32()?;
       let mut buf = vec![];
       for _ in 0..size_of_name {
         buf.push(self.next()?);
@@ -142,11 +154,10 @@ impl Byte {
       let key = String::from_utf8(buf).expect("To encode export name has been failured.");
       let idx_of_fn = match ExportDescriptionCode::from(self.next()) {
         ExportDescriptionCode::ExportDescFunctionIdx => self.next()?,
-        _ => unimplemented!(),
+        x => unimplemented!("{:?}", x),
       };
-      exports.push((key, idx_of_fn as usize));
-    }
-    Some(exports)
+      Ok((key, idx_of_fn as usize))
+    })
   }
 
   fn decode_memory_inst(&mut self) -> Result<(u32, u32)> {
@@ -167,14 +178,65 @@ impl Byte {
     while !Code::is_else_or_end(self.peek()) {
       let code = Code::from(self.next());
       match code {
+        Code::Reserved => unreachable!(),
+        Code::Unreachable => expressions.push(Inst::Unreachable),
+        Code::Nop => expressions.push(Inst::Nop),
+        Code::Block => {
+          expressions.push(Inst::Block);
+          expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
+          let mut instructions = self.decode_section_code_internal()?;
+          expressions.append(&mut instructions);
+        }
+        Code::Loop => {
+          expressions.push(Inst::Loop);
+          expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
+          let mut instructions = self.decode_section_code_internal()?;
+          expressions.append(&mut instructions);
+        }
+        Code::If => {
+          let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
+          let mut if_insts = self.decode_section_code_internal()?;
+          let last = if_insts.last().map(|x| x.clone());
+          expressions.push(Inst::If);
+          expressions.push(block_type);
+          expressions.append(&mut if_insts);
+
+          match last {
+            Some(Inst::Else) => {
+              // NOTE: Else clause
+              expressions.append(&mut self.decode_section_code_internal()?);
+            }
+            Some(Inst::End) => continue,
+            x => unreachable!("{:?}", x),
+          }
+        }
+        Code::Br => expressions.push(Inst::Br(self.decode_leb128_u32()?)),
+        Code::BrIf => expressions.push(Inst::BrIf(self.decode_leb128_u32()?)),
+        Code::BrTable => {
+          let len = self.decode_leb128_u32()?;
+          let tables = Byte::decode_vec(len, || self.decode_leb128_u32())?;
+          let idx = self.decode_leb128_u32()?;
+          expressions.push(Inst::BrTable(tables, idx))
+        }
+        Code::Return => expressions.push(Inst::Return),
+        Code::Call => expressions.push(Inst::Call(self.decode_leb128_u32()? as usize)),
+        Code::CallIndirect => {
+          expressions.push(Inst::CallIndirect(self.decode_leb128_u32()?));
+          self.next(); // Drop code 0x00.
+        }
+
+        // NOTE: Consume at decoding "If" instructions.
+        Code::End | Code::Else => unreachable!("{:?}", code),
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
         Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
         Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
         Code::F64Const => expressions.push(Inst::F64Const(self.decode_f64()?)),
         // NOTE: It might be need to decode as LEB128 integer, too.
-        Code::GetLocal => expressions.push(Inst::GetLocal(self.next()? as usize)),
-        Code::SetLocal => expressions.push(Inst::SetLocal(self.next()? as usize)),
-        Code::TeeLocal => expressions.push(Inst::TeeLocal(self.next()? as usize)),
+        Code::GetLocal => expressions.push(Inst::GetLocal(self.decode_leb128_u32()?)),
+        Code::SetLocal => expressions.push(Inst::SetLocal(self.decode_leb128_u32()?)),
+        Code::TeeLocal => expressions.push(Inst::TeeLocal(self.decode_leb128_u32()?)),
+        Code::GetGlobal => expressions.push(Inst::GetGlobal(self.decode_leb128_u32()?)),
+        Code::SetGlobal => expressions.push(Inst::SetGlobal(self.decode_leb128_u32()?)),
         Code::DropInst => expressions.push(Inst::DropInst),
 
         Code::I32Load => {
@@ -321,7 +383,6 @@ impl Byte {
         Code::I64GreaterEqualUnSign => expressions.push(Inst::I64GreaterEqualUnSign),
 
         Code::I32WrapI64 => expressions.push(Inst::I32WrapI64),
-        Code::Call => expressions.push(Inst::Call(self.next()? as usize)),
         Code::I32EqualZero => expressions.push(Inst::I32EqualZero),
         Code::Equal => expressions.push(Inst::Equal),
         Code::NotEqual => expressions.push(Inst::NotEqual),
@@ -403,26 +464,7 @@ impl Byte {
         Code::F64ReinterpretI64 => expressions.push(Inst::F64ReinterpretI64),
 
         Code::Select => expressions.push(Inst::Select),
-        Code::If => {
-          let return_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
-          let mut if_insts = self.decode_section_code_internal()?;
-          let last = if_insts.last().map(|x| x.clone());
-          expressions.push(Inst::If);
-          expressions.push(return_type);
-          expressions.append(&mut if_insts);
-
-          match last {
-            Some(Inst::Else) => {
-              // NOTE: Else clause
-              expressions.append(&mut self.decode_section_code_internal()?);
-            }
-            Some(Inst::End) => continue,
-            x => unreachable!("{:?}", x),
-          }
-        }
-        Code::Return => expressions.push(Inst::Return),
         Code::TypeValueEmpty => expressions.push(Inst::RuntimeValue(ValueTypes::Empty)),
-        Code::End | Code::Else => unreachable!("{:?}", code),
       };
     }
     match Code::from(self.next()) {
@@ -434,17 +476,17 @@ impl Byte {
   }
 
   fn decode_section_code(&mut self) -> Result<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>> {
-    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let _bin_size_of_section = self.decode_leb128_u32()?;
     let mut codes = vec![];
-    let count_of_code = self.decode_leb128_i32()?;
+    let count_of_code = self.decode_leb128_u32()?;
     for _idx_of_fn in 0..count_of_code {
-      let size_of_function = self.decode_leb128_i32()?;
+      let size_of_function = self.decode_leb128_u32()?;
       let end_of_function = self.byte_ptr + (size_of_function as usize);
-      let count_of_locals = self.decode_leb128_i32()? as usize;
+      let count_of_locals = self.decode_leb128_u32()? as usize;
       // FIXME:
       let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
       for _ in 0..count_of_locals {
-        let _idx = self.next(); // NOTE: Index of local varibale type?
+        let _idx = self.decode_leb128_u32(); // NOTE: Index of local varibale type?
         locals.push(ValueTypes::from(self.next()));
       }
       match self.decode_section_code_internal() {
@@ -462,40 +504,38 @@ impl Byte {
 
   fn decode_section_function(&mut self) -> Result<Vec<u32>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_type_idx = self.decode_leb128_i32()?;
-    let mut type_indexes = vec![];
-    for _idx_of_fn in 0..count_of_type_idx {
-      type_indexes.push(self.next()? as u32);
-    }
-    Ok(type_indexes)
+    let count_of_type_idx = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_type_idx, || {
+      let idx = self.next()? as u32;
+      Ok(idx)
+    })
   }
 
-  fn decode_section_memory(&mut self) -> Result<Vec<Memory>> {
-    let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_memory = self.decode_leb128_i32()?;
-    let mut results = vec![];
-    for _ in 0..count_of_memory {
-      match self.next() {
-        Some(0x0) => {
-          let min = self.decode_leb128_i32()?;
-          results.push(Memory::NoUpperLimit(min as u32))
-        }
-        Some(0x1) => {
-          let min = self.decode_leb128_i32()?;
-          let max = self.decode_leb128_i32()?;
-          results.push(Memory::HasUpperLimit(min as u32, max as u32))
-        }
-        x => unreachable!("Expected limit of memory-type, got {:?}", x),
+  fn decode_limit(&mut self) -> Result<Limit> {
+    match self.next() {
+      Some(0x0) => {
+        let min = self.decode_leb128_i32()?;
+        Ok(Limit::NoUpperLimit(min as u32))
       }
+      Some(0x1) => {
+        let min = self.decode_leb128_i32()?;
+        let max = self.decode_leb128_i32()?;
+        Ok(Limit::HasUpperLimit(min as u32, max as u32))
+      }
+      x => unreachable!("Expected limit code, got {:?}", x),
     }
-    Ok(results)
+  }
+
+  fn decode_section_memory(&mut self) -> Result<Vec<Limit>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_memory = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_memory, || self.decode_limit())
   }
 
   fn decode_section_data(&mut self) -> Result<Vec<Data>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_data = self.decode_leb128_i32()?;
-    let mut datas = vec![];
-    for _ in 0..count_of_data {
+    let count_of_data = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_data, || {
       let memidx = self.decode_leb128_i32()? as u32;
       let offset = self.decode_section_code_internal()?;
       let mut size_of_data = self.next()?;
@@ -504,9 +544,43 @@ impl Byte {
         size_of_data -= 1;
         init.push(self.next()?);
       }
-      datas.push(Data::new(memidx, offset, init))
-    }
-    Ok(datas)
+      Ok(Data::new(memidx, offset, init))
+    })
+  }
+
+  fn decode_section_table(&mut self) -> Result<Vec<TableInstance>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count_of_data = self.decode_leb128_u32()?;
+    Byte::decode_vec(count_of_data, || {
+      let element_type = ElementType::from(self.next());
+      let limit = self.decode_limit()?;
+      Ok(TableInstance::new(element_type, limit))
+    })
+  }
+
+  fn decode_section_global(&mut self) -> Result<Vec<Global>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count = self.decode_leb128_u32()?;
+    Byte::decode_vec(count, || {
+      let value_type = ValueTypes::from(self.next());
+      let global_type = GlobalType::new(self.next(), value_type);
+      let init = self.decode_section_code_internal()?;
+      Ok(Global::new(global_type, Instructions::new(init)))
+    })
+  }
+  fn decode_function_idx(&mut self) -> Result<Vec<u32>> {
+    let count = self.decode_leb128_u32()?;
+    Byte::decode_vec(count, || self.decode_leb128_u32())
+  }
+  fn decode_section_element(&mut self) -> Result<Vec<Element>> {
+    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let count = self.decode_leb128_u32()?;
+    Byte::decode_vec(count, || {
+      let table_idx = self.decode_leb128_u32()?;
+      let offset = self.decode_section_code_internal()?;
+      let init = self.decode_function_idx()?;
+      Ok(Element::new(table_idx, Instructions::new(offset), init))
+    })
   }
 
   pub fn decode(&mut self) -> Result<Store> {
@@ -516,33 +590,23 @@ impl Byte {
     let mut list_of_expressions = vec![];
     let mut _memories = vec![];
     let mut data = vec![];
+    let mut table_instances = vec![];
+    let mut global_instances = vec![];
+    let mut elements = vec![];
     while self.has_next() {
-      match SectionCode::from(self.next()) {
-        SectionCode::Type => {
-          function_types = self.decode_section_type()?;
-        }
-        SectionCode::Function => {
-          index_of_types = self.decode_section_function()?;
-        }
-        SectionCode::Export => {
-          function_key_and_indexes = self.decode_section_export()?;
-        }
-        SectionCode::Code => {
-          list_of_expressions = self.decode_section_code()?;
-        }
-        SectionCode::Data => {
-          data = self.decode_section_data()?;
-        }
-        SectionCode::Memory => {
-          _memories = self.decode_section_memory()?;
-        }
-        SectionCode::Custom
-        | SectionCode::Import
-        | SectionCode::Table
-        | SectionCode::Global
-        | SectionCode::Start
-        | SectionCode::Element => {
-          unimplemented!();
+      let code = SectionCode::from(self.next());
+      match code {
+        SectionCode::Type => function_types = self.decode_section_type()?,
+        SectionCode::Function => index_of_types = self.decode_section_function()?,
+        SectionCode::Export => function_key_and_indexes = self.decode_section_export()?,
+        SectionCode::Code => list_of_expressions = self.decode_section_code()?,
+        SectionCode::Data => data = self.decode_section_data()?,
+        SectionCode::Memory => _memories = self.decode_section_memory()?,
+        SectionCode::Table => table_instances = self.decode_section_table()?,
+        SectionCode::Global => global_instances = self.decode_section_global()?,
+        SectionCode::Element => elements = self.decode_section_element()?,
+        SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
+          unimplemented!("{:?}", code);
         }
       };
     }
@@ -574,7 +638,12 @@ impl Byte {
       };
       function_instances.push(fnins);
     }
-    Ok(Store::new(function_instances, memory_instances))
+    Ok(Store::new(
+      function_instances,
+      memory_instances,
+      table_instances,
+      global_instances,
+    ))
   }
 }
 

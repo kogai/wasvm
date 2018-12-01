@@ -2,15 +2,30 @@ use code::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
+  Unreachable,
+  Nop,
+  Block,
+  Loop,
+  If,
+  Else,
+  End,
+  Br(u32),
+  BrIf(u32),
+  BrTable(Vec<u32>, u32),
+  Return,
+  Call(usize), // FIXME: Change to u32
+  CallIndirect(u32),
+
   I32Const(i32),
   I64Const(i64),
   F32Const(f32),
   F64Const(f64),
 
-  // FIXME: Change to u32
-  GetLocal(usize),
-  SetLocal(usize),
-  TeeLocal(usize),
+  GetLocal(u32),
+  SetLocal(u32),
+  TeeLocal(u32),
+  GetGlobal(u32),
+  SetGlobal(u32),
 
   I32Load(u32, u32),
   I64Load(u32, u32),
@@ -74,8 +89,6 @@ pub enum Inst {
   I64RotateLeft,
   I64RotateRight,
 
-  // FIXME: Change to u32
-  Call(usize),
   I32EqualZero,
   Equal,
   NotEqual,
@@ -145,7 +158,6 @@ pub enum Inst {
 
   Select,
   DropInst,
-  Return,
   I32WrapI64,
 
   I32TruncSignF32,
@@ -173,9 +185,6 @@ pub enum Inst {
   F32ReinterpretI32,
   F64ReinterpretI64,
 
-  If,
-  Else,
-  End,
   RuntimeValue(ValueTypes),
 }
 

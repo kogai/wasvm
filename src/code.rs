@@ -2,6 +2,24 @@ use std::convert::From;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {
+  Reserved, // Reserved code.
+  Unreachable,
+  Nop,
+  Block,
+  Loop,
+  If,
+  Else,
+  End,
+  Br,
+  BrIf,
+  BrTable,
+  Return,
+  Call,
+  CallIndirect,
+
+  Select,
+  DropInst,
+
   ConstI32,
   ConstI64,
   F32Const,
@@ -12,6 +30,8 @@ pub enum Code {
   GetLocal,
   TeeLocal,
   SetLocal,
+  GetGlobal,
+  SetGlobal,
 
   I32Load,
   I64Load,
@@ -75,10 +95,6 @@ pub enum Code {
   I64ShiftRightUnsign,
   I64RotateLeft,
   I64RotateRight,
-
-  Call,
-  Select,
-  DropInst,
 
   I32EqualZero,
   // TODO: Add prefix to indicate data-type like I32
@@ -148,11 +164,6 @@ pub enum Code {
   F64Max,
   F64Copysign,
 
-  If,
-  Else,
-  Return,
-  End,
-
   I32TruncSignF32,
   I32TruncUnsignF32,
   I32TruncSignF64,
@@ -182,18 +193,31 @@ pub enum Code {
 impl From<Option<u8>> for Code {
   fn from(code: Option<u8>) -> Self {
     use self::Code::*;
-
     match code {
+      Some(0x0) => Unreachable,
+      Some(0x1) => Nop,
+      Some(0x2) => Block,
+      Some(0x3) => Loop,
       Some(0x4) => If,
       Some(0x5) => Else,
+      Some(0x06) | Some(0x07) | Some(0x08) | Some(0x09) | Some(0x0A) => Reserved,
       Some(0x0b) => End,
+      Some(0x0C) => Br,
+      Some(0x0D) => BrIf,
+      Some(0x0e) => BrTable,
       Some(0x0f) => Return,
       Some(0x10) => Call,
+      Some(0x11) => CallIndirect,
+      Some(0x12) | Some(0x13) | Some(0x14) | Some(0x15) | Some(0x16) | Some(0x17) | Some(0x18)
+      | Some(0x19) => Reserved,
       Some(0x1a) => DropInst,
       Some(0x1b) => Select,
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
       Some(0x22) => TeeLocal,
+      Some(0x23) => GetGlobal,
+      Some(0x24) => SetGlobal,
+      Some(0x25) | Some(0x26) | Some(0x27) => Reserved,
 
       Some(0x28) => I32Load,
       Some(0x29) => I64Load,
@@ -402,6 +426,7 @@ impl From<Option<u8>> for SectionCode {
   }
 }
 
+#[derive(Debug)]
 pub enum ExportDescriptionCode {
   ExportDescFunctionIdx,
   ExportDescTableIdx,
@@ -424,7 +449,7 @@ impl From<Option<u8>> for ExportDescriptionCode {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ValueTypes {
-  Empty,
+  Empty, // TODO: Rename to Unit
   I32,
   I64,
   F32,
