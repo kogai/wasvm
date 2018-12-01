@@ -4,7 +4,7 @@ use code::ValueTypes;
 pub enum Inst {
   Unreachable,
   Nop,
-  Block,
+  Block(u32),
   Loop,
   If(u32, u32),
   Else,

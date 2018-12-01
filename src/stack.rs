@@ -98,7 +98,10 @@ impl Stack {
     let value = self.pop()?;
     match *value {
       StackEntry::Value(ref v) => Some(v.to_owned()),
-      ref x => unreachable!(format!("Expect to pop value, but got {:?}", x).as_str()),
+      _ => {
+        self.push(value.clone());
+        None
+      }
     }
   }
   pub fn pop_value_ext(&mut self) -> Values {

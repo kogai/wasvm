@@ -182,9 +182,12 @@ impl Byte {
         Code::Unreachable => expressions.push(Inst::Unreachable),
         Code::Nop => expressions.push(Inst::Nop),
         Code::Block => {
-          expressions.push(Inst::Block);
-          expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
+          let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
           let mut instructions = self.decode_section_code_internal()?;
+          expressions.push(Inst::Block(
+            (2 /* If inst + Type of block */ + instructions.len()) as u32,
+          ));
+          expressions.push(block_type);
           expressions.append(&mut instructions);
         }
         Code::Loop => {

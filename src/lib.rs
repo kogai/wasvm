@@ -109,10 +109,18 @@ impl Vm {
         while !instructions.is_next_end_or_else() {
             let expression = instructions.pop().unwrap();
             match expression {
-                Unreachable | Block | Return => {
+                Unreachable | Return => {
                     unimplemented!("{:?}", expression);
                 }
                 Nop => {}
+                Block(size) => {
+                    let start_of_control = instructions.ptr - 1;
+                    let continuation = start_of_control + size;
+                    instructions.push_label(continuation);
+                    let _block_type = instructions.pop().unwrap();
+                    self.evaluate_instructions(instructions)?;
+                    instructions.pop()?; // Drop End instruction.
+                }
                 Loop => {
                     let start_of_control = instructions.ptr - 1;
                     instructions.push_label(start_of_control);
@@ -147,9 +155,12 @@ impl Vm {
                     unimplemented!("{:?}", expression);
                 }
                 Call(idx) => {
-                    let operand = self.stack.pop_value_ext();
-                    self.call(idx, vec![operand]);
-                    let _ = self.evaluate();
+                    let arguments = match self.stack.pop_value() {
+                        Some(a) => vec![a],
+                        None => vec![],
+                    };
+                    self.call(idx, arguments);
+                    self.evaluate()?;
                 }
                 CallIndirect(_idx) => {
                     unimplemented!("{:?}", expression);
