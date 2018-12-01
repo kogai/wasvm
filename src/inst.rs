@@ -235,7 +235,8 @@ impl Instructions {
     self.ptr = ptr_of_label;
   }
   pub fn jump_to_label(&mut self, label: u32) -> Option<()> {
-    let ptr_of_label = *self.label_ptrs.get(label as usize)?;
+    let idx = self.label_ptrs.len() - 1 - (label as usize);
+    let ptr_of_label = *self.label_ptrs.get(idx)?;
     self.jump_to(ptr_of_label);
     Some(())
   }

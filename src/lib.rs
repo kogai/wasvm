@@ -448,14 +448,6 @@ mod tests {
         println!("{}", 16777216i32);
         println!("{}", 0x1000000);
     }
-    #[test]
-    fn stack_ptr() {
-        let mut stack = Stack::new(4);
-        stack.push(StackEntry::new_value(Values::I32(1)));
-        stack.set(2, StackEntry::new_value(Values::I32(2)));
-        assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
-        assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
-    }
     test_eval!(evaluate_cons8, "cons8", vec![], 42);
     test_eval!(
         evaluate_add_simple,

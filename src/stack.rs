@@ -110,3 +110,16 @@ impl Stack {
       .expect("Expect to pop up value, but got None")
   }
 }
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn stack_ptr() {
+    let mut stack = Stack::new(4);
+    stack.push(StackEntry::new_value(Values::I32(1)));
+    stack.set(2, StackEntry::new_value(Values::I32(2)));
+    assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
+    assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
+  }
+}
