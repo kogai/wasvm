@@ -109,7 +109,13 @@ impl Vm {
         while !expressions.is_next_end_or_else() {
             let expression = expressions.pop().unwrap();
             match expression {
-                Unreachable | Nop | Block | Loop | Br | BrIf | BrTable | Return => {
+                Unreachable | Nop | Block | Loop | Return => {
+                    unimplemented!();
+                }
+                Br(_) | BrIf(_) => {
+                    unimplemented!();
+                }
+                BrTable(_, _) => {
                     unimplemented!();
                 }
                 Call(idx) => {

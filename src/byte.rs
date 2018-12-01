@@ -210,19 +210,19 @@ impl Byte {
             x => unreachable!("{:?}", x),
           }
         }
-        Code::Br => {
-          unimplemented!();
-        }
-        Code::BrIf => {
-          unimplemented!();
-        }
+        Code::Br => expressions.push(Inst::Br(self.decode_leb128_u32()?)),
+        Code::BrIf => expressions.push(Inst::BrIf(self.decode_leb128_u32()?)),
         Code::BrTable => {
-          unimplemented!();
+          let len = self.decode_leb128_u32()?;
+          let tables = Byte::decode_vec(len, || self.decode_leb128_u32())?;
+          let idx = self.decode_leb128_u32()?;
+          expressions.push(Inst::BrTable(tables, idx))
         }
         Code::Return => expressions.push(Inst::Return),
-        Code::Call => expressions.push(Inst::Call(self.next()? as usize)),
+        Code::Call => expressions.push(Inst::Call(self.decode_leb128_u32()? as usize)),
         Code::CallIndirect => {
-          unimplemented!();
+          expressions.push(Inst::CallIndirect(self.decode_leb128_u32()?));
+          self.next(); // Drop code 0x00.
         }
 
         // NOTE: Consume at decoding "If" instructions.

@@ -9,9 +9,9 @@ pub enum Inst {
   If,
   Else,
   End,
-  Br,
-  BrIf,
-  BrTable,
+  Br(u32),
+  BrIf(u32),
+  BrTable(Vec<u32>, u32),
   Return,
   Call(usize), // FIXME: Change to u32
   CallIndirect(u32),
