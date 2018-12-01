@@ -109,7 +109,15 @@ impl Vm {
         while !expressions.is_next_end_or_else() {
             let expression = expressions.pop().unwrap();
             match expression {
-                Unreachable | Nop | Block | Loop => {
+                Unreachable | Nop | Block | Loop | Br | BrIf | BrTable | Return => {
+                    unimplemented!();
+                }
+                Call(idx) => {
+                    let operand = self.stack.pop_value();
+                    self.call(idx, vec![operand]);
+                    let _ = self.evaluate();
+                }
+                CallIndirect(idx) => {
                     unimplemented!();
                 }
                 GetLocal(idx) => {
@@ -127,11 +135,6 @@ impl Vm {
                     self.stack.push(value.clone());
                     let frame_ptr = self.stack.get_frame_ptr();
                     self.stack.set(idx + frame_ptr, value);
-                }
-                Call(idx) => {
-                    let operand = self.stack.pop_value();
-                    self.call(idx, vec![operand]);
-                    let _ = self.evaluate();
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n))),
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n))),
@@ -217,9 +220,6 @@ impl Vm {
                 }
                 Else => unreachable!(),
                 End => break,
-                Return => {
-                    unimplemented!();
-                }
                 I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
                 I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
                 I32ShiftRightUnsign | I64ShiftRightUnsign => {

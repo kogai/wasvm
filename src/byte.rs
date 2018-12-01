@@ -178,6 +178,7 @@ impl Byte {
     while !Code::is_else_or_end(self.peek()) {
       let code = Code::from(self.next());
       match code {
+        Code::Reserved => unreachable!(),
         Code::Unreachable => expressions.push(Inst::Unreachable),
         Code::Nop => expressions.push(Inst::Nop),
         Code::Block => {
@@ -209,8 +210,22 @@ impl Byte {
             x => unreachable!("{:?}", x),
           }
         }
+        Code::Br => {
+          unimplemented!();
+        }
+        Code::BrIf => {
+          unimplemented!();
+        }
+        Code::BrTable => {
+          unimplemented!();
+        }
         Code::Return => expressions.push(Inst::Return),
-        // NOTE: Consume at decoding If instruction,
+        Code::Call => expressions.push(Inst::Call(self.next()? as usize)),
+        Code::CallIndirect => {
+          unimplemented!();
+        }
+
+        // NOTE: Consume at decoding "If" instructions.
         Code::End | Code::Else => unreachable!("{:?}", code),
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
         Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
@@ -366,7 +381,6 @@ impl Byte {
         Code::I64GreaterEqualUnSign => expressions.push(Inst::I64GreaterEqualUnSign),
 
         Code::I32WrapI64 => expressions.push(Inst::I32WrapI64),
-        Code::Call => expressions.push(Inst::Call(self.next()? as usize)),
         Code::I32EqualZero => expressions.push(Inst::I32EqualZero),
         Code::Equal => expressions.push(Inst::Equal),
         Code::NotEqual => expressions.push(Inst::NotEqual),

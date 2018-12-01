@@ -9,7 +9,12 @@ pub enum Inst {
   If,
   Else,
   End,
+  Br,
+  BrIf,
+  BrTable,
   Return,
+  Call(usize), // FIXME: Change to u32
+  CallIndirect(u32),
 
   I32Const(i32),
   I64Const(i64),
@@ -83,8 +88,6 @@ pub enum Inst {
   I64RotateLeft,
   I64RotateRight,
 
-  // FIXME: Change to u32
-  Call(usize),
   I32EqualZero,
   Equal,
   NotEqual,
