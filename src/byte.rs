@@ -232,9 +232,11 @@ impl Byte {
         Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
         Code::F64Const => expressions.push(Inst::F64Const(self.decode_f64()?)),
         // NOTE: It might be need to decode as LEB128 integer, too.
-        Code::GetLocal => expressions.push(Inst::GetLocal(self.next()? as usize)),
-        Code::SetLocal => expressions.push(Inst::SetLocal(self.next()? as usize)),
-        Code::TeeLocal => expressions.push(Inst::TeeLocal(self.next()? as usize)),
+        Code::GetLocal => expressions.push(Inst::GetLocal(self.decode_leb128_u32()?)),
+        Code::SetLocal => expressions.push(Inst::SetLocal(self.decode_leb128_u32()?)),
+        Code::TeeLocal => expressions.push(Inst::TeeLocal(self.decode_leb128_u32()?)),
+        Code::GetGlobal => expressions.push(Inst::GetGlobal(self.decode_leb128_u32()?)),
+        Code::SetGlobal => expressions.push(Inst::SetGlobal(self.decode_leb128_u32()?)),
         Code::DropInst => expressions.push(Inst::DropInst),
 
         Code::I32Load => {

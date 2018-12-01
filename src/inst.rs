@@ -21,10 +21,11 @@ pub enum Inst {
   F32Const(f32),
   F64Const(f64),
 
-  // FIXME: Change to u32
-  GetLocal(usize),
-  SetLocal(usize),
-  TeeLocal(usize),
+  GetLocal(u32),
+  SetLocal(u32),
+  TeeLocal(u32),
+  GetGlobal(u32),
+  SetGlobal(u32),
 
   I32Load(u32, u32),
   I64Load(u32, u32),

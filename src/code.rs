@@ -30,6 +30,8 @@ pub enum Code {
   GetLocal,
   TeeLocal,
   SetLocal,
+  GetGlobal,
+  SetGlobal,
 
   I32Load,
   I64Load,
@@ -213,6 +215,9 @@ impl From<Option<u8>> for Code {
       Some(0x20) => GetLocal,
       Some(0x21) => SetLocal,
       Some(0x22) => TeeLocal,
+      Some(0x23) => GetGlobal,
+      Some(0x24) => SetGlobal,
+      Some(0x25) | Some(0x26) | Some(0x27) => Reserved,
 
       Some(0x28) => I32Load,
       Some(0x29) => I64Load,

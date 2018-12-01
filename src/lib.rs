@@ -110,13 +110,13 @@ impl Vm {
             let expression = expressions.pop().unwrap();
             match expression {
                 Unreachable | Nop | Block | Loop | Return => {
-                    unimplemented!();
+                    unimplemented!("{:?}", expression);
                 }
                 Br(_) | BrIf(_) => {
-                    unimplemented!();
+                    unimplemented!("{:?}", expression);
                 }
                 BrTable(_, _) => {
-                    unimplemented!();
+                    unimplemented!("{:?}", expression);
                 }
                 Call(idx) => {
                     let operand = self.stack.pop_value();
@@ -124,23 +124,29 @@ impl Vm {
                     let _ = self.evaluate();
                 }
                 CallIndirect(idx) => {
-                    unimplemented!();
+                    unimplemented!("{:?}", expression);
                 }
                 GetLocal(idx) => {
                     let frame_ptr = self.stack.get_frame_ptr();
-                    let value = self.stack.get(idx + frame_ptr)?;
+                    let value = self.stack.get((idx as usize) + frame_ptr)?;
                     self.stack.push(value);
                 }
                 SetLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
                     let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set(idx + frame_ptr, value);
+                    self.stack.set((idx as usize) + frame_ptr, value);
                 }
                 TeeLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
                     self.stack.push(value.clone());
                     let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set(idx + frame_ptr, value);
+                    self.stack.set((idx as usize) + frame_ptr, value);
+                }
+                GetGlobal(_idx) => {
+                    unimplemented!();
+                }
+                SetGlobal(_idx) => {
+                    unimplemented!();
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n))),
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n))),
