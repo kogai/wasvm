@@ -377,8 +377,9 @@ impl Vm {
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
             }
         }
-        self.stack
-            .push(result.expect("Call stack may return with null value"));
+        if let Some(v) = result {
+            self.stack.push(v);
+        };
         Ok(())
     }
 
@@ -387,17 +388,18 @@ impl Vm {
         self.call(start_idx, arguments);
 
         match self.evaluate() {
-            Ok(_) => match self.stack.pop_value_ext() {
-                Values::I32(v) => format!("i32:{}", v),
-                Values::I64(v) => format!("i64:{}", v),
-                Values::F32(v) => {
+            Ok(_) => match self.stack.pop_value() {
+                Some(Values::I32(v)) => format!("i32:{}", v),
+                Some(Values::I64(v)) => format!("i64:{}", v),
+                Some(Values::F32(v)) => {
                     let prefix = if v.is_nan() { "" } else { "f32:" };
                     format!("{}{}", prefix, v)
                 }
-                Values::F64(v) => {
+                Some(Values::F64(v)) => {
                     let prefix = if v.is_nan() { "" } else { "f64:" };
                     format!("{}{}", prefix, v)
                 }
+                None => "".to_owned(),
             },
             Err(err) => String::from(err),
         }
