@@ -1,5 +1,6 @@
 use inst::Instructions;
 
+#[derive(Debug)]
 pub struct Element {
   table_idx: u32,
   offset: Instructions,

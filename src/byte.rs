@@ -180,14 +180,24 @@ impl Byte {
       match code {
         Code::Unreachable => expressions.push(Inst::Unreachable),
         Code::Nop => expressions.push(Inst::Nop),
-        Code::Block => expressions.push(Inst::Block),
-        Code::Loop => expressions.push(Inst::Loop),
+        Code::Block => {
+          expressions.push(Inst::Block);
+          expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
+          let mut instructions = self.decode_section_code_internal()?;
+          expressions.append(&mut instructions);
+        }
+        Code::Loop => {
+          expressions.push(Inst::Loop);
+          expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
+          let mut instructions = self.decode_section_code_internal()?;
+          expressions.append(&mut instructions);
+        }
         Code::If => {
-          let return_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
+          let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
           let mut if_insts = self.decode_section_code_internal()?;
           let last = if_insts.last().map(|x| x.clone());
           expressions.push(Inst::If);
-          expressions.push(return_type);
+          expressions.push(block_type);
           expressions.append(&mut if_insts);
 
           match last {
@@ -450,17 +460,17 @@ impl Byte {
   }
 
   fn decode_section_code(&mut self) -> Result<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>> {
-    let _bin_size_of_section = self.decode_leb128_i32()?;
+    let _bin_size_of_section = self.decode_leb128_u32()?;
     let mut codes = vec![];
-    let count_of_code = self.decode_leb128_i32()?;
+    let count_of_code = self.decode_leb128_u32()?;
     for _idx_of_fn in 0..count_of_code {
-      let size_of_function = self.decode_leb128_i32()?;
+      let size_of_function = self.decode_leb128_u32()?;
       let end_of_function = self.byte_ptr + (size_of_function as usize);
-      let count_of_locals = self.decode_leb128_i32()? as usize;
+      let count_of_locals = self.decode_leb128_u32()? as usize;
       // FIXME:
       let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
       for _ in 0..count_of_locals {
-        let _idx = self.next(); // NOTE: Index of local varibale type?
+        let _idx = self.decode_leb128_u32(); // NOTE: Index of local varibale type?
         locals.push(ValueTypes::from(self.next()));
       }
       match self.decode_section_code_internal() {

@@ -433,7 +433,7 @@ impl From<Option<u8>> for ExportDescriptionCode {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ValueTypes {
-  Empty,
+  Empty, // TODO: Rename to Unit
   I32,
   I64,
   F32,

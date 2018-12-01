@@ -367,6 +367,7 @@ impl Vm {
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
         self.call(start_idx, arguments);
+
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Values::I32(v) => format!("i32:{}", v),
