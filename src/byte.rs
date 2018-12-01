@@ -197,18 +197,19 @@ impl Byte {
           let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
           let mut if_insts = self.decode_section_code_internal()?;
           let last = if_insts.last().map(|x| x.clone());
-          expressions.push(Inst::If);
+
+          let mut else_insts = match last {
+            Some(Inst::Else) => self.decode_section_code_internal()?,
+            Some(Inst::End) => vec![],
+            x => unreachable!("{:?}", x),
+          };
+          expressions.push(Inst::If(
+            (2 /* If inst + Type of block */ + if_insts.len()) as u32,
+            else_insts.len() as u32,
+          ));
           expressions.push(block_type);
           expressions.append(&mut if_insts);
-
-          match last {
-            Some(Inst::Else) => {
-              // NOTE: Else clause
-              expressions.append(&mut self.decode_section_code_internal()?);
-            }
-            Some(Inst::End) => continue,
-            x => unreachable!("{:?}", x),
-          }
+          expressions.append(&mut else_insts);
         }
         Code::Br => expressions.push(Inst::Br(self.decode_leb128_u32()?)),
         Code::BrIf => expressions.push(Inst::BrIf(self.decode_leb128_u32()?)),
@@ -758,7 +759,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         LessThanSign,
-        If,
+        If(6, 14),
         RuntimeValue(ValueTypes::I32),
         GetLocal(0),
         I32Const(10),
@@ -771,7 +772,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If,
+        If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(15),
         Else,
@@ -797,7 +798,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         I32GreaterThanSign,
-        If,
+        If(6, 14),
         RuntimeValue(ValueTypes::I32),
         GetLocal(0),
         I32Const(10),
@@ -810,7 +811,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If,
+        If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(15),
         Else,
@@ -836,7 +837,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If,
+        If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(5),
         Else,
@@ -863,7 +864,7 @@ mod tests {
         GetLocal(0),
         I32Const(0),
         I32LessEqualSign,
-        If,
+        If(5, 0),
         RuntimeValue(ValueTypes::Empty),
         I32Const(0),
         Return,

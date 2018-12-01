@@ -6,7 +6,7 @@ pub enum Inst {
   Nop,
   Block,
   Loop,
-  If,
+  If(u32, u32),
   Else,
   End,
   Br(u32),
@@ -190,23 +190,25 @@ pub enum Inst {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Instructions {
-  index: usize,
+  pub ptr: u32,
   expressions: Vec<Inst>,
+  label_ptrs: Vec<u32>,
 }
 
 impl Instructions {
   pub fn new(expressions: Vec<Inst>) -> Self {
     Instructions {
-      index: 0,
+      ptr: 0,
       expressions,
+      label_ptrs: vec![],
     }
   }
   pub fn peek(&self) -> Option<&Inst> {
-    self.expressions.get(self.index)
+    self.expressions.get(self.ptr as usize)
   }
   pub fn pop(&mut self) -> Option<Inst> {
-    let head = self.expressions.get(self.index).map(|x| x.clone());
-    self.index += 1;
+    let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
+    self.ptr += 1;
     head
   }
   pub fn is_next_end(&self) -> bool {
@@ -224,23 +226,17 @@ impl Instructions {
   pub fn is_next_end_or_else(&self) -> bool {
     self.is_next_end() || self.is_next_else()
   }
-  pub fn skip_until_end_or_else(&mut self) {
-    while !self.is_next_end_or_else() {
-      match self.peek() {
-        Some(Inst::If) => {
-          let _ = self.pop();
-          self.skip_until_end_or_else();
-          if self.is_next_else() {
-            let _ = self.pop();
-            self.skip_until_end_or_else();
-          } else {
-            let _ = self.pop();
-          }
-        }
-        _ => {
-          let _ = self.pop();
-        }
-      }
-    }
+
+  pub fn push_label(&mut self, ptr_of_label: u32) {
+    self.label_ptrs.push(ptr_of_label)
+  }
+
+  pub fn jump_to(&mut self, ptr_of_label: u32) {
+    self.ptr = ptr_of_label;
+  }
+  pub fn jump_to_label(&mut self, label: u32) -> Option<()> {
+    let ptr_of_label = *self.label_ptrs.get(label as usize)?;
+    self.jump_to(ptr_of_label);
+    Some(())
   }
 }

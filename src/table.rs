@@ -12,8 +12,6 @@ impl From<Option<u8>> for ElementType {
 }
 
 pub struct TableInstance {
-  // elem,
-  // max,
   element_type: ElementType,
   limit: Limit,
 }

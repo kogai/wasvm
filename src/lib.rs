@@ -104,14 +104,34 @@ impl Vm {
         }
     }
 
-    fn evaluate_instructions(&mut self, expressions: &mut Instructions) -> Result<()> {
+    fn evaluate_instructions(&mut self, instructions: &mut Instructions) -> Result<()> {
         use self::Inst::*;
-        while !expressions.is_next_end_or_else() {
-            let expression = expressions.pop().unwrap();
+        while !instructions.is_next_end_or_else() {
+            let expression = instructions.pop().unwrap();
             match expression {
                 Unreachable | Nop | Block | Loop | Return => {
                     unimplemented!("{:?}", expression);
                 }
+                If(if_size, else_size) => {
+                    let cond = &self.stack.pop_value();
+                    let start_of_if = instructions.ptr - 1;
+                    let continuation = start_of_if + if_size + else_size;
+                    let start_of_else = start_of_if + if_size;
+                    instructions.push_label(continuation);
+                    let _return_type = instructions.pop().unwrap();
+
+                    if cond.is_truthy() {
+                        self.evaluate_instructions(instructions)?;
+                    } else {
+                        instructions.jump_to(start_of_else);
+                        if else_size > 0 {
+                            self.evaluate_instructions(instructions)?;
+                        }
+                    }
+                    instructions.jump_to_label(0);
+                }
+                Else => unreachable!(),
+                End => break,
                 Br(_) | BrIf(_) => {
                     unimplemented!("{:?}", expression);
                 }
@@ -123,7 +143,7 @@ impl Vm {
                     self.call(idx, vec![operand]);
                     let _ = self.evaluate();
                 }
-                CallIndirect(idx) => {
+                CallIndirect(_idx) => {
                     unimplemented!("{:?}", expression);
                 }
                 GetLocal(idx) => {
@@ -210,28 +230,6 @@ impl Vm {
                 I32Or | I64Or => impl_binary_inst!(self, or),
                 I32Xor | I64Xor => impl_binary_inst!(self, xor),
                 I32And | I64And => impl_binary_inst!(self, and),
-                If => {
-                    let cond = &self.stack.pop_value();
-                    let _return_type = expressions.pop().unwrap();
-                    if cond.is_truthy() {
-                        let _ = self.evaluate_instructions(expressions);
-                        expressions.pop(); // Drop Else
-                        expressions.skip_until_end_or_else();
-                        expressions.pop(); // Drop End
-                    } else {
-                        expressions.skip_until_end_or_else();
-                        if expressions.is_next_else() {
-                            expressions.pop(); // Drop Else
-                            let _ = self.evaluate_instructions(expressions);
-                            expressions.pop(); // Drop End
-                        } else {
-                            expressions.pop(); // Drop Else
-                            continue;
-                        }
-                    }
-                }
-                Else => unreachable!(),
-                End => break,
                 I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
                 I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
                 I32ShiftRightUnsign | I64ShiftRightUnsign => {
