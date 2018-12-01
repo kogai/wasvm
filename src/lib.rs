@@ -109,14 +109,16 @@ impl Vm {
         while !instructions.is_next_end_or_else() {
             let expression = instructions.pop().unwrap();
             match expression {
-                Unreachable | Nop | Block | Return => {
+                Unreachable | Block | Return => {
                     unimplemented!("{:?}", expression);
                 }
+                Nop => {}
                 Loop => {
                     let start_of_control = instructions.ptr - 1;
                     instructions.push_label(start_of_control);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
+                    instructions.pop()?; // Drop End instruction.
                 }
                 If(if_size, else_size) => {
                     let cond = &self.stack.pop_value_ext();
