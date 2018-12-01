@@ -22,7 +22,7 @@ use value::Values;
 macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let width = $load_data_width / 8;
-        let i = match $self.stack.pop_value() {
+        let i = match $self.stack.pop_value_ext() {
             Values::I32(i) => i,
             x => unreachable!("{:?}", x),
         } as u32;
@@ -41,7 +41,7 @@ macro_rules! impl_load_inst {
 
 macro_rules! impl_unary_inst {
     ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value();
+        let popped = $self.stack.pop_value_ext();
         let value = popped.$op();
         $self.stack.push(StackEntry::new_value(value));
     }};
@@ -49,7 +49,7 @@ macro_rules! impl_unary_inst {
 
 macro_rules! impl_try_unary_inst {
     ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value();
+        let popped = $self.stack.pop_value_ext();
         let value = popped.$op();
         match value {
             Ok(result) => {
@@ -64,8 +64,8 @@ macro_rules! impl_try_unary_inst {
 
 macro_rules! impl_binary_inst {
     ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value();
-        let left = $self.stack.pop_value();
+        let right = $self.stack.pop_value_ext();
+        let left = $self.stack.pop_value_ext();
         let value = left.$op(&right);
         $self.stack.push(StackEntry::new_value(value));
     }};
@@ -73,8 +73,8 @@ macro_rules! impl_binary_inst {
 
 macro_rules! impl_try_binary_inst {
     ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value();
-        let left = $self.stack.pop_value();
+        let right = $self.stack.pop_value_ext();
+        let left = $self.stack.pop_value_ext();
         let value = left.$op(&right);
         match value {
             Ok(result) => {
@@ -109,11 +109,17 @@ impl Vm {
         while !instructions.is_next_end_or_else() {
             let expression = instructions.pop().unwrap();
             match expression {
-                Unreachable | Nop | Block | Loop | Return => {
+                Unreachable | Nop | Block | Return => {
                     unimplemented!("{:?}", expression);
                 }
+                Loop => {
+                    let start_of_control = instructions.ptr - 1;
+                    instructions.push_label(start_of_control);
+                    let _block_type = instructions.pop().unwrap();
+                    self.evaluate_instructions(instructions)?;
+                }
                 If(if_size, else_size) => {
-                    let cond = &self.stack.pop_value();
+                    let cond = &self.stack.pop_value_ext();
                     let start_of_if = instructions.ptr - 1;
                     let continuation = start_of_if + if_size + else_size;
                     let start_of_else = start_of_if + if_size;
@@ -139,7 +145,7 @@ impl Vm {
                     unimplemented!("{:?}", expression);
                 }
                 Call(idx) => {
-                    let operand = self.stack.pop_value();
+                    let operand = self.stack.pop_value_ext();
                     self.call(idx, vec![operand]);
                     let _ = self.evaluate();
                 }
@@ -189,9 +195,9 @@ impl Vm {
                 F32Trunc | F64Trunc => impl_unary_inst!(self, trunc),
                 F32Nearest | F64Nearest => impl_unary_inst!(self, nearest),
                 Select => {
-                    let cond = &self.stack.pop_value();
-                    let false_br = self.stack.pop_value();
-                    let true_br = self.stack.pop_value();
+                    let cond = &self.stack.pop_value_ext();
+                    let false_br = self.stack.pop_value_ext();
+                    let true_br = self.stack.pop_value_ext();
                     if cond.is_truthy() {
                         self.stack.push(StackEntry::new_value(true_br));
                     } else {
@@ -199,7 +205,7 @@ impl Vm {
                     }
                 }
                 DropInst => {
-                    self.stack.pop_value();
+                    self.stack.pop_value_ext();
                 }
                 LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => {
                     impl_binary_inst!(self, less_than)
@@ -236,7 +242,7 @@ impl Vm {
                     impl_binary_inst!(self, shift_right_unsign)
                 }
                 I32WrapI64 => {
-                    let i = &self.stack.pop_value();
+                    let i = &self.stack.pop_value_ext();
                     match i {
                         Values::I64(n) => {
                             let result = (*n % 2_i64.pow(32)) as i32;
@@ -325,9 +331,11 @@ impl Vm {
 
     fn evaluate_frame(&mut self, instructions: &mut Instructions) -> Result<()> {
         self.evaluate_instructions(instructions)?;
-        let return_value = StackEntry::new_value(self.stack.pop_value());
+        let ret_val = self.stack.pop_value();
         self.stack.update_frame_ptr();
-        self.stack.push(return_value);
+        if let Some(val) = ret_val {
+            self.stack.push(StackEntry::new_value(val));
+        };
         Ok(())
     }
 
@@ -379,7 +387,7 @@ impl Vm {
         self.call(start_idx, arguments);
 
         match self.evaluate() {
-            Ok(_) => match self.stack.pop_value() {
+            Ok(_) => match self.stack.pop_value_ext() {
                 Values::I32(v) => format!("i32:{}", v),
                 Values::I64(v) => format!("i64:{}", v),
                 Values::F32(v) => {

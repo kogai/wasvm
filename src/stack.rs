@@ -94,11 +94,16 @@ impl Stack {
     }
   }
 
-  pub fn pop_value(&mut self) -> Values {
-    let value = self.pop().expect("Expect to pop up value, but got None");
+  pub fn pop_value(&mut self) -> Option<Values> {
+    let value = self.pop()?;
     match *value {
-      StackEntry::Value(ref v) => v.to_owned(),
-      ref x => unreachable!(format!("Expect to pop value,  but got {:?}", x).as_str()),
+      StackEntry::Value(ref v) => Some(v.to_owned()),
+      ref x => unreachable!(format!("Expect to pop value, but got {:?}", x).as_str()),
     }
+  }
+  pub fn pop_value_ext(&mut self) -> Values {
+    self
+      .pop_value()
+      .expect("Expect to pop up value, but got None")
   }
 }
