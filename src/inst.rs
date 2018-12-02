@@ -230,6 +230,10 @@ impl Instructions {
   pub fn push_label(&mut self, ptr_of_label: u32) {
     self.label_ptrs.push(ptr_of_label)
   }
+  pub fn pop_label(&mut self) -> Option<()> {
+    self.label_ptrs.pop()?;
+    Some(())
+  }
 
   pub fn jump_to(&mut self, ptr_of_label: u32) {
     self.ptr = ptr_of_label;

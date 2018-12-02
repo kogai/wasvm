@@ -145,14 +145,31 @@ impl Vm {
                         }
                     }
                     instructions.jump_to_label(0);
+                    instructions.pop_label()?; // Drop own label.
                 }
                 Else => unreachable!(),
                 End => break,
-                Br(_) | BrIf(_) => {
+                Br(_) => {
                     unimplemented!("{:?}", expression);
                 }
-                BrTable(_, _) => {
-                    unimplemented!("{:?}", expression);
+                BrIf(l) => {
+                    let cond = &self.stack.pop_value_ext();
+                    if cond.is_truthy() {
+                        instructions.jump_to_label(l);
+                    };
+                }
+                BrTable(ref tables, ref idx) => {
+                    let i = if let Values::I32(i) = self.stack.pop_value_ext() {
+                        i as usize
+                    } else {
+                        unreachable!();
+                    };
+                    let label = if i < tables.len() {
+                        tables.get(i)
+                    } else {
+                        tables.get(*idx as usize)
+                    };
+                    instructions.jump_to_label(*label?);
                 }
                 Call(idx) => {
                     let arguments = match self.stack.pop_value() {
