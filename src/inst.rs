@@ -1,4 +1,6 @@
 use code::ValueTypes;
+use function::FunctionType;
+use trap::Result;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
@@ -193,14 +195,22 @@ pub struct Instructions {
   pub ptr: u32,
   expressions: Vec<Inst>,
   label_ptrs: Vec<u32>,
+  table_addresses: Vec<u32>,
+  types: Vec<Result<FunctionType>>,
 }
 
 impl Instructions {
-  pub fn new(expressions: Vec<Inst>) -> Self {
+  pub fn new(
+    expressions: Vec<Inst>,
+    table_addresses: Vec<u32>,
+    types: Vec<Result<FunctionType>>,
+  ) -> Self {
     Instructions {
       ptr: 0,
       expressions,
       label_ptrs: vec![],
+      table_addresses,
+      types,
     }
   }
   pub fn peek(&self) -> Option<&Inst> {
@@ -243,5 +253,17 @@ impl Instructions {
     let ptr_of_label = *self.label_ptrs.get(idx)?;
     self.jump_to(ptr_of_label);
     Some(())
+  }
+  pub fn get_table_address(&self) -> u32 {
+    *self
+      .table_addresses
+      .get(0)
+      .expect("Table address [0] not found")
+  }
+  pub fn get_type_at(&self, idx: u32) -> Option<&FunctionType> {
+    match self.types.get(idx as usize) {
+      Some(Ok(t)) => Some(t),
+      _ => None,
+    }
   }
 }

@@ -569,17 +569,15 @@ impl Byte {
       let value_type = ValueTypes::from(self.next());
       let global_type = GlobalType::new(self.next(), value_type);
       let init = self.decode_section_code_internal()?;
-      Ok(GlobalInstance::new(global_type, Instructions::new(init)))
+      Ok(GlobalInstance::new(
+        global_type,
+        Instructions::new(init, vec![], vec![]),
+      ))
     })
   }
   fn decode_function_idx(&mut self) -> Result<Vec<u32>> {
     let count = self.decode_leb128_u32()?;
-    Byte::decode_vec(count, || {
-      println!("self.peek()={:x?}", self.peek());
-      let code = self.decode_leb128_u32();
-      println!("code={:x?}", code);
-      code
-    })
+    Byte::decode_vec(count, || self.decode_leb128_u32())
   }
   fn decode_section_element(&mut self) -> Result<Vec<Element>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
@@ -588,7 +586,11 @@ impl Byte {
       let table_idx = self.decode_leb128_u32()?;
       let offset = self.decode_section_code_internal()?;
       let init = self.decode_function_idx()?;
-      Ok(Element::new(table_idx, Instructions::new(offset), init))
+      Ok(Element::new(
+        table_idx,
+        Instructions::new(offset, vec![], vec![]),
+        init,
+      ))
     })
   }
 

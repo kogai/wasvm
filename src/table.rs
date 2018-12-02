@@ -30,7 +30,7 @@ impl TableType {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TableInstance {
   elements: Vec<u32>, // Vec of function address
   max: Option<u32>,
@@ -45,5 +45,11 @@ impl TableInstance {
         Limit::HasUpperLimit(_, max) => Some(max),
       },
     }
+  }
+  pub fn len(&self) -> u32 {
+    self.elements.len() as u32
+  }
+  pub fn get_function_address(&self, idx: u32) -> Option<u32> {
+    self.elements.get(idx as usize).map(|x| *x)
   }
 }

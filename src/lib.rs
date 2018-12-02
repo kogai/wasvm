@@ -181,8 +181,24 @@ impl Vm {
                     self.call(idx, arguments);
                     self.evaluate()?;
                 }
-                CallIndirect(_idx) => {
-                    unimplemented!("{:?}", expression);
+                CallIndirect(idx) => {
+                    let ta = instructions.get_table_address();
+                    let table = self.store.get_table_at(ta)?.clone();
+                    let _function_type = instructions.get_type_at(idx);
+                    let i = match self.stack.pop_value_ext() {
+                        Values::I32(i) => i as u32,
+                        _ => unreachable!(),
+                    };
+                    if i < table.len() {
+                        return Err(Trap::MemoryAccessOutOfBounds);
+                    }
+                    let address = table.get_function_address(i)?;
+                    let arguments = match self.stack.pop_value() {
+                        Some(a) => vec![a],
+                        None => vec![],
+                    };
+                    self.call(address as usize, arguments);
+                    self.evaluate()?;
                 }
                 GetLocal(idx) => {
                     let frame_ptr = self.stack.get_frame_ptr();
@@ -376,6 +392,8 @@ impl Vm {
             locals: arguments,
             return_ptr: self.stack.stack_ptr,
             function_idx,
+            table_addresses: vec![0],
+            types: self.store.gather_function_types(),
         });
         self.stack.push(frame);
     }
@@ -402,7 +420,11 @@ impl Vm {
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    let label = StackEntry::new_label(Instructions::new(expressions));
+                    let label = StackEntry::new_label(Instructions::new(
+                        expressions,
+                        frame.table_addresses.to_owned(),
+                        frame.types.to_owned(),
+                    ));
                     self.stack.increase(locals.len());
                     self.stack.push(label);
                 }

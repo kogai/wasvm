@@ -20,7 +20,7 @@ impl FunctionType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionInstance {
   export_name: Option<String>,
-  function_type: Result<FunctionType>,
+  pub function_type: Result<FunctionType>,
   locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Vec<Inst>,
