@@ -141,6 +141,17 @@ macro_rules! impl_e2e {
   };
 }
 
+impl_e2e!(test_address, "address");
+// impl_e2e!(test_align, "align");
+// impl_e2e!(test_binary, "binary");
+// impl_e2e!(test_block, "block");
+// impl_e2e!(test_br_if, "br_if");
+// impl_e2e!(test_br_table, "br_table");
+// impl_e2e!(test_br, "br");
+// impl_e2e!(test_break_drop, "break-drop");
+// impl_e2e!(test_call_indirect, "call_indirect");
+// impl_e2e!(test_call, "call");
+impl_e2e!(test_const, "const");
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
 impl_e2e!(test_f32, "f32");
@@ -150,5 +161,4 @@ impl_e2e!(test_f64, "f64");
 impl_e2e!(test_f64_cmp, "f64_cmp");
 impl_e2e!(test_f64_bitwise, "f64_bitwise");
 impl_e2e!(test_float_exprs, "float_exprs");
-impl_e2e!(test_address, "address");
 impl_e2e!(test_loop, "loop");
