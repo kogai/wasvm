@@ -1,28 +1,55 @@
+use element::Element;
 use memory::Limit;
 
-pub struct ElementType;
+#[derive(Debug)]
+pub enum ElementType {
+  AnyFunc,
+}
 
 impl From<Option<u8>> for ElementType {
   fn from(code: Option<u8>) -> Self {
     match code {
-      Some(0x70) => ElementType,
+      Some(0x70) => ElementType::AnyFunc,
       x => unreachable!("Expected element-type code, got {:?}", x),
     }
   }
 }
 
-pub struct TableInstance {
-  // elem,
-  // max,
+#[derive(Debug)]
+pub struct TableType {
   element_type: ElementType,
   limit: Limit,
 }
 
-impl TableInstance {
+impl TableType {
   pub fn new(element_type: ElementType, limit: Limit) -> Self {
-    TableInstance {
+    TableType {
       element_type,
       limit,
     }
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct TableInstance {
+  elements: Vec<u32>, // Vec of function address
+  max: Option<u32>,
+}
+
+impl TableInstance {
+  pub fn new(table: &TableType, element: &Element) -> Self {
+    TableInstance {
+      elements: element.init.to_owned(),
+      max: match table.limit {
+        Limit::NoUpperLimit(_) => None,
+        Limit::HasUpperLimit(_, max) => Some(max),
+      },
+    }
+  }
+  pub fn len(&self) -> u32 {
+    self.elements.len() as u32
+  }
+  pub fn get_function_address(&self, idx: u32) -> Option<u32> {
+    self.elements.get(idx as usize).map(|x| *x)
   }
 }

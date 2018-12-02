@@ -1,5 +1,7 @@
+use function::FunctionType;
 use inst::Instructions;
 use std::rc::Rc;
+use trap::Result;
 use value::Values;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -7,6 +9,8 @@ pub struct Frame {
   pub locals: Vec<Values>,
   pub function_idx: usize,
   pub return_ptr: usize,
+  pub table_addresses: Vec<u32>,
+  pub types: Vec<Result<FunctionType>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -94,11 +98,32 @@ impl Stack {
     }
   }
 
-  pub fn pop_value(&mut self) -> Values {
-    let value = self.pop().expect("Expect to pop up value, but got None");
+  pub fn pop_value(&mut self) -> Option<Values> {
+    let value = self.pop()?;
     match *value {
-      StackEntry::Value(ref v) => v.to_owned(),
-      ref x => unreachable!(format!("Expect to pop value,  but got {:?}", x).as_str()),
+      StackEntry::Value(ref v) => Some(v.to_owned()),
+      _ => {
+        self.push(value.clone());
+        None
+      }
     }
+  }
+  pub fn pop_value_ext(&mut self) -> Values {
+    self
+      .pop_value()
+      .expect("Expect to pop up value, but got None")
+  }
+}
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn stack_ptr() {
+    let mut stack = Stack::new(4);
+    stack.push(StackEntry::new_value(Values::I32(1)));
+    stack.set(2, StackEntry::new_value(Values::I32(2)));
+    assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
+    assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
   }
 }

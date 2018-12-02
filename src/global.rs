@@ -1,14 +1,14 @@
 use code::ValueTypes;
 use inst::Instructions;
 
-pub struct Global {
+pub struct GlobalInstance {
   global_type: GlobalType,
   init: Instructions,
 }
 
-impl Global {
+impl GlobalInstance {
   pub fn new(global_type: GlobalType, init: Instructions) -> Self {
-    Global { global_type, init }
+    GlobalInstance { global_type, init }
   }
 }
 

@@ -2,9 +2,9 @@ use inst::Instructions;
 
 #[derive(Debug)]
 pub struct Element {
-  table_idx: u32,
+  pub table_idx: u32,
   offset: Instructions,
-  init: Vec<u32>, // vec of funcidx
+  pub init: Vec<u32>, // vec of funcidx
 }
 
 impl Element {

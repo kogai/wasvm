@@ -1,14 +1,16 @@
-use function::FunctionInstance;
-use global::Global;
+use function::{FunctionInstance, FunctionType};
+use global::GlobalInstance;
 use memory::MemoryInstance;
 use table::TableInstance;
+use trap::Result;
 use value::Values;
 
 pub struct Store {
   function_instances: Vec<FunctionInstance>,
+  // NOTE: Might be Vector of MemoryInstances
   memory_instance: MemoryInstance,
   table_instances: Vec<TableInstance>,
-  global_instances: Vec<Global>,
+  global_instances: Vec<GlobalInstance>,
 }
 
 impl Store {
@@ -16,7 +18,7 @@ impl Store {
     function_instances: Vec<FunctionInstance>,
     memory_instance: MemoryInstance,
     table_instances: Vec<TableInstance>,
-    global_instances: Vec<Global>,
+    global_instances: Vec<GlobalInstance>,
   ) -> Self {
     Store {
       function_instances,
@@ -36,6 +38,18 @@ impl Store {
       .iter()
       .position(|f| f.find(invoke))
       .expect(&format!("Function [{}] did not found.", invoke))
+  }
+
+  pub fn gather_function_types(&self) -> Vec<Result<FunctionType>> {
+    self
+      .function_instances
+      .iter()
+      .map(|f| f.function_type.to_owned())
+      .collect()
+  }
+
+  pub fn get_table_at(&self, idx: u32) -> Option<&TableInstance> {
+    self.table_instances.get(idx as usize)
   }
 
   #[cfg(test)]

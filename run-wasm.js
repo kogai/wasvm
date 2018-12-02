@@ -20,14 +20,16 @@ const importObj = {
 };
 
 if (process.argv.length < 3) {
-  console.error("Error! Use like 'node run-wasm.js name-of-wasm'");
+  console.error("Error! Use like 'node run-wasm.js [name-of-wasm-file] [name-of-invoke-function] [...arguments]'");
   process.exit(1);
 }
-
-const wasm = `./dist/${process.argv[2]}.wasm`;
+const [_, __, name, invoke, ...args] = process.argv;
+const wasm = `./${name}.wasm`;
+const invoke_fn = `${invoke}`;
+console.log(`Invoke "${invoke_fn}" of "${wasm}" with "${args}"`);
 const buffer = fs.readFileSync(wasm);
 WebAssembly.instantiate(buffer, importObj)
   .then(mod => {
-    console.log(mod.instance.exports._subject(process.argv[3]));
+    console.log(mod.instance.exports[invoke_fn](...args));
   })
   .catch(console.error);

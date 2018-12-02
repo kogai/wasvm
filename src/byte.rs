@@ -1,13 +1,13 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use element::Element;
 use function::{FunctionInstance, FunctionType};
-use global::{Global, GlobalType};
+use global::{GlobalInstance, GlobalType};
 use inst::{Inst, Instructions};
 use memory::{Data, Limit, MemoryInstance};
 use std::convert::From;
 use std::{f32, f64};
 use store::Store;
-use table::{ElementType, TableInstance};
+use table::{ElementType, TableInstance, TableType};
 use trap::{Result, Trap};
 
 macro_rules! leb128 {
@@ -182,9 +182,12 @@ impl Byte {
         Code::Unreachable => expressions.push(Inst::Unreachable),
         Code::Nop => expressions.push(Inst::Nop),
         Code::Block => {
-          expressions.push(Inst::Block);
-          expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
+          let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
           let mut instructions = self.decode_section_code_internal()?;
+          expressions.push(Inst::Block(
+            (2 /* If inst + Type of block */ + instructions.len()) as u32,
+          ));
+          expressions.push(block_type);
           expressions.append(&mut instructions);
         }
         Code::Loop => {
@@ -197,18 +200,19 @@ impl Byte {
           let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
           let mut if_insts = self.decode_section_code_internal()?;
           let last = if_insts.last().map(|x| x.clone());
-          expressions.push(Inst::If);
+
+          let mut else_insts = match last {
+            Some(Inst::Else) => self.decode_section_code_internal()?,
+            Some(Inst::End) => vec![],
+            x => unreachable!("{:?}", x),
+          };
+          expressions.push(Inst::If(
+            (2 /* If inst + Type of block */ + if_insts.len()) as u32,
+            else_insts.len() as u32,
+          ));
           expressions.push(block_type);
           expressions.append(&mut if_insts);
-
-          match last {
-            Some(Inst::Else) => {
-              // NOTE: Else clause
-              expressions.append(&mut self.decode_section_code_internal()?);
-            }
-            Some(Inst::End) => continue,
-            x => unreachable!("{:?}", x),
-          }
+          expressions.append(&mut else_insts);
         }
         Code::Br => expressions.push(Inst::Br(self.decode_leb128_u32()?)),
         Code::BrIf => expressions.push(Inst::BrIf(self.decode_leb128_u32()?)),
@@ -548,24 +552,27 @@ impl Byte {
     })
   }
 
-  fn decode_section_table(&mut self) -> Result<Vec<TableInstance>> {
+  fn decode_section_table(&mut self) -> Result<Vec<TableType>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
     let count_of_data = self.decode_leb128_u32()?;
     Byte::decode_vec(count_of_data, || {
       let element_type = ElementType::from(self.next());
       let limit = self.decode_limit()?;
-      Ok(TableInstance::new(element_type, limit))
+      Ok(TableType::new(element_type, limit))
     })
   }
 
-  fn decode_section_global(&mut self) -> Result<Vec<Global>> {
+  fn decode_section_global(&mut self) -> Result<Vec<GlobalInstance>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
     let count = self.decode_leb128_u32()?;
     Byte::decode_vec(count, || {
       let value_type = ValueTypes::from(self.next());
       let global_type = GlobalType::new(self.next(), value_type);
       let init = self.decode_section_code_internal()?;
-      Ok(Global::new(global_type, Instructions::new(init)))
+      Ok(GlobalInstance::new(
+        global_type,
+        Instructions::new(init, vec![], vec![]),
+      ))
     })
   }
   fn decode_function_idx(&mut self) -> Result<Vec<u32>> {
@@ -579,7 +586,11 @@ impl Byte {
       let table_idx = self.decode_leb128_u32()?;
       let offset = self.decode_section_code_internal()?;
       let init = self.decode_function_idx()?;
-      Ok(Element::new(table_idx, Instructions::new(offset), init))
+      Ok(Element::new(
+        table_idx,
+        Instructions::new(offset, vec![], vec![]),
+        init,
+      ))
     })
   }
 
@@ -590,7 +601,7 @@ impl Byte {
     let mut list_of_expressions = vec![];
     let mut _memories = vec![];
     let mut data = vec![];
-    let mut table_instances = vec![];
+    let mut table_types = vec![];
     let mut global_instances = vec![];
     let mut elements = vec![];
     while self.has_next() {
@@ -602,7 +613,7 @@ impl Byte {
         SectionCode::Code => list_of_expressions = self.decode_section_code()?,
         SectionCode::Data => data = self.decode_section_data()?,
         SectionCode::Memory => _memories = self.decode_section_memory()?,
-        SectionCode::Table => table_instances = self.decode_section_table()?,
+        SectionCode::Table => table_types = self.decode_section_table()?,
         SectionCode::Global => global_instances = self.decode_section_global()?,
         SectionCode::Element => elements = self.decode_section_element()?,
         SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
@@ -612,6 +623,15 @@ impl Byte {
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
     let memory_instances = MemoryInstance::new(data);
+    let table_instances = elements
+      .iter()
+      .map(|el| {
+        let table_type = table_types
+          .get(el.table_idx as usize)
+          .expect("Table type not found.");
+        TableInstance::new(&table_type, el)
+      })
+      .collect();
 
     for idx_of_fn in 0..list_of_expressions.len() {
       let export_name = function_key_and_indexes
@@ -758,7 +778,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         LessThanSign,
-        If,
+        If(6, 14),
         RuntimeValue(ValueTypes::I32),
         GetLocal(0),
         I32Const(10),
@@ -771,7 +791,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If,
+        If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(15),
         Else,
@@ -797,7 +817,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         I32GreaterThanSign,
-        If,
+        If(6, 14),
         RuntimeValue(ValueTypes::I32),
         GetLocal(0),
         I32Const(10),
@@ -810,7 +830,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If,
+        If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(15),
         Else,
@@ -836,7 +856,7 @@ mod tests {
         GetLocal(0),
         I32Const(10),
         Equal,
-        If,
+        If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(5),
         Else,
@@ -863,7 +883,7 @@ mod tests {
         GetLocal(0),
         I32Const(0),
         I32LessEqualSign,
-        If,
+        If(5, 0),
         RuntimeValue(ValueTypes::Empty),
         I32Const(0),
         Return,

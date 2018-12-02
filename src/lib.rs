@@ -22,7 +22,7 @@ use value::Values;
 macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let width = $load_data_width / 8;
-        let i = match $self.stack.pop_value() {
+        let i = match $self.stack.pop_value_ext() {
             Values::I32(i) => i,
             x => unreachable!("{:?}", x),
         } as u32;
@@ -41,7 +41,7 @@ macro_rules! impl_load_inst {
 
 macro_rules! impl_unary_inst {
     ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value();
+        let popped = $self.stack.pop_value_ext();
         let value = popped.$op();
         $self.stack.push(StackEntry::new_value(value));
     }};
@@ -49,7 +49,7 @@ macro_rules! impl_unary_inst {
 
 macro_rules! impl_try_unary_inst {
     ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value();
+        let popped = $self.stack.pop_value_ext();
         let value = popped.$op();
         match value {
             Ok(result) => {
@@ -64,8 +64,8 @@ macro_rules! impl_try_unary_inst {
 
 macro_rules! impl_binary_inst {
     ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value();
-        let left = $self.stack.pop_value();
+        let right = $self.stack.pop_value_ext();
+        let left = $self.stack.pop_value_ext();
         let value = left.$op(&right);
         $self.stack.push(StackEntry::new_value(value));
     }};
@@ -73,8 +73,8 @@ macro_rules! impl_binary_inst {
 
 macro_rules! impl_try_binary_inst {
     ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value();
-        let left = $self.stack.pop_value();
+        let right = $self.stack.pop_value_ext();
+        let left = $self.stack.pop_value_ext();
         let value = left.$op(&right);
         match value {
             Ok(result) => {
@@ -104,27 +104,104 @@ impl Vm {
         }
     }
 
-    fn evaluate_instructions(&mut self, expressions: &mut Instructions) -> Result<()> {
+    fn evaluate_instructions(&mut self, instructions: &mut Instructions) -> Result<()> {
         use self::Inst::*;
-        while !expressions.is_next_end_or_else() {
-            let expression = expressions.pop().unwrap();
+        while !instructions.is_next_end_or_else() {
+            let expression = instructions.pop().unwrap();
             match expression {
-                Unreachable | Nop | Block | Loop | Return => {
+                Unreachable | Return => {
                     unimplemented!("{:?}", expression);
                 }
-                Br(_) | BrIf(_) => {
+                Nop => {}
+                Block(size) => {
+                    let start_of_control = instructions.ptr - 1;
+                    let continuation = start_of_control + size;
+                    instructions.push_label(continuation);
+                    let _block_type = instructions.pop().unwrap();
+                    self.evaluate_instructions(instructions)?;
+                    instructions.pop_label()?; // Drop own label.
+                    instructions.pop()?; // Drop End instruction.
+                }
+                Loop => {
+                    let start_of_control = instructions.ptr - 1;
+                    instructions.push_label(start_of_control);
+                    let _block_type = instructions.pop().unwrap();
+                    self.evaluate_instructions(instructions)?;
+                    instructions.pop_label()?; // Drop own label.
+                    instructions.pop()?; // Drop End instruction.
+                }
+                If(if_size, else_size) => {
+                    let cond = &self.stack.pop_value_ext();
+                    let start_of_if = instructions.ptr - 1;
+                    let continuation = start_of_if + if_size + else_size;
+                    let start_of_else = start_of_if + if_size;
+                    instructions.push_label(continuation);
+                    let _return_type = instructions.pop().unwrap();
+
+                    if cond.is_truthy() {
+                        self.evaluate_instructions(instructions)?;
+                    } else {
+                        instructions.jump_to(start_of_else);
+                        if else_size > 0 {
+                            self.evaluate_instructions(instructions)?;
+                        }
+                    }
+                    instructions.jump_to_label(0);
+                    instructions.pop_label()?; // Drop own label.
+                }
+                Else => unreachable!(),
+                End => break,
+                Br(_) => {
                     unimplemented!("{:?}", expression);
                 }
-                BrTable(_, _) => {
-                    unimplemented!("{:?}", expression);
+                BrIf(l) => {
+                    let cond = &self.stack.pop_value_ext();
+                    if cond.is_truthy() {
+                        instructions.jump_to_label(l);
+                    };
+                }
+                BrTable(ref tables, ref idx) => {
+                    let i = if let Values::I32(i) = self.stack.pop_value_ext() {
+                        i as usize
+                    } else {
+                        unreachable!();
+                    };
+                    let label = if i < tables.len() {
+                        tables.get(i)
+                    } else {
+                        tables.get(*idx as usize)
+                    };
+                    instructions.jump_to_label(*label?);
                 }
                 Call(idx) => {
-                    let operand = self.stack.pop_value();
-                    self.call(idx, vec![operand]);
-                    let _ = self.evaluate();
+                    let arguments = match self.stack.pop_value() {
+                        Some(a) => vec![a],
+                        None => vec![],
+                    };
+                    self.call(idx, arguments);
+                    self.evaluate()?;
                 }
-                CallIndirect(idx) => {
-                    unimplemented!("{:?}", expression);
+                CallIndirect(_idx) => {
+                    let ta = instructions.get_table_address();
+                    let table = self.store.get_table_at(ta)?.clone();
+                    let i = match self.stack.pop_value_ext() {
+                        Values::I32(i) => i as u32,
+                        _ => unreachable!(),
+                    };
+                    if i >= table.len() {
+                        return Err(Trap::MemoryAccessOutOfBounds);
+                    }
+                    let address = table.get_function_address(i)?;
+                    // FIXME: Use idx pass from CallIndirect instruction :thinking:
+                    let function_type = instructions.get_type_at(address)?;
+                    let mut arguments = vec![];
+                    for _ in 0..function_type.get_arity() {
+                        arguments.push(self.stack.pop_value_ext());
+                    }
+                    arguments.reverse();
+
+                    self.call(address as usize, arguments);
+                    self.evaluate()?;
                 }
                 GetLocal(idx) => {
                     let frame_ptr = self.stack.get_frame_ptr();
@@ -169,9 +246,9 @@ impl Vm {
                 F32Trunc | F64Trunc => impl_unary_inst!(self, trunc),
                 F32Nearest | F64Nearest => impl_unary_inst!(self, nearest),
                 Select => {
-                    let cond = &self.stack.pop_value();
-                    let false_br = self.stack.pop_value();
-                    let true_br = self.stack.pop_value();
+                    let cond = &self.stack.pop_value_ext();
+                    let false_br = self.stack.pop_value_ext();
+                    let true_br = self.stack.pop_value_ext();
                     if cond.is_truthy() {
                         self.stack.push(StackEntry::new_value(true_br));
                     } else {
@@ -179,7 +256,7 @@ impl Vm {
                     }
                 }
                 DropInst => {
-                    self.stack.pop_value();
+                    self.stack.pop_value_ext();
                 }
                 LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => {
                     impl_binary_inst!(self, less_than)
@@ -210,35 +287,13 @@ impl Vm {
                 I32Or | I64Or => impl_binary_inst!(self, or),
                 I32Xor | I64Xor => impl_binary_inst!(self, xor),
                 I32And | I64And => impl_binary_inst!(self, and),
-                If => {
-                    let cond = &self.stack.pop_value();
-                    let _return_type = expressions.pop().unwrap();
-                    if cond.is_truthy() {
-                        let _ = self.evaluate_instructions(expressions);
-                        expressions.pop(); // Drop Else
-                        expressions.skip_until_end_or_else();
-                        expressions.pop(); // Drop End
-                    } else {
-                        expressions.skip_until_end_or_else();
-                        if expressions.is_next_else() {
-                            expressions.pop(); // Drop Else
-                            let _ = self.evaluate_instructions(expressions);
-                            expressions.pop(); // Drop End
-                        } else {
-                            expressions.pop(); // Drop Else
-                            continue;
-                        }
-                    }
-                }
-                Else => unreachable!(),
-                End => break,
                 I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
                 I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
                 I32ShiftRightUnsign | I64ShiftRightUnsign => {
                     impl_binary_inst!(self, shift_right_unsign)
                 }
                 I32WrapI64 => {
-                    let i = &self.stack.pop_value();
+                    let i = &self.stack.pop_value_ext();
                     match i {
                         Values::I64(n) => {
                             let result = (*n % 2_i64.pow(32)) as i32;
@@ -327,9 +382,11 @@ impl Vm {
 
     fn evaluate_frame(&mut self, instructions: &mut Instructions) -> Result<()> {
         self.evaluate_instructions(instructions)?;
-        let return_value = StackEntry::new_value(self.stack.pop_value());
+        let ret_val = self.stack.pop_value();
         self.stack.update_frame_ptr();
-        self.stack.push(return_value);
+        if let Some(val) = ret_val {
+            self.stack.push(StackEntry::new_value(val));
+        };
         Ok(())
     }
 
@@ -338,6 +395,8 @@ impl Vm {
             locals: arguments,
             return_ptr: self.stack.stack_ptr,
             function_idx,
+            table_addresses: vec![0],
+            types: self.store.gather_function_types(),
         });
         self.stack.push(frame);
     }
@@ -364,15 +423,20 @@ impl Vm {
                     let fn_instance = self.store.call(frame.function_idx);
                     let (expressions, locals) =
                         fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
-                    let label = StackEntry::new_label(Instructions::new(expressions));
+                    let label = StackEntry::new_label(Instructions::new(
+                        expressions,
+                        frame.table_addresses.to_owned(),
+                        frame.types.to_owned(),
+                    ));
                     self.stack.increase(locals.len());
                     self.stack.push(label);
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
             }
         }
-        self.stack
-            .push(result.expect("Call stack may return with null value"));
+        if let Some(v) = result {
+            self.stack.push(v);
+        };
         Ok(())
     }
 
@@ -382,16 +446,17 @@ impl Vm {
 
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
-                Values::I32(v) => format!("i32:{}", v),
-                Values::I64(v) => format!("i64:{}", v),
-                Values::F32(v) => {
+                Some(Values::I32(v)) => format!("i32:{}", v),
+                Some(Values::I64(v)) => format!("i64:{}", v),
+                Some(Values::F32(v)) => {
                     let prefix = if v.is_nan() { "" } else { "f32:" };
                     format!("{}{}", prefix, v)
                 }
-                Values::F64(v) => {
+                Some(Values::F64(v)) => {
                     let prefix = if v.is_nan() { "" } else { "f64:" };
                     format!("{}{}", prefix, v)
                 }
+                None => "".to_owned(),
             },
             Err(err) => String::from(err),
         }
@@ -426,14 +491,6 @@ mod tests {
         println!("{}", 16777216u32);
         println!("{}", 16777216i32);
         println!("{}", 0x1000000);
-    }
-    #[test]
-    fn stack_ptr() {
-        let mut stack = Stack::new(4);
-        stack.push(StackEntry::new_value(Values::I32(1)));
-        stack.set(2, StackEntry::new_value(Values::I32(2)));
-        assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
-        assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
     }
     test_eval!(evaluate_cons8, "cons8", vec![], 42);
     test_eval!(
