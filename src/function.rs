@@ -17,6 +17,12 @@ impl FunctionType {
   }
 }
 
+impl FunctionType {
+  pub fn get_arity(&self) -> u32 {
+    self.parameters.len() as u32
+  }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct FunctionInstance {
   export_name: Option<String>,

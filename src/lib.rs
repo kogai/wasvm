@@ -181,22 +181,25 @@ impl Vm {
                     self.call(idx, arguments);
                     self.evaluate()?;
                 }
-                CallIndirect(idx) => {
+                CallIndirect(_idx) => {
                     let ta = instructions.get_table_address();
                     let table = self.store.get_table_at(ta)?.clone();
-                    let _function_type = instructions.get_type_at(idx);
                     let i = match self.stack.pop_value_ext() {
                         Values::I32(i) => i as u32,
                         _ => unreachable!(),
                     };
-                    if i < table.len() {
+                    if i >= table.len() {
                         return Err(Trap::MemoryAccessOutOfBounds);
                     }
                     let address = table.get_function_address(i)?;
-                    let arguments = match self.stack.pop_value() {
-                        Some(a) => vec![a],
-                        None => vec![],
-                    };
+                    // FIXME: Use idx pass from CallIndirect instruction :thinking:
+                    let function_type = instructions.get_type_at(address)?;
+                    let mut arguments = vec![];
+                    for _ in 0..function_type.get_arity() {
+                        arguments.push(self.stack.pop_value_ext());
+                    }
+                    arguments.reverse();
+
                     self.call(address as usize, arguments);
                     self.evaluate()?;
                 }
