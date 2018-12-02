@@ -1,14 +1,15 @@
 use function::FunctionInstance;
-use global::Global;
+use global::GlobalInstance;
 use memory::MemoryInstance;
 use table::TableInstance;
 use value::Values;
 
 pub struct Store {
   function_instances: Vec<FunctionInstance>,
+  // NOTE: Might be Vector of MemoryInstances
   memory_instance: MemoryInstance,
   table_instances: Vec<TableInstance>,
-  global_instances: Vec<Global>,
+  global_instances: Vec<GlobalInstance>,
 }
 
 impl Store {
@@ -16,7 +17,7 @@ impl Store {
     function_instances: Vec<FunctionInstance>,
     memory_instance: MemoryInstance,
     table_instances: Vec<TableInstance>,
-    global_instances: Vec<Global>,
+    global_instances: Vec<GlobalInstance>,
   ) -> Self {
     Store {
       function_instances,

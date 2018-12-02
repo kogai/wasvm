@@ -119,6 +119,7 @@ impl Vm {
                     instructions.push_label(continuation);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
+                    instructions.pop_label()?; // Drop own label.
                     instructions.pop()?; // Drop End instruction.
                 }
                 Loop => {
@@ -126,6 +127,7 @@ impl Vm {
                     instructions.push_label(start_of_control);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
+                    instructions.pop_label()?; // Drop own label.
                     instructions.pop()?; // Drop End instruction.
                 }
                 If(if_size, else_size) => {

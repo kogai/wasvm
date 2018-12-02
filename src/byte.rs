@@ -1,13 +1,13 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use element::Element;
 use function::{FunctionInstance, FunctionType};
-use global::{Global, GlobalType};
+use global::{GlobalInstance, GlobalType};
 use inst::{Inst, Instructions};
 use memory::{Data, Limit, MemoryInstance};
 use std::convert::From;
 use std::{f32, f64};
 use store::Store;
-use table::{ElementType, TableInstance};
+use table::{ElementType, TableInstance, TableType};
 use trap::{Result, Trap};
 
 macro_rules! leb128 {
@@ -552,29 +552,34 @@ impl Byte {
     })
   }
 
-  fn decode_section_table(&mut self) -> Result<Vec<TableInstance>> {
+  fn decode_section_table(&mut self) -> Result<Vec<TableType>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
     let count_of_data = self.decode_leb128_u32()?;
     Byte::decode_vec(count_of_data, || {
       let element_type = ElementType::from(self.next());
       let limit = self.decode_limit()?;
-      Ok(TableInstance::new(element_type, limit))
+      Ok(TableType::new(element_type, limit))
     })
   }
 
-  fn decode_section_global(&mut self) -> Result<Vec<Global>> {
+  fn decode_section_global(&mut self) -> Result<Vec<GlobalInstance>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
     let count = self.decode_leb128_u32()?;
     Byte::decode_vec(count, || {
       let value_type = ValueTypes::from(self.next());
       let global_type = GlobalType::new(self.next(), value_type);
       let init = self.decode_section_code_internal()?;
-      Ok(Global::new(global_type, Instructions::new(init)))
+      Ok(GlobalInstance::new(global_type, Instructions::new(init)))
     })
   }
   fn decode_function_idx(&mut self) -> Result<Vec<u32>> {
     let count = self.decode_leb128_u32()?;
-    Byte::decode_vec(count, || self.decode_leb128_u32())
+    Byte::decode_vec(count, || {
+      println!("self.peek()={:x?}", self.peek());
+      let code = self.decode_leb128_u32();
+      println!("code={:x?}", code);
+      code
+    })
   }
   fn decode_section_element(&mut self) -> Result<Vec<Element>> {
     let _bin_size_of_section = self.decode_leb128_i32()?;
@@ -594,7 +599,7 @@ impl Byte {
     let mut list_of_expressions = vec![];
     let mut _memories = vec![];
     let mut data = vec![];
-    let mut table_instances = vec![];
+    let mut table_types = vec![];
     let mut global_instances = vec![];
     let mut elements = vec![];
     while self.has_next() {
@@ -606,7 +611,7 @@ impl Byte {
         SectionCode::Code => list_of_expressions = self.decode_section_code()?,
         SectionCode::Data => data = self.decode_section_data()?,
         SectionCode::Memory => _memories = self.decode_section_memory()?,
-        SectionCode::Table => table_instances = self.decode_section_table()?,
+        SectionCode::Table => table_types = self.decode_section_table()?,
         SectionCode::Global => global_instances = self.decode_section_global()?,
         SectionCode::Element => elements = self.decode_section_element()?,
         SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
@@ -616,6 +621,15 @@ impl Byte {
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
     let memory_instances = MemoryInstance::new(data);
+    let table_instances = elements
+      .iter()
+      .map(|el| {
+        let table_type = table_types
+          .get(el.table_idx as usize)
+          .expect("Table type not found.");
+        TableInstance::new(&table_type, el)
+      })
+      .collect();
 
     for idx_of_fn in 0..list_of_expressions.len() {
       let export_name = function_key_and_indexes
