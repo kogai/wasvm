@@ -27,7 +27,7 @@ impl FunctionType {
 pub struct FunctionInstance {
   export_name: Option<String>,
   pub function_type: Result<FunctionType>,
-  locals: Vec<ValueTypes>,
+  pub locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Vec<Inst>,
 }

@@ -1,5 +1,5 @@
 use function::FunctionType;
-use inst::Instructions;
+use inst::{Inst, Instructions};
 use std::rc::Rc;
 use trap::Result;
 use value::Values;
@@ -7,6 +7,7 @@ use value::Values;
 #[derive(Debug, PartialEq, Clone)]
 pub struct Frame {
   pub locals: Vec<Values>,
+  pub expressions: Vec<Inst>,
   pub function_idx: usize,
   pub return_ptr: usize,
   pub table_addresses: Vec<u32>,
