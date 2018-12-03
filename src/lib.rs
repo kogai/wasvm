@@ -12,6 +12,7 @@ mod table;
 mod trap;
 pub mod value;
 
+use code::ValueTypes;
 use inst::{Inst, Instructions};
 use stack::Frame;
 use stack::{Stack, StackEntry};
@@ -178,7 +179,7 @@ impl Vm {
                         Some(a) => vec![a],
                         None => vec![],
                     };
-                    self.call(idx, arguments);
+                    self.expand_frame(idx, arguments);
                     self.evaluate()?;
                 }
                 CallIndirect(_idx) => {
@@ -200,7 +201,7 @@ impl Vm {
                     }
                     arguments.reverse();
 
-                    self.call(address as usize, arguments);
+                    self.expand_frame(address as usize, arguments);
                     self.evaluate()?;
                 }
                 GetLocal(idx) => {
@@ -390,9 +391,25 @@ impl Vm {
         Ok(())
     }
 
-    fn call(&mut self, function_idx: usize, arguments: Vec<Values>) {
+    fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) {
+        let function_instance = self.store.call(function_idx);
+        let (expressions, local_types) = function_instance
+            .map(|f| f.call())
+            .unwrap_or((vec![], vec![]));
+        let mut locals = arguments;
+        for local in local_types {
+            let v = match local {
+                ValueTypes::I32 => Values::I32(0),
+                ValueTypes::I64 => Values::I64(0),
+                ValueTypes::F32 => Values::F32(0.0),
+                ValueTypes::F64 => Values::F64(0.0),
+                _ => unreachable!(),
+            };
+            locals.push(v);
+        }
         let frame = StackEntry::new_fram(Frame {
-            locals: arguments,
+            locals,
+            expressions,
             return_ptr: self.stack.stack_ptr,
             function_idx,
             table_addresses: vec![0],
@@ -404,7 +421,7 @@ impl Vm {
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty {
-            let popped = self.stack.pop().expect("Invalid popping stack.");
+            let popped = self.stack.pop()?;
             match *popped {
                 StackEntry::Value(ref v) => {
                     result = Some(StackEntry::new_value(v.to_owned()));
@@ -415,20 +432,18 @@ impl Vm {
                     self.evaluate_frame(&mut insts)?;
                 }
                 StackEntry::Frame(ref frame) => {
-                    let _offset = frame.locals.len();
                     self.stack.frame_ptr.push(frame.return_ptr);
-                    for local in frame.clone().locals {
+                    let frame = frame.clone();
+                    let size_of_locals = frame.locals.len();
+                    for local in frame.locals {
                         self.stack.push(StackEntry::new_value(local));
                     }
-                    let fn_instance = self.store.call(frame.function_idx);
-                    let (expressions, locals) =
-                        fn_instance.map(|f| f.call()).unwrap_or((vec![], vec![]));
                     let label = StackEntry::new_label(Instructions::new(
-                        expressions,
+                        frame.expressions,
                         frame.table_addresses.to_owned(),
                         frame.types.to_owned(),
                     ));
-                    self.stack.increase(locals.len());
+                    self.stack.increase(size_of_locals);
                     self.stack.push(label);
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
@@ -442,7 +457,7 @@ impl Vm {
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
-        self.call(start_idx, arguments);
+        self.expand_frame(start_idx, arguments);
 
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
