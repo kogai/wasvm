@@ -481,9 +481,8 @@ impl Byte {
 
   fn decode_section_code(&mut self) -> Result<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>> {
     let _bin_size_of_section = self.decode_leb128_u32()?;
-    let mut codes = vec![];
     let count_of_code = self.decode_leb128_u32()?;
-    for _idx_of_fn in 0..count_of_code {
+    Byte::decode_vec(count_of_code, || {
       let size_of_function = self.decode_leb128_u32()?;
       let end_of_function = self.byte_ptr + (size_of_function as usize);
       let count_of_locals = self.decode_leb128_u32()? as usize;
@@ -495,17 +494,14 @@ impl Byte {
           locals.push(value_type.clone());
         }
       }
-      match self.decode_section_code_internal() {
-        Ok(expressions) => {
-          codes.push(Ok((expressions, locals)));
-        }
+      Ok(match self.decode_section_code_internal() {
+        Ok(expressions) => Ok((expressions, locals)),
         Err(err) => {
           self.byte_ptr = end_of_function;
-          codes.push(Err(err));
+          Err(err)
         }
-      };
-    }
-    Ok(codes)
+      })
+    })
   }
 
   fn decode_section_function(&mut self) -> Result<Vec<u32>> {
