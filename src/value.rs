@@ -30,7 +30,8 @@ macro_rules! unary_logical_inst {
       match self {
         Values::I32(l) => Values::I32(l.$op()),
         Values::I64(l) => Values::I32(l.$op() as i32),
-        _ => unimplemented!()
+        Values::F32(l) => Values::I32(l.$op() as i32),
+        Values::F64(l) => Values::I32(l.$op() as i32),
       }
     }
   };
@@ -347,7 +348,7 @@ trait ArithmeticFloat {
     unreachable!();
   }
 
-  fn equal_zero(&self) -> Self;
+  fn equal_zero(&self) -> i32;
   fn count_leading_zero(&self) -> Self;
   fn count_trailing_zero(&self) -> Self;
   fn pop_count(&self) -> Self;
@@ -372,8 +373,12 @@ trait ArithmeticFloat {
 macro_rules! impl_float_traits {
   ($ty: ty) => {
     impl ArithmeticFloat for $ty {
-      fn equal_zero(&self) -> Self {
-        unimplemented!()
+      fn equal_zero(&self) -> i32 {
+        if self == &0.0 {
+          1
+        } else {
+          0
+        }
       }
       fn count_leading_zero(&self) -> Self {
         unimplemented!()

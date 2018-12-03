@@ -421,7 +421,12 @@ impl Vm {
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty {
-            let popped = self.stack.pop()?;
+            let popped = match self.stack.pop() {
+                Some(p) => p,
+                None => {
+                    break;
+                }
+            };
             match *popped {
                 StackEntry::Value(ref v) => {
                     result = Some(StackEntry::new_value(v.to_owned()));

@@ -4,7 +4,7 @@ extern crate wabt;
 extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
-use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
+use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
 use wasvm::value::Values;
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
@@ -129,6 +129,13 @@ macro_rules! impl_e2e {
             ref field, args: _, ..
           }) => {
             println!("Skip perform action at {}:{}.", field, line);
+            break;
+          }
+          CommandKind::AssertInvalid {
+            module: ModuleBinary { .. },
+            ref message,
+          } => {
+            println!("Skip assert invalid at {}:{}.", message, line);
             break;
           }
           x => unreachable!(

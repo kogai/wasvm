@@ -487,11 +487,13 @@ impl Byte {
       let size_of_function = self.decode_leb128_u32()?;
       let end_of_function = self.byte_ptr + (size_of_function as usize);
       let count_of_locals = self.decode_leb128_u32()? as usize;
-      // FIXME:
       let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
       for _ in 0..count_of_locals {
-        let _idx = self.decode_leb128_u32(); // NOTE: Index of local varibale type?
-        locals.push(ValueTypes::from(self.next()));
+        let count_of_type = self.decode_leb128_u32()?;
+        let value_type = ValueTypes::from(self.next());
+        for _ in 0..count_of_type {
+          locals.push(value_type.clone());
+        }
       }
       match self.decode_section_code_internal() {
         Ok(expressions) => {
