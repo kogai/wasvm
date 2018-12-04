@@ -36,7 +36,7 @@ macro_rules! impl_load_inst {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
         let data = $self.store.load_data(ea, ptr, $value_kind);
-        $self.stack.push(StackEntry::new_value(data));
+        $self.stack.push(StackEntry::new_value(data))?;
     }};
 }
 
@@ -44,7 +44,7 @@ macro_rules! impl_unary_inst {
     ($self: ident, $op: ident) => {{
         let popped = $self.stack.pop_value_ext();
         let value = popped.$op();
-        $self.stack.push(StackEntry::new_value(value));
+        $self.stack.push(StackEntry::new_value(value))?;
     }};
 }
 
@@ -54,7 +54,7 @@ macro_rules! impl_try_unary_inst {
         let value = popped.$op();
         match value {
             Ok(result) => {
-                $self.stack.push(StackEntry::new_value(result));
+                $self.stack.push(StackEntry::new_value(result))?;
             }
             Err(trap) => {
                 return Err(trap);
@@ -68,7 +68,7 @@ macro_rules! impl_binary_inst {
         let right = $self.stack.pop_value_ext();
         let left = $self.stack.pop_value_ext();
         let value = left.$op(&right);
-        $self.stack.push(StackEntry::new_value(value));
+        $self.stack.push(StackEntry::new_value(value))?;
     }};
 }
 
@@ -79,7 +79,7 @@ macro_rules! impl_try_binary_inst {
         let value = left.$op(&right);
         match value {
             Ok(result) => {
-                $self.stack.push(StackEntry::new_value(result));
+                $self.stack.push(StackEntry::new_value(result))?;
             }
             Err(trap) => {
                 return Err(trap);
@@ -176,10 +176,10 @@ impl Vm {
                 }
                 Call(idx) => {
                     let arguments = match self.stack.pop_value() {
-                        Some(a) => vec![a],
-                        None => vec![],
+                        Ok(a) => vec![a],
+                        Err(_) => vec![],
                     };
-                    self.expand_frame(idx, arguments);
+                    self.expand_frame(idx, arguments)?;
                     self.evaluate()?;
                 }
                 CallIndirect(_idx) => {
@@ -201,24 +201,24 @@ impl Vm {
                     }
                     arguments.reverse();
 
-                    self.expand_frame(address as usize, arguments);
+                    self.expand_frame(address as usize, arguments)?;
                     self.evaluate()?;
                 }
                 GetLocal(idx) => {
                     let frame_ptr = self.stack.get_frame_ptr();
                     let value = self.stack.get((idx as usize) + frame_ptr)?;
-                    self.stack.push(value);
+                    self.stack.push(value)?;
                 }
                 SetLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
                     let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set((idx as usize) + frame_ptr, value);
+                    self.stack.set((idx as usize) + frame_ptr, value)?;
                 }
                 TeeLocal(idx) => {
                     let value = self.stack.pop().map(|s| s.to_owned())?;
-                    self.stack.push(value.clone());
+                    self.stack.push(value.clone())?;
                     let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set((idx as usize) + frame_ptr, value);
+                    self.stack.set((idx as usize) + frame_ptr, value)?;
                 }
                 GetGlobal(_idx) => {
                     unimplemented!();
@@ -226,11 +226,10 @@ impl Vm {
                 SetGlobal(_idx) => {
                     unimplemented!();
                 }
-                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n))),
-                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n))),
-                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(n))),
-                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(n))),
-
+                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n)))?,
+                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n)))?,
+                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(n)))?,
+                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(n)))?,
                 I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
                 I32Mul | I64Mul | F32Mul | F64Mul => impl_binary_inst!(self, mul),
@@ -251,9 +250,9 @@ impl Vm {
                     let false_br = self.stack.pop_value_ext();
                     let true_br = self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        self.stack.push(StackEntry::new_value(true_br));
+                        self.stack.push(StackEntry::new_value(true_br))?;
                     } else {
-                        self.stack.push(StackEntry::new_value(false_br));
+                        self.stack.push(StackEntry::new_value(false_br))?;
                     }
                 }
                 DropInst => {
@@ -298,7 +297,8 @@ impl Vm {
                     match i {
                         Values::I64(n) => {
                             let result = (*n % 2_i64.pow(32)) as i32;
-                            self.stack.push(StackEntry::new_value(Values::I32(result)));
+                            self.stack
+                                .push(StackEntry::new_value(Values::I32(result)))?;
                         }
                         x => unreachable!("Expected i64 value, got {:?}", x),
                     }
@@ -385,13 +385,13 @@ impl Vm {
         self.evaluate_instructions(instructions)?;
         let ret_val = self.stack.pop_value();
         self.stack.update_frame_ptr();
-        if let Some(val) = ret_val {
-            self.stack.push(StackEntry::new_value(val));
+        if let Ok(val) = ret_val {
+            self.stack.push(StackEntry::new_value(val))?;
         };
         Ok(())
     }
 
-    fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) {
+    fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) -> Result<()> {
         let function_instance = self.store.call(function_idx);
         let (expressions, local_types) = function_instance
             .map(|f| f.call())
@@ -415,15 +415,16 @@ impl Vm {
             table_addresses: vec![0],
             types: self.store.gather_function_types(),
         });
-        self.stack.push(frame);
+        self.stack.push(frame)?;
+        Ok(())
     }
 
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
-        while !self.stack.is_empty {
+        while !self.stack.is_empty() {
             let popped = match self.stack.pop() {
-                Some(p) => p,
-                None => {
+                Ok(p) => p,
+                Err(_) => {
                     break;
                 }
             };
@@ -441,7 +442,7 @@ impl Vm {
                     let frame = frame.clone();
                     let size_of_locals = frame.locals.len();
                     for local in frame.locals {
-                        self.stack.push(StackEntry::new_value(local));
+                        self.stack.push(StackEntry::new_value(local))?;
                     }
                     let label = StackEntry::new_label(Instructions::new(
                         frame.expressions,
@@ -449,34 +450,34 @@ impl Vm {
                         frame.types.to_owned(),
                     ));
                     self.stack.increase(size_of_locals);
-                    self.stack.push(label);
+                    self.stack.push(label)?;
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
             }
         }
         if let Some(v) = result {
-            self.stack.push(v);
+            self.stack.push(v)?;
         };
         Ok(())
     }
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
-        self.expand_frame(start_idx, arguments);
+        let _ = self.expand_frame(start_idx, arguments);
 
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
-                Some(Values::I32(v)) => format!("i32:{}", v),
-                Some(Values::I64(v)) => format!("i64:{}", v),
-                Some(Values::F32(v)) => {
+                Ok(Values::I32(v)) => format!("i32:{}", v),
+                Ok(Values::I64(v)) => format!("i64:{}", v),
+                Ok(Values::F32(v)) => {
                     let prefix = if v.is_nan() { "" } else { "f32:" };
                     format!("{}{}", prefix, v)
                 }
-                Some(Values::F64(v)) => {
+                Ok(Values::F64(v)) => {
                     let prefix = if v.is_nan() { "" } else { "f64:" };
                     format!("{}{}", prefix, v)
                 }
-                None => "".to_owned(),
+                Err(_) => "".to_owned(),
             },
             Err(err) => String::from(err),
         }
