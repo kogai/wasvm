@@ -152,8 +152,8 @@ impl Vm {
                 }
                 Else => unreachable!(),
                 End => break,
-                Br(_) => {
-                    unimplemented!("{:?}", expression);
+                Br(l) => {
+                    instructions.jump_to_label(l);
                 }
                 BrIf(l) => {
                     let cond = &self.stack.pop_value_ext();
@@ -168,11 +168,11 @@ impl Vm {
                         unreachable!();
                     };
                     let label = if i < tables.len() {
-                        tables.get(i)
+                        tables.get(i)?
                     } else {
-                        tables.get(*idx as usize)
+                        idx
                     };
-                    instructions.jump_to_label(*label?);
+                    instructions.jump_to_label(*label);
                 }
                 Call(idx) => {
                     let arguments = match self.stack.pop_value() {
