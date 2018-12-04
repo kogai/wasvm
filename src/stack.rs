@@ -1,5 +1,6 @@
 use function::FunctionType;
 use inst::{Inst, Instructions};
+use std::fmt;
 use std::rc::Rc;
 use trap::{Result, Trap};
 use value::Values;
@@ -35,9 +36,14 @@ impl StackEntry {
   pub fn new_fram(frame: Frame) -> Rc<Self> {
     Rc::new(StackEntry::Frame(frame))
   }
+  fn is_empty(&self) -> bool {
+    match self {
+      StackEntry::Empty => true,
+      _ => false,
+    }
+  }
 }
 
-#[derive(Debug)]
 pub struct Stack {
   stack_size: usize,
   entries: Vec<Rc<StackEntry>>,
@@ -125,22 +131,56 @@ impl Stack {
     }
   }
 }
+
+impl fmt::Debug for Stack {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let entries = self
+      .entries
+      .iter()
+      .filter(|x| !x.is_empty())
+      .map(|x| format!("{:?}", x))
+      .collect::<Vec<String>>()
+      .join(", ");
+
+    write!(
+      f,
+      "{}, frame={:?}, stack_size={}, stack_ptr={}",
+      format!("[{}]", entries),
+      self.frame_ptr,
+      self.stack_size,
+      self.stack_ptr,
+    )
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
 
   #[test]
-  fn stack_ptr_push() {
+  fn stack_push() {
     let mut stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(1));
     stack.push(value).unwrap();
     assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
   }
   #[test]
-  fn stack_ptr_set() {
+  fn stack_set() {
     let mut stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(2));
     stack.set(2, value).unwrap();
     assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
+  }
+  #[test]
+  fn stack_print() {
+    let mut stack = Stack::new(8);
+    for i in 0..3 {
+      stack.push(StackEntry::new_value(Values::I32(i))).unwrap();
+    }
+    assert_eq!(
+      format!("{:?}", stack),
+      "[Value(I32(0)), Value(I32(1)), Value(I32(2))], frame=[], stack_size=8, stack_ptr=3"
+        .to_owned()
+    );
   }
 }
