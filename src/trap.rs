@@ -9,6 +9,9 @@ pub enum Trap {
   MemoryAccessOutOfBounds,
   BitshiftOverflow,
   Unknown,
+  StackOverflow,
+  StackUnderflow,
+  Notfound,
   Undefined,
 }
 
@@ -34,6 +37,9 @@ impl From<Trap> for String {
       BitshiftOverflow => "bit shift overflow",
       Unknown => "unknown",
       Undefined => "undefined behavior occurred",
+      Notfound => "not found",
+      StackOverflow => "stack overflow",
+      StackUnderflow => "stack underflow",
     }
     .to_owned()
   }

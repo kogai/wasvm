@@ -1,7 +1,7 @@
 use function::FunctionType;
 use inst::{Inst, Instructions};
 use std::rc::Rc;
-use trap::Result;
+use trap::{Result, Trap};
 use value::Values;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -39,73 +39,66 @@ impl StackEntry {
 
 #[derive(Debug)]
 pub struct Stack {
+  stack_size: usize,
   entries: Vec<Rc<StackEntry>>,
-  pub stack_ptr: usize, // Start from 1
+  pub stack_ptr: usize,
   pub frame_ptr: Vec<usize>,
-  pub is_empty: bool,
 }
 
 impl Stack {
   pub fn new(stack_size: usize) -> Self {
     let entries = vec![StackEntry::new_empty(); stack_size];
     Stack {
+      stack_size,
       entries,
       stack_ptr: 0,
       frame_ptr: vec![],
-      is_empty: false,
     }
   }
 
-  pub fn increase(&mut self, count: usize) {
-    self.stack_ptr += count;
-  }
-
-  pub fn get_frame_ptr(&mut self) -> usize {
-    match self.frame_ptr.last() {
-      Some(p) => *p,
-      None => unreachable!("Frame pointer not found."),
-    }
-  }
-
-  pub fn update_frame_ptr(&mut self) {
-    match self.frame_ptr.pop() {
-      Some(p) => {
-        self.stack_ptr = p;
-      }
-      None => unreachable!("Frame pointer not found."),
-    }
+  pub fn is_empty(&self) -> bool {
+    self.stack_ptr == 0
   }
 
   pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
     self.entries.get(ptr).map(|rc| rc.clone())
   }
 
-  pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) {
-    self.entries[ptr] = entry.clone();
+  pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) -> Result<()> {
+    if ptr >= self.stack_size {
+      return Err(Trap::StackOverflow);
+    }
+    self.entries[ptr] = entry;
+    Ok(())
   }
 
-  pub fn push(&mut self, entry: Rc<StackEntry>) {
-    self.entries[self.stack_ptr] = entry.clone();
+  pub fn push(&mut self, entry: Rc<StackEntry>) -> Result<()> {
+    if self.stack_ptr >= self.stack_size {
+      return Err(Trap::StackOverflow);
+    }
+    self.entries[self.stack_ptr] = entry;
     self.stack_ptr += 1;
+    Ok(())
   }
 
-  pub fn pop(&mut self) -> Option<Rc<StackEntry>> {
-    if self.stack_ptr == 0 {
-      self.is_empty = true;
-      None
-    } else {
-      self.stack_ptr -= 1;
-      self.entries.get(self.stack_ptr).map(|rc| rc.clone())
+  pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
+    if self.stack_ptr <= 0 {
+      return Err(Trap::StackOverflow);
+    }
+    self.stack_ptr -= 1;
+    match self.entries.get(self.stack_ptr) {
+      Some(entry) => Ok(entry.clone()),
+      None => Err(Trap::Unknown),
     }
   }
 
-  pub fn pop_value(&mut self) -> Option<Values> {
+  pub fn pop_value(&mut self) -> Result<Values> {
     let value = self.pop()?;
     match *value {
-      StackEntry::Value(ref v) => Some(v.to_owned()),
+      StackEntry::Value(ref v) => Ok(v.to_owned()),
       _ => {
-        self.push(value.clone());
-        None
+        self.push(value.clone())?;
+        Err(Trap::Notfound)
       }
     }
   }
@@ -114,17 +107,40 @@ impl Stack {
       .pop_value()
       .expect("Expect to pop up value, but got None")
   }
+  pub fn increase(&mut self, count: usize) {
+    self.stack_ptr += count;
+  }
+  pub fn get_frame_ptr(&mut self) -> usize {
+    match self.frame_ptr.last() {
+      Some(p) => *p,
+      None => unreachable!("Frame pointer not found."),
+    }
+  }
+  pub fn update_frame_ptr(&mut self) {
+    match self.frame_ptr.pop() {
+      Some(p) => {
+        self.stack_ptr = p;
+      }
+      None => unreachable!("Frame pointer not found."),
+    }
+  }
 }
 #[cfg(test)]
 mod tests {
   use super::*;
 
   #[test]
-  fn stack_ptr() {
+  fn stack_ptr_push() {
     let mut stack = Stack::new(4);
-    stack.push(StackEntry::new_value(Values::I32(1)));
-    stack.set(2, StackEntry::new_value(Values::I32(2)));
+    let value = StackEntry::new_value(Values::I32(1));
+    stack.push(value).unwrap();
     assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
+  }
+  #[test]
+  fn stack_ptr_set() {
+    let mut stack = Stack::new(4);
+    let value = StackEntry::new_value(Values::I32(2));
+    stack.set(2, value).unwrap();
     assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
   }
 }
