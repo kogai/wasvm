@@ -26,7 +26,7 @@ impl fmt::Debug for Frame {
       .join(", ");
     write!(
       f,
-      "[{}] locals:({}) return[{}] {:?}",
+      "[{}] locals:({}) return:{} table{:?}",
       self.function_idx, locals, self.return_ptr, self.table_addresses
     )
   }
