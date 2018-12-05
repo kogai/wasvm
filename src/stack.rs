@@ -5,7 +5,7 @@ use std::rc::Rc;
 use trap::{Result, Trap};
 use value::Values;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Frame {
   pub locals: Vec<Values>,
   pub expressions: Vec<Inst>,
@@ -13,6 +13,23 @@ pub struct Frame {
   pub return_ptr: usize,
   pub table_addresses: Vec<u32>,
   pub types: Vec<Result<FunctionType>>,
+}
+
+impl fmt::Debug for Frame {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    // NOTE: Omit to present expressions and types would be worth :thinking: .
+    let locals = self
+      .locals
+      .iter()
+      .map(|x| format!("{:?}", x))
+      .collect::<Vec<String>>()
+      .join(", ");
+    write!(
+      f,
+      "[{}] locals:({}) return[{}] {:?}",
+      self.function_idx, locals, self.return_ptr, self.table_addresses
+    )
+  }
 }
 
 #[derive(Debug, PartialEq)]
