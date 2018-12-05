@@ -53,6 +53,13 @@ impl FunctionInstance {
     (self.body.to_owned(), self.locals.to_owned())
   }
 
+  pub fn get_arity(&self) -> u32 {
+    match self.function_type {
+      Ok(ref f) => f.get_arity(),
+      _ => 0,
+    }
+  }
+
   pub fn find(&self, key: &str) -> bool {
     // FIXME: When using function_index, we might get exported function by O(1).
     match &self.export_name {

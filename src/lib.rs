@@ -178,10 +178,11 @@ impl Vm {
                     instructions.jump_to_label(*label);
                 }
                 Call(idx) => {
-                    let arguments = match self.stack.pop_value() {
-                        Ok(a) => vec![a],
-                        Err(_) => vec![],
-                    };
+                    let count_of_arguments = self.store.call(idx)?.get_arity();
+                    let mut arguments = vec![];
+                    for _ in 0..count_of_arguments {
+                        arguments.push(self.stack.pop_value_ext());
+                    }
                     self.expand_frame(idx, arguments)?;
                     self.evaluate()?;
                 }
