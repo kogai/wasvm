@@ -110,8 +110,11 @@ impl Vm {
         while !instructions.is_next_end_or_else() {
             let expression = instructions.pop().unwrap();
             match expression {
-                Unreachable | Return => {
+                Unreachable => {
                     unimplemented!("{:?}", expression);
+                }
+                Return => {
+                    return Ok(());
                 }
                 Nop => {}
                 Block(size) => {
