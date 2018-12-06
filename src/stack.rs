@@ -209,8 +209,7 @@ mod tests {
     }
     assert_eq!(
       format!("{:?}", stack),
-      "[Value(I32(0)), Value(I32(1)), Value(I32(2))], frame=[], stack_size=8, stack_ptr=3"
-        .to_owned()
+      "[i32:0, i32:1, i32:2, _, _, _, _, _], frame=[], stack_size=8, stack_ptr=3".to_owned()
     );
   }
 }
