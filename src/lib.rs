@@ -453,7 +453,6 @@ impl Vm {
                         frame.table_addresses.to_owned(),
                         frame.types.to_owned(),
                     ));
-                    self.stack.increase(size_of_locals);
                     self.stack.push(label)?;
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
