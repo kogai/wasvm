@@ -32,12 +32,25 @@ impl fmt::Debug for Frame {
   }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum StackEntry {
   Empty,
   Value(Values),
   Label(Instructions),
   Frame(Frame),
+}
+
+impl fmt::Debug for StackEntry {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    use StackEntry::*;
+    let label = match self {
+      Empty => "_".to_owned(),
+      Value(v) => format!("{:?}", v),
+      Label(v) => format!("Label({:?})", v),
+      Frame(v) => format!("Frame({:?})", v),
+    };
+    write!(f, "{}", label)
+  }
 }
 
 impl StackEntry {
