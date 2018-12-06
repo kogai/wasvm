@@ -13,6 +13,7 @@ mod trap;
 pub mod value;
 
 use code::ValueTypes;
+use function::FunctionType;
 use inst::{Inst, Instructions};
 use stack::Frame;
 use stack::{Stack, StackEntry};
@@ -385,21 +386,30 @@ impl Vm {
         Ok(())
     }
 
-    fn evaluate_frame(&mut self, instructions: &mut Instructions) -> Result<()> {
+    fn evaluate_frame(
+        &mut self,
+        instructions: &mut Instructions,
+        function_type: FunctionType,
+    ) -> Result<()> {
         self.evaluate_instructions(instructions)?;
-        let ret_val = self.stack.pop_value();
+        let mut returns = vec![];
+        for _ in 0..function_type.get_return_count() {
+            returns.push(self.stack.pop_value()?);
+        }
         self.stack.update_frame_ptr();
-        if let Ok(val) = ret_val {
-            self.stack.push(StackEntry::new_value(val))?;
-        };
+        for v in returns.iter() {
+            self.stack.push(StackEntry::new_value(v.clone()))?;
+        }
         Ok(())
     }
 
     fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) -> Result<()> {
-        let function_instance = self.store.call(function_idx);
-        let (expressions, local_types) = function_instance
-            .map(|f| f.call())
-            .unwrap_or((vec![], vec![]));
+        let function_instance = self.store.call(function_idx)?;
+        let own_type = match function_instance.function_type {
+            Ok(ref t) => Some(t.to_owned()),
+            _ => None,
+        };
+        let (expressions, local_types) = function_instance.call();
         let mut locals = arguments;
         for local in local_types {
             let v = match local {
@@ -418,6 +428,7 @@ impl Vm {
             function_idx,
             table_addresses: vec![0],
             types: self.store.gather_function_types(),
+            own_type,
         });
         self.stack.push(frame)?;
         Ok(())
@@ -437,23 +448,19 @@ impl Vm {
                     result = Some(StackEntry::new_value(v.to_owned()));
                     break;
                 }
-                StackEntry::Label(ref instructions) => {
-                    let mut insts = instructions.clone();
-                    self.evaluate_frame(&mut insts)?;
-                }
                 StackEntry::Frame(ref frame) => {
                     self.stack.frame_ptr.push(frame.return_ptr);
                     let frame = frame.clone();
-                    let size_of_locals = frame.locals.len();
+                    let own_type = frame.own_type;
                     for local in frame.locals {
                         self.stack.push(StackEntry::new_value(local))?;
                     }
-                    let label = StackEntry::new_label(Instructions::new(
+                    let mut insts = Instructions::new(
                         frame.expressions,
                         frame.table_addresses.to_owned(),
                         frame.types.to_owned(),
-                    ));
-                    self.stack.push(label)?;
+                    );
+                    self.evaluate_frame(&mut insts, own_type?)?;
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),
             }

@@ -37,6 +37,10 @@ impl FunctionType {
       returns,
     }
   }
+
+  pub fn get_return_count(&self) -> u32 {
+    self.returns.len() as u32
+  }
 }
 
 impl FunctionType {

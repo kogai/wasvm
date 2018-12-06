@@ -1,5 +1,5 @@
 use function::FunctionType;
-use inst::{Inst, Instructions};
+use inst::Inst;
 use std::fmt;
 use std::rc::Rc;
 use trap::{Result, Trap};
@@ -12,6 +12,7 @@ pub struct Frame {
   pub function_idx: usize,
   pub return_ptr: usize,
   pub table_addresses: Vec<u32>,
+  pub own_type: Option<FunctionType>,
   pub types: Vec<Result<FunctionType>>,
 }
 
@@ -36,7 +37,6 @@ impl fmt::Debug for Frame {
 pub enum StackEntry {
   Empty,
   Value(Values),
-  Label(Instructions),
   Frame(Frame),
 }
 
@@ -46,7 +46,6 @@ impl fmt::Debug for StackEntry {
     let label = match self {
       Empty => "_".to_owned(),
       Value(v) => format!("{:?}", v),
-      Label(v) => format!("Label({:?})", v),
       Frame(v) => format!("Frame({:?})", v),
     };
     write!(f, "{}", label)
@@ -60,17 +59,8 @@ impl StackEntry {
   pub fn new_value(value: Values) -> Rc<Self> {
     Rc::new(StackEntry::Value(value))
   }
-  pub fn new_label(label: Instructions) -> Rc<Self> {
-    Rc::new(StackEntry::Label(label))
-  }
   pub fn new_fram(frame: Frame) -> Rc<Self> {
     Rc::new(StackEntry::Frame(frame))
-  }
-  fn is_empty(&self) -> bool {
-    match self {
-      StackEntry::Empty => true,
-      _ => false,
-    }
   }
 }
 
@@ -142,9 +132,6 @@ impl Stack {
     self
       .pop_value()
       .expect("Expect to pop up value, but got None")
-  }
-  pub fn increase(&mut self, count: usize) {
-    self.stack_ptr += count;
   }
   pub fn get_frame_ptr(&mut self) -> usize {
     match self.frame_ptr.last() {
