@@ -1,9 +1,10 @@
 use std::f32;
 use std::f64;
+use std::fmt;
 use std::ops::{BitAnd, BitOr, BitXor, Neg};
 use trap::Trap;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum Values {
   I32(i32),
   I64(i64),
@@ -794,5 +795,18 @@ impl Values {
       }
       _ => unimplemented!(),
     }
+  }
+}
+
+impl fmt::Debug for Values {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    use Values::*;
+    let value = match self {
+      I32(n) => format!("i32:{}", n),
+      I64(n) => format!("i64:{}", n),
+      F32(n) => format!("f32:{}", n),
+      F64(n) => format!("f64:{}", n),
+    };
+    write!(f, "{}", value)
   }
 }

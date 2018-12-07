@@ -1,11 +1,33 @@
 use code::ValueTypes;
 use inst::Inst;
+use std::fmt;
 use trap::Result;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct FunctionType {
   parameters: Vec<ValueTypes>,
   returns: Vec<ValueTypes>,
+}
+
+impl fmt::Debug for FunctionType {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(
+      f,
+      "({}) -> ({})",
+      self
+        .parameters
+        .iter()
+        .map(|p| format!("{:?}", p))
+        .collect::<Vec<String>>()
+        .join(", "),
+      self
+        .returns
+        .iter()
+        .map(|p| format!("{:?}", p))
+        .collect::<Vec<String>>()
+        .join(", "),
+    )
+  }
 }
 
 impl FunctionType {
@@ -15,6 +37,10 @@ impl FunctionType {
       returns,
     }
   }
+
+  pub fn get_return_count(&self) -> u32 {
+    self.returns.len() as u32
+  }
 }
 
 impl FunctionType {
@@ -23,13 +49,28 @@ impl FunctionType {
   }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct FunctionInstance {
   export_name: Option<String>,
   pub function_type: Result<FunctionType>,
   pub locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Vec<Inst>,
+}
+
+impl fmt::Debug for FunctionInstance {
+  // TODO: Consider also to present instructions.
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    let name = match self.export_name {
+      Some(ref n) => n,
+      _ => "_",
+    };
+    let function_type = match self.function_type {
+      Ok(ref f) => format!("{:?}", f),
+      Err(ref err) => format!("{:?}", err),
+    };
+    write!(f, "[{}] {}: {}", self.type_idex, name, function_type)
+  }
 }
 
 impl FunctionInstance {
@@ -51,6 +92,13 @@ impl FunctionInstance {
 
   pub fn call(&self) -> (Vec<Inst>, Vec<ValueTypes>) {
     (self.body.to_owned(), self.locals.to_owned())
+  }
+
+  pub fn get_arity(&self) -> u32 {
+    match self.function_type {
+      Ok(ref f) => f.get_arity(),
+      _ => 0,
+    }
   }
 
   pub fn find(&self, key: &str) -> bool {

@@ -567,10 +567,8 @@ impl Byte {
       let value_type = ValueTypes::from(self.next());
       let global_type = GlobalType::new(self.next(), value_type);
       let init = self.decode_section_code_internal()?;
-      Ok(GlobalInstance::new(
-        global_type,
-        Instructions::new(init, vec![], vec![]),
-      ))
+      let value = init.first()?.get_value_ext();
+      Ok(GlobalInstance::new(global_type, value))
     })
   }
   fn decode_function_idx(&mut self) -> Result<Vec<u32>> {

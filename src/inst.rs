@@ -1,6 +1,8 @@
 use code::ValueTypes;
 use function::FunctionType;
+use std::fmt;
 use trap::Result;
+use value::Values;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
@@ -190,13 +192,43 @@ pub enum Inst {
   RuntimeValue(ValueTypes),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+impl Inst {
+  pub fn get_value_ext(&self) -> Values {
+    use Inst::*;
+    match self {
+      I32Const(n) => Values::I32(*n),
+      I64Const(n) => Values::I64(*n),
+      F32Const(n) => Values::F32(*n),
+      F64Const(n) => Values::F64(*n),
+      _ => unreachable!("{:?}", self),
+    }
+  }
+}
+
+#[derive(PartialEq, Clone)]
 pub struct Instructions {
   pub ptr: u32,
   expressions: Vec<Inst>,
   label_ptrs: Vec<u32>,
   table_addresses: Vec<u32>,
   types: Vec<Result<FunctionType>>,
+}
+
+impl fmt::Debug for Instructions {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(
+      f,
+      "[{}][{}] labels[{:?}]",
+      self
+        .expressions
+        .iter()
+        .map(|p| format!("{:?}", p))
+        .collect::<Vec<String>>()
+        .join(", "),
+      self.ptr,
+      self.label_ptrs,
+    )
+  }
 }
 
 impl Instructions {

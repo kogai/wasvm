@@ -1,26 +1,55 @@
 use function::FunctionType;
-use inst::{Inst, Instructions};
+use inst::Inst;
 use std::fmt;
 use std::rc::Rc;
 use trap::{Result, Trap};
 use value::Values;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub struct Frame {
   pub locals: Vec<Values>,
   pub expressions: Vec<Inst>,
   pub function_idx: usize,
   pub return_ptr: usize,
   pub table_addresses: Vec<u32>,
+  pub own_type: Option<FunctionType>,
   pub types: Vec<Result<FunctionType>>,
 }
 
-#[derive(Debug, PartialEq)]
+impl fmt::Debug for Frame {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    // NOTE: Omit to present expressions and types would be worth :thinking: .
+    let locals = self
+      .locals
+      .iter()
+      .map(|x| format!("{:?}", x))
+      .collect::<Vec<String>>()
+      .join(", ");
+    write!(
+      f,
+      "[{}] locals:({}) return:{} table{:?}",
+      self.function_idx, locals, self.return_ptr, self.table_addresses
+    )
+  }
+}
+
+#[derive(PartialEq)]
 pub enum StackEntry {
   Empty,
   Value(Values),
-  Label(Instructions),
   Frame(Frame),
+}
+
+impl fmt::Debug for StackEntry {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    use StackEntry::*;
+    let label = match self {
+      Empty => "_".to_owned(),
+      Value(v) => format!("{:?}", v),
+      Frame(v) => format!("Frame({:?})", v),
+    };
+    write!(f, "{}", label)
+  }
 }
 
 impl StackEntry {
@@ -30,17 +59,8 @@ impl StackEntry {
   pub fn new_value(value: Values) -> Rc<Self> {
     Rc::new(StackEntry::Value(value))
   }
-  pub fn new_label(label: Instructions) -> Rc<Self> {
-    Rc::new(StackEntry::Label(label))
-  }
   pub fn new_fram(frame: Frame) -> Rc<Self> {
     Rc::new(StackEntry::Frame(frame))
-  }
-  fn is_empty(&self) -> bool {
-    match self {
-      StackEntry::Empty => true,
-      _ => false,
-    }
   }
 }
 
@@ -113,9 +133,6 @@ impl Stack {
       .pop_value()
       .expect("Expect to pop up value, but got None")
   }
-  pub fn increase(&mut self, count: usize) {
-    self.stack_ptr += count;
-  }
   pub fn get_frame_ptr(&mut self) -> usize {
     match self.frame_ptr.last() {
       Some(p) => *p,
@@ -137,7 +154,6 @@ impl fmt::Debug for Stack {
     let entries = self
       .entries
       .iter()
-      .filter(|x| !x.is_empty())
       .map(|x| format!("{:?}", x))
       .collect::<Vec<String>>()
       .join(", ");
@@ -179,8 +195,7 @@ mod tests {
     }
     assert_eq!(
       format!("{:?}", stack),
-      "[Value(I32(0)), Value(I32(1)), Value(I32(2))], frame=[], stack_size=8, stack_ptr=3"
-        .to_owned()
+      "[i32:0, i32:1, i32:2, _, _, _, _, _], frame=[], stack_size=8, stack_ptr=3".to_owned()
     );
   }
 }

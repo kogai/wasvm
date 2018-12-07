@@ -60,6 +60,9 @@ macro_rules! impl_e2e {
             },
             ref expected,
           } => {
+            if line > 332 && $file_name == "tee_local" {
+              break;
+            };
             if line > 327 && $file_name == "loop" {
               break;
             };
@@ -168,6 +171,9 @@ impl_e2e!(test_f64_cmp, "f64_cmp");
 impl_e2e!(test_f64_bitwise, "f64_bitwise");
 impl_e2e!(test_float_exprs, "float_exprs");
 impl_e2e!(test_get_local, "get_local");
+impl_e2e!(test_set_local, "set_local");
+impl_e2e!(test_tee_local, "tee_local");
+// impl_e2e!(test_nop, "nop");
 // impl_e2e!(test_globals, "globals");
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");

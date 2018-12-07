@@ -1,4 +1,5 @@
 use std::convert::From;
+use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {
@@ -447,7 +448,7 @@ impl From<Option<u8>> for ExportDescriptionCode {
   }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(PartialEq, Clone)]
 pub enum ValueTypes {
   Empty, // TODO: Rename to Unit
   I32,
@@ -468,5 +469,21 @@ impl From<Option<u8>> for ValueTypes {
       Some(x) => unimplemented!("ValueTypes of {:x} does not implemented yet.", x),
       None => unreachable!("ValueTypes not found"),
     }
+  }
+}
+impl fmt::Debug for ValueTypes {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    use ValueTypes::*;
+    write!(
+      f,
+      "{}",
+      match self {
+        Empty => "*",
+        I32 => "i32",
+        I64 => "i64",
+        F32 => "f32",
+        F64 => "f64",
+      }
+    )
   }
 }
