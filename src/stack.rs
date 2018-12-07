@@ -154,7 +154,6 @@ impl fmt::Debug for Stack {
     let entries = self
       .entries
       .iter()
-      .filter(|x| !x.is_empty())
       .map(|x| format!("{:?}", x))
       .collect::<Vec<String>>()
       .join(", ");
