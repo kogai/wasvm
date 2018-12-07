@@ -1,17 +1,7 @@
 use code::ValueTypes;
-use inst::Instructions;
+use value::Values;
 
-pub struct GlobalInstance {
-  global_type: GlobalType,
-  init: Instructions,
-}
-
-impl GlobalInstance {
-  pub fn new(global_type: GlobalType, init: Instructions) -> Self {
-    GlobalInstance { global_type, init }
-  }
-}
-
+#[derive(Debug)]
 pub enum GlobalType {
   Const(ValueTypes),
   Var(ValueTypes),
@@ -24,5 +14,20 @@ impl GlobalType {
       Some(0x01) => GlobalType::Var(v),
       x => unreachable!("Expected global type code, got {:?}", x),
     }
+  }
+}
+
+#[derive(Debug)]
+pub struct GlobalInstance {
+  global_type: GlobalType,
+  value: Values,
+}
+
+impl GlobalInstance {
+  pub fn new(global_type: GlobalType, value: Values) -> Self {
+    GlobalInstance { global_type, value }
+  }
+  pub fn set_value(&mut self, value: Values) {
+    self.value = value;
   }
 }

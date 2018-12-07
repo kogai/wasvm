@@ -40,6 +40,13 @@ impl Store {
       .expect(&format!("Function [{}] did not found.", invoke))
   }
 
+  pub fn set_global(&mut self, idx: u32, value: Values) {
+    self
+      .global_instances
+      .get_mut(idx as usize)
+      .map(|g| g.set_value(value));
+  }
+
   pub fn gather_function_types(&self) -> Vec<Result<FunctionType>> {
     self
       .function_instances

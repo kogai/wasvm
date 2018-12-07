@@ -228,8 +228,9 @@ impl Vm {
                 GetGlobal(_idx) => {
                     unimplemented!();
                 }
-                SetGlobal(_idx) => {
-                    unimplemented!();
+                SetGlobal(idx) => {
+                    let value = self.stack.pop_value_ext();
+                    self.store.set_global(idx, value);
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n)))?,
