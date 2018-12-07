@@ -26,8 +26,6 @@ pub enum Code {
   F32Const,
   F64Const,
 
-  TypeValueEmpty,
-
   GetLocal,
   TeeLocal,
   SetLocal,
@@ -57,6 +55,8 @@ pub enum Code {
   I64Store8,
   I64Store16,
   I64Store32,
+  MemorySize,
+  MemoryGrow,
 
   I32CountLeadingZero,
   I32CountTrailingZero,
@@ -243,8 +243,9 @@ impl From<Option<u8>> for Code {
       Some(0x3c) => I64Store8,
       Some(0x3d) => I64Store16,
       Some(0x3e) => I64Store32,
+      Some(0x3f) => MemorySize,
+      Some(0x40) => MemoryGrow,
 
-      Some(0x40) => TypeValueEmpty,
       Some(0x41) => ConstI32,
       Some(0x42) => ConstI64,
       Some(0x43) => F32Const,

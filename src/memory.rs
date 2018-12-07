@@ -83,3 +83,18 @@ impl MemoryInstance {
     }
   }
 }
+
+impl fmt::Debug for MemoryInstance {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(
+      f,
+      "{:?}",
+      self
+        .data
+        .iter()
+        .map(|d| format!("{}", d))
+        .collect::<Vec<String>>()
+        .join(", ")
+    )
+  }
+}

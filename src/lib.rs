@@ -342,6 +342,12 @@ impl Vm {
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
                 F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
+                MemorySize => {
+                    unimplemented!();
+                }
+                MemoryGrow => {
+                    unimplemented!();
+                }
 
                 I64ExtendUnsignI32 => impl_unary_inst!(self, extend_to_i64),
 

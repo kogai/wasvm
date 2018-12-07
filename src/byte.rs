@@ -337,6 +337,8 @@ impl Byte {
           let (align, offset) = self.decode_memory_inst()?;
           expressions.push(Inst::I64Store32(align, offset));
         }
+        Code::MemorySize => expressions.push(Inst::MemorySize),
+        Code::MemoryGrow => expressions.push(Inst::MemoryGrow),
         Code::I32CountLeadingZero => expressions.push(Inst::I32CountLeadingZero),
         Code::I32CountTrailingZero => expressions.push(Inst::I32CountTrailingZero),
         Code::I32CountNonZero => expressions.push(Inst::I32CountNonZero),
@@ -468,7 +470,6 @@ impl Byte {
         Code::F64ReinterpretI64 => expressions.push(Inst::F64ReinterpretI64),
 
         Code::Select => expressions.push(Inst::Select),
-        Code::TypeValueEmpty => expressions.push(Inst::RuntimeValue(ValueTypes::Empty)),
       };
     }
     match Code::from(self.next()) {
