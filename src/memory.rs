@@ -1,10 +1,9 @@
 use inst::Inst;
 use std::fmt;
-use std::mem::transmute;
 use value::Values;
 
 // NOTE: 65536 is constant page size of webassembly.
-const PAGE_SIZE: usize = 65536;
+// const PAGE_SIZE: usize = 65536;
 
 #[derive(Clone)]
 pub enum Limit {
@@ -72,10 +71,9 @@ impl MemoryInstance {
       limit,
     }
   }
-  pub fn size(&self) -> i32 {
-    self.data.len() as i32
-  }
-
+  // pub fn size(&self) -> i32 {
+  //   self.data.len() as i32
+  // }
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
     ptr > (self.data.len()) as u32
   }

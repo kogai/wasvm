@@ -166,7 +166,6 @@ impl Byte {
     match (align, offset) {
       (Ok(align), Ok(offset)) => Ok((align as u32, offset as u32)),
       (Err(Trap::BitshiftOverflow), _) | (_, Err(Trap::BitshiftOverflow)) => {
-        println!("Decode int overflow");
         Err(Trap::MemoryAccessOutOfBounds)
       }
       _ => Err(Trap::Unknown),
@@ -625,7 +624,6 @@ impl Byte {
       };
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
-    println!("datas={:?}", &datas);
     let memory_instances = datas
       .into_iter()
       .map(|d| MemoryInstance::new(d, &memories))
