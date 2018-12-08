@@ -104,6 +104,18 @@ macro_rules! impl_e2e {
               }
             };
           }
+          CommandKind::AssertInvalid {
+            ref module,
+            ref message,
+          } => {
+            println!("Assert invalid at '{}:{}'.", message, line);
+            match wasvm::Vm::new(module.clone().into_vec()) {
+              Ok(_) => unreachable!(),
+              Err(err) => {
+                assert_eq!(&String::from(err), message);
+              }
+            }
+          }
           CommandKind::AssertReturnCanonicalNan {
             action: Action::Invoke {
               ref field,
@@ -111,7 +123,7 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            println!("Assert canonical NaN at {}:{}.", field, line);
+            println!("Assert canonical NaN at '{}:{}'.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
@@ -123,7 +135,7 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            println!("Assert arithmetic NaN at {}:{}.", field, line);
+            println!("Assert arithmetic NaN at '{}:{}'.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
@@ -131,14 +143,7 @@ macro_rules! impl_e2e {
           CommandKind::PerformAction(Action::Invoke {
             ref field, args: _, ..
           }) => {
-            println!("Skip perform action at {}:{}.", field, line);
-            break;
-          }
-          CommandKind::AssertInvalid {
-            module: ModuleBinary { .. },
-            ref message,
-          } => {
-            println!("Skip assert invalid at {}:{}.", message, line);
+            println!("Skip perform action at '{}:{}'.", field, line);
             break;
           }
           x => unreachable!(
