@@ -601,15 +601,15 @@ impl Byte {
     while self.has_next() {
       let code = SectionCode::from(self.next());
       match code {
-        SectionCode::Type => section.function_types(self.decode_section_type()),
-        SectionCode::Function => section.functions(self.decode_section_function()),
-        SectionCode::Export => section.exports(self.decode_section_export()),
-        SectionCode::Code => section.codes(self.decode_section_code()),
-        SectionCode::Data => section.datas(self.decode_section_data()),
-        SectionCode::Memory => section.limits(self.decode_section_memory()),
-        SectionCode::Table => section.tables(self.decode_section_table()),
-        SectionCode::Global => section.globals(self.decode_section_global()),
-        SectionCode::Element => section.elements(self.decode_section_element()),
+        SectionCode::Type => section.function_types(self.decode_section_type()?),
+        SectionCode::Function => section.functions(self.decode_section_function()?),
+        SectionCode::Export => section.exports(self.decode_section_export()?),
+        SectionCode::Code => section.codes(self.decode_section_code()?),
+        SectionCode::Data => section.datas(self.decode_section_data()?),
+        SectionCode::Memory => section.limits(self.decode_section_memory()?),
+        SectionCode::Table => section.tables(self.decode_section_table()?),
+        SectionCode::Global => section.globals(self.decode_section_global()?),
+        SectionCode::Element => section.elements(self.decode_section_element()?),
         SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
           unimplemented!("{:?}", code);
         }

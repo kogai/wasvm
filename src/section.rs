@@ -9,16 +9,17 @@ use store::Store;
 use table::{TableInstance, TableType};
 use trap::Result;
 
+#[derive(Debug)]
 pub struct Section {
-  function_types: Option<Result<Vec<FunctionType>>>,
-  functions: Option<Result<Vec<u32>>>,
-  exports: Option<Result<Vec<(String, usize)>>>, // Pair of (name, index)
-  codes: Option<Result<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>>>,
-  datas: Option<Result<Vec<Data>>>,
-  limits: Option<Result<Vec<Limit>>>,
-  tables: Option<Result<Vec<TableType>>>,
-  globals: Option<Result<Vec<GlobalInstance>>>,
-  elements: Option<Result<Vec<Element>>>,
+  function_types: Option<Vec<FunctionType>>,
+  functions: Option<Vec<u32>>,
+  exports: Option<Vec<(String, usize)>>, // Pair of (name, index)
+  codes: Option<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>>,
+  datas: Option<Vec<Data>>,
+  limits: Option<Vec<Limit>>,
+  tables: Option<Vec<TableType>>,
+  globals: Option<Vec<GlobalInstance>>,
+  elements: Option<Vec<Element>>,
 }
 
 impl Default for Section {
@@ -39,7 +40,7 @@ impl Default for Section {
 
 macro_rules! impl_builder {
   ($name: ident, $prop: ident, $ty: ty) => {
-    pub fn $name<'a>(&'a mut self, xs: Result<Vec<$ty>>) -> &'a mut Self {
+    pub fn $name<'a>(&'a mut self, xs: Vec<$ty>) -> &'a mut Self {
       self.$prop = Some(xs);
       self
     }
@@ -57,22 +58,31 @@ impl Section {
   impl_builder!(globals, globals, GlobalInstance);
   impl_builder!(elements, elements, Element);
 
-  fn memory_instances(datas: Vec<Data>, limits: Vec<Limit>) -> Vec<MemoryInstance> {
-    datas
-      .into_iter()
-      .map(|d| MemoryInstance::new(d, &limits))
-      .collect::<Vec<_>>()
+  fn memory_instances(datas: Option<Vec<Data>>, limits: Option<Vec<Limit>>) -> Vec<MemoryInstance> {
+    match (datas, limits) {
+      (Some(datas), Some(limits)) => datas
+        .into_iter()
+        .map(|d| MemoryInstance::new(d, &limits))
+        .collect::<Vec<_>>(),
+      _ => vec![],
+    }
   }
-  fn table_instances(elements: Vec<Element>, tables: Vec<TableType>) -> Vec<TableInstance> {
-    elements
-      .iter()
-      .map(|el| {
-        let table_type = tables
-          .get(el.table_idx as usize)
-          .expect("Table type not found.");
-        TableInstance::new(&table_type, el)
-      })
-      .collect::<Vec<_>>()
+  fn table_instances(
+    elements: Option<Vec<Element>>,
+    tables: Option<Vec<TableType>>,
+  ) -> Vec<TableInstance> {
+    match (elements, tables) {
+      (Some(elements), Some(tables)) => elements
+        .iter()
+        .map(|el| {
+          let table_type = tables
+            .get(el.table_idx as usize)
+            .expect("Table type not found.");
+          TableInstance::new(&table_type, el)
+        })
+        .collect::<Vec<_>>(),
+      _ => vec![],
+    }
   }
   fn function_instances(
     function_types: Vec<FunctionType>,
@@ -108,32 +118,40 @@ impl Section {
       .collect::<Vec<_>>()
   }
 
+  fn global_instances(globals: Option<Vec<GlobalInstance>>) -> Vec<GlobalInstance> {
+    match globals {
+      Some(gs) => gs,
+      None => vec![],
+    }
+  }
+
   pub fn complete(self) -> Store {
     match self {
       Section {
-        function_types: Some(Ok(function_types)),
-        functions: Some(Ok(functions)),
-        exports: Some(Ok(exports)),
-        codes: Some(Ok(codes)),
-        datas: Some(Ok(datas)),
-        limits: Some(Ok(limits)),
-        tables: Some(Ok(tables)),
-        globals: Some(Ok(globals)),
-        elements: Some(Ok(elements)),
+        function_types: Some(function_types),
+        functions: Some(functions),
+        exports: Some(exports),
+        codes: Some(codes),
+        datas,
+        limits,
+        tables,
+        elements,
+        globals,
       } => {
         let memory_instances = Section::memory_instances(datas, limits);
         let table_instances = Section::table_instances(elements, tables);
         let function_instances =
           Section::function_instances(function_types, functions, exports, codes);
+        let global_instances = Section::global_instances(globals);
 
         Store::new(
           function_instances,
           memory_instances,
           table_instances,
-          globals,
+          global_instances,
         )
       }
-      _ => unreachable!("Sections did not decode properly."),
+      x => unreachable!("Sections did not decode properly.\n{:?}", x),
     }
   }
 }
