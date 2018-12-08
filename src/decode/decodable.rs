@@ -9,6 +9,7 @@ use trap::Result;
 #[macro_export]
 macro_rules! impl_decode_leb128 {
   ($t:ty, $buf_size: ty, $fn_name: ident) => {
+    #[allow(dead_code)]
     fn $fn_name(&mut self) -> Result<$t> {
       let mut buf: $t = 0;
       let mut shift = 0;
@@ -45,6 +46,7 @@ macro_rules! impl_decode_leb128 {
 
 macro_rules! impl_decode_float {
   ($ty: ty, $buf_ty: ty, $fn_name: ident, $convert: path, $bitwidth: expr) => {
+    #[allow(dead_code)]
     fn $fn_name(&mut self) -> Result<$ty> {
       let mut buf: $buf_ty = 0;
       let mut shift = 0;
@@ -90,10 +92,6 @@ macro_rules! impl_decodable {
         }
       }
 
-      fn has_next(&self) -> bool {
-        self.byte_ptr < self.bytes.len()
-      }
-
       fn peek(&self) -> Option<u8> {
         self.bytes.get(self.byte_ptr).map(|&x| x)
       }
@@ -102,6 +100,28 @@ macro_rules! impl_decodable {
         let el = self.bytes.get(self.byte_ptr);
         self.byte_ptr += 1;
         el.map(|&x| x)
+      }
+    }
+  };
+}
+
+macro_rules! impl_decode_limit {
+  ($name: ident) => {
+    impl $name {
+      fn decode_limit(&mut self) -> Result<$crate::memory::Limit> {
+        use $crate::memory::Limit::*;
+        match self.next() {
+          Some(0x0) => {
+            let min = self.decode_leb128_i32()?;
+            Ok(NoUpperLimit(min as u32))
+          }
+          Some(0x1) => {
+            let min = self.decode_leb128_i32()?;
+            let max = self.decode_leb128_i32()?;
+            Ok(HasUpperLimit(min as u32, max as u32))
+          }
+          x => unreachable!("Expected limit code, got {:?}", x),
+        }
       }
     }
   };
