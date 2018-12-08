@@ -85,7 +85,7 @@ mod tests {
         let mut file = File::open(format!("./{}.wasm", $file_name)).unwrap();
         let mut buffer = vec![];
         let _ = file.read_to_end(&mut buffer);
-        let mut bc = Byte::new(buffer);
+        let mut bc = Byte::new_with_drop(buffer);
         assert_eq!(bc.decode().unwrap().get_function_instance(), $fn_insts);
       }
     };
