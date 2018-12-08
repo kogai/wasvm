@@ -1,13 +1,15 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
 use element::Element;
-use function::{FunctionInstance, FunctionType};
+use function::FunctionType;
 use global::{GlobalInstance, GlobalType};
 use inst::{Inst, Instructions};
-use memory::{Data, Limit, MemoryInstance};
+use memory::{Data, Limit};
+use section::Section;
 use std::convert::From;
+use std::default::Default;
 use std::{f32, f64};
 use store::Store;
-use table::{ElementType, TableInstance, TableType};
+use table::{ElementType, TableType};
 use trap::{Result, Trap};
 
 macro_rules! leb128 {
@@ -595,85 +597,34 @@ impl Byte {
   }
 
   pub fn decode(&mut self) -> Result<Store> {
-    let mut function_types = vec![];
-    let mut index_of_types = vec![];
-    let mut function_key_and_indexes = vec![];
-    let mut list_of_expressions = vec![];
-    let mut memories = vec![];
-    let mut datas = vec![];
-    let mut table_types = vec![];
-    let mut global_instances = vec![];
-    let mut elements = vec![];
+    let mut section: Section = Default::default();
     while self.has_next() {
       let code = SectionCode::from(self.next());
       match code {
-        SectionCode::Type => function_types = self.decode_section_type()?,
-        SectionCode::Function => index_of_types = self.decode_section_function()?,
-        SectionCode::Export => function_key_and_indexes = self.decode_section_export()?,
-        SectionCode::Code => list_of_expressions = self.decode_section_code()?,
-        SectionCode::Data => datas = self.decode_section_data()?,
-        SectionCode::Memory => memories = self.decode_section_memory()?,
-        SectionCode::Table => table_types = self.decode_section_table()?,
-        SectionCode::Global => global_instances = self.decode_section_global()?,
-        SectionCode::Element => elements = self.decode_section_element()?,
+        SectionCode::Type => section.function_types(self.decode_section_type()),
+        SectionCode::Function => section.functions(self.decode_section_function()),
+        SectionCode::Export => section.exports(self.decode_section_export()),
+        SectionCode::Code => section.codes(self.decode_section_code()),
+        SectionCode::Data => section.datas(self.decode_section_data()),
+        SectionCode::Memory => section.limits(self.decode_section_memory()),
+        SectionCode::Table => section.tables(self.decode_section_table()),
+        SectionCode::Global => section.globals(self.decode_section_global()),
+        SectionCode::Element => section.elements(self.decode_section_element()),
         SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
           unimplemented!("{:?}", code);
         }
       };
     }
-    let mut function_instances = Vec::with_capacity(list_of_expressions.len());
-    let memory_instances = datas
-      .into_iter()
-      .map(|d| MemoryInstance::new(d, &memories))
-      .collect::<Vec<_>>();
-
-    let table_instances = elements
-      .iter()
-      .map(|el| {
-        let table_type = table_types
-          .get(el.table_idx as usize)
-          .expect("Table type not found.");
-        TableInstance::new(&table_type, el)
-      })
-      .collect();
-
-    for idx_of_fn in 0..list_of_expressions.len() {
-      let export_name = function_key_and_indexes
-        .iter()
-        .find(|(_, idx)| idx == &idx_of_fn)
-        .map(|(key, _)| key.to_owned());
-      let &index_of_type = index_of_types.get(idx_of_fn)?;
-      let function_type = function_types.get(index_of_type as usize)?;
-      let fnins = match list_of_expressions.get(idx_of_fn)? {
-        Ok((expression, locals)) => FunctionInstance::new(
-          export_name,
-          Ok(function_type.to_owned()),
-          locals.to_owned(),
-          index_of_type,
-          expression.to_owned(),
-        ),
-        Err(err) => FunctionInstance::new(
-          export_name,
-          Err(err.to_owned()),
-          vec![],
-          index_of_type,
-          vec![],
-        ),
-      };
-      function_instances.push(fnins);
-    }
-    Ok(Store::new(
-      function_instances,
-      memory_instances,
-      table_instances,
-      global_instances,
-    ))
+    Ok(section.complete())
   }
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+  use code::ValueTypes;
+  use function::{FunctionInstance, FunctionType};
+  use inst::Inst;
   use std::fs::File;
   use std::io::Read;
 

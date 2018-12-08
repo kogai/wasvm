@@ -6,6 +6,7 @@ mod function;
 mod global;
 mod inst;
 mod memory;
+mod section;
 mod stack;
 mod store;
 mod table;
