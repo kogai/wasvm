@@ -1,6 +1,7 @@
 #![feature(try_trait)]
-mod byte;
 mod code;
+#[macro_use]
+mod decode;
 mod element;
 mod function;
 mod global;
@@ -96,7 +97,7 @@ pub struct Vm {
 
 impl Vm {
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
-        let mut bytes = byte::Byte::new(bytes);
+        let mut bytes = decode::byte::Byte::new_with_drop(bytes);
         match bytes.decode() {
             Ok(store) => Ok(Vm {
                 store,
