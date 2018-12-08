@@ -596,7 +596,7 @@ impl Byte {
     let mut index_of_types = vec![];
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
-    let mut _memories = vec![];
+    let mut memories = vec![];
     let mut data = vec![];
     let mut table_types = vec![];
     let mut global_instances = vec![];
@@ -609,7 +609,7 @@ impl Byte {
         SectionCode::Export => function_key_and_indexes = self.decode_section_export()?,
         SectionCode::Code => list_of_expressions = self.decode_section_code()?,
         SectionCode::Data => data = self.decode_section_data()?,
-        SectionCode::Memory => _memories = self.decode_section_memory()?,
+        SectionCode::Memory => memories = self.decode_section_memory()?,
         SectionCode::Table => table_types = self.decode_section_table()?,
         SectionCode::Global => global_instances = self.decode_section_global()?,
         SectionCode::Element => elements = self.decode_section_element()?,
@@ -619,7 +619,11 @@ impl Byte {
       };
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
-    let memory_instances = MemoryInstance::new(data);
+    let memory_instances = data
+      .into_iter()
+      .map(|d| MemoryInstance::new(d, &memories))
+      .collect::<Vec<_>>();
+
     let table_instances = elements
       .iter()
       .map(|el| {

@@ -7,8 +7,7 @@ use value::Values;
 
 pub struct Store {
   function_instances: Vec<FunctionInstance>,
-  // NOTE: Might be Vector of MemoryInstances
-  memory_instance: MemoryInstance,
+  memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
   global_instances: Vec<GlobalInstance>,
 }
@@ -16,13 +15,13 @@ pub struct Store {
 impl Store {
   pub fn new(
     function_instances: Vec<FunctionInstance>,
-    memory_instance: MemoryInstance,
+    memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,
     global_instances: Vec<GlobalInstance>,
   ) -> Self {
     Store {
       function_instances,
-      memory_instance,
+      memory_instances,
       table_instances,
       global_instances,
     }
