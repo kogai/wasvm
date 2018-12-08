@@ -1,16 +1,10 @@
-use code::{SectionCode, ValueTypes};
+use code::SectionCode;
 use decode::decodable::Decodable;
 use decode::*;
-use element::Element;
-use function::FunctionType;
-use global::GlobalInstance;
-use inst::Inst;
-use memory::{Data, Limit};
 use section::Section;
 use std::convert::From;
 use std::default::Default;
 use store::Store;
-use table::TableType;
 use trap::Result;
 
 #[derive(Debug, PartialEq)]
@@ -64,55 +58,38 @@ impl Byte {
     Ok(bytes)
   }
 
-  fn decode_section_code(&mut self) -> Result<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>> {
-    sec_code::Section::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_type(&mut self) -> Result<Vec<FunctionType>> {
-    sec_type::Section::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_export(&mut self) -> Result<Vec<(String, usize)>> {
-    sec_export::Section::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_function(&mut self) -> Result<Vec<u32>> {
-    sec_function::Section::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_memory(&mut self) -> Result<Vec<Limit>> {
-    sec_memory::Section::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_data(&mut self) -> Result<Vec<Data>> {
-    sec_data::Section::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_table(&mut self) -> Result<Vec<TableType>> {
-    sec_table::Section::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_global(&mut self) -> Result<Vec<GlobalInstance>> {
-    sec_global::Section::new(self.decode_section()?).decode()
-  }
-  fn decode_section_element(&mut self) -> Result<Vec<Element>> {
-    sec_element::Section::new(self.decode_section()?).decode()
-  }
-
   pub fn decode(&mut self) -> Result<Store> {
     let mut section: Section = Default::default();
     while self.has_next() {
       let code = SectionCode::from(self.next());
       match code {
-        SectionCode::Type => section.function_types(self.decode_section_type()?),
-        SectionCode::Function => section.functions(self.decode_section_function()?),
-        SectionCode::Export => section.exports(self.decode_section_export()?),
-        SectionCode::Code => section.codes(self.decode_section_code()?),
-        SectionCode::Data => section.datas(self.decode_section_data()?),
-        SectionCode::Memory => section.limits(self.decode_section_memory()?),
-        SectionCode::Table => section.tables(self.decode_section_table()?),
-        SectionCode::Global => section.globals(self.decode_section_global()?),
-        SectionCode::Element => section.elements(self.decode_section_element()?),
+        SectionCode::Type => {
+          section.function_types(sec_type::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Function => {
+          section.functions(sec_function::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Export => {
+          section.exports(sec_export::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Code => {
+          section.codes(sec_code::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Data => {
+          section.datas(sec_data::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Memory => {
+          section.limits(sec_memory::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Table => {
+          section.tables(sec_table::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Global => {
+          section.globals(sec_global::Section::new(self.decode_section()?).decode()?)
+        }
+        SectionCode::Element => {
+          section.elements(sec_element::Section::new(self.decode_section()?).decode()?)
+        }
         SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
           unimplemented!("{:?}", code);
         }
