@@ -2,7 +2,7 @@ use code::ExportDescriptionCode;
 use decode::decodable::Decodable;
 use std::convert::From;
 use std::{f32, f64};
-use trap::{Result, Trap};
+use trap::Result;
 
 impl_decodable!(Section);
 

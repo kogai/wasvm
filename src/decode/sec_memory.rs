@@ -1,7 +1,7 @@
 use decode::decodable::Decodable;
 use memory::Limit;
 use std::{f32, f64};
-use trap::{Result, Trap};
+use trap::Result;
 
 impl_decodable!(Section);
 impl_decode_limit!(Section);

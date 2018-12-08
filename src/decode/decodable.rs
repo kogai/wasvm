@@ -1,16 +1,10 @@
-// use code::{Code, ValueTypes};
-// use function::FunctionType;
-// use std::convert::From;
-// use std::default::Default;
-// use std::{f32, f64};
-// use store::Store;
 use trap::Result;
 
 #[macro_export]
 macro_rules! impl_decode_leb128 {
   ($t:ty, $buf_size: ty, $fn_name: ident) => {
     #[allow(dead_code)]
-    fn $fn_name(&mut self) -> Result<$t> {
+    fn $fn_name(&mut self) -> $crate::trap::Result<$t> {
       let mut buf: $t = 0;
       let mut shift = 0;
 
@@ -33,7 +27,7 @@ macro_rules! impl_decode_leb128 {
 
       let (msb_one, overflowed) = (1 as $buf_size).overflowing_shl(shift + 6);
       if overflowed {
-        return Err(Trap::BitshiftOverflow)
+        return Err($crate::trap::Trap::BitshiftOverflow)
       }
       if buf & (msb_one as $t) != 0 {
         Ok(-((1 << (shift + 7)) - buf))
@@ -47,7 +41,7 @@ macro_rules! impl_decode_leb128 {
 macro_rules! impl_decode_float {
   ($ty: ty, $buf_ty: ty, $fn_name: ident, $convert: path, $bitwidth: expr) => {
     #[allow(dead_code)]
-    fn $fn_name(&mut self) -> Result<$ty> {
+    fn $fn_name(&mut self) -> $crate::trap::Result<$ty> {
       let mut buf: $buf_ty = 0;
       let mut shift = 0;
       for _ in 0..($bitwidth / 8) {
@@ -108,7 +102,7 @@ macro_rules! impl_decodable {
 macro_rules! impl_decode_limit {
   ($name: ident) => {
     impl $name {
-      fn decode_limit(&mut self) -> Result<$crate::memory::Limit> {
+      fn decode_limit(&mut self) -> $crate::trap::Result<$crate::memory::Limit> {
         use $crate::memory::Limit::*;
         match self.next() {
           Some(0x0) => {

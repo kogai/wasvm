@@ -1,53 +1,22 @@
 use code::SectionCode;
 use decode::decodable::Decodable;
+use decode::section::Section;
 use decode::*;
-use section::Section;
 use std::convert::From;
 use std::default::Default;
 use store::Store;
 use trap::Result;
 
-#[derive(Debug, PartialEq)]
-pub struct Byte {
-  bytes: Vec<u8>,
-  byte_ptr: usize,
-}
+impl_decodable!(Byte);
 
 impl Byte {
-  // FIXME: Generalize with macro decoding signed integer.
-  fn decode_leb128_u32(&mut self) -> Result<u32> {
-    let mut buf: u32 = 0;
-    let mut shift = 0;
-    while (self.peek()? & 0b10000000) != 0 {
-      let num = (self.next()? ^ (0b10000000)) as u32;
-      buf = buf ^ (num << shift);
-      shift += 7;
-    }
-    let num = (self.next()?) as u32;
-    buf = buf ^ (num << shift);
-    Ok(buf)
-  }
-
-  pub fn new(bytes: Vec<u8>) -> Self {
+  pub fn new_with_drop(bytes: Vec<u8>) -> Self {
     let (_, bytes) = bytes.split_at(8);
-    Byte {
-      bytes: bytes.to_vec(),
-      byte_ptr: 0,
-    }
+    Byte::new(bytes.to_vec())
   }
 
   fn has_next(&self) -> bool {
     self.byte_ptr < self.bytes.len()
-  }
-
-  fn peek(&self) -> Option<u8> {
-    self.bytes.get(self.byte_ptr).map(|&x| x)
-  }
-
-  fn next(&mut self) -> Option<u8> {
-    let el = self.bytes.get(self.byte_ptr);
-    self.byte_ptr += 1;
-    el.map(|&x| x)
   }
 
   fn decode_section(&mut self) -> Result<Vec<u8>> {
