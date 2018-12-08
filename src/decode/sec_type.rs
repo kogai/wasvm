@@ -7,8 +7,9 @@ use trap::{Result, Trap};
 
 impl_decodable!(Section);
 
-impl Decodable<FunctionType> for Section {
-  fn decode(&mut self) -> Result<Vec<FunctionType>> {
+impl Decodable for Section {
+  type Item = FunctionType;
+  fn decode(&mut self) -> Result<Vec<Self::Item>> {
     let count_of_type = self.decode_leb128_u32()?;
     (0..count_of_type)
       .map(|_| {

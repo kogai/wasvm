@@ -107,6 +107,7 @@ macro_rules! impl_decodable {
   };
 }
 
-pub trait Decodable<T> {
-  fn decode(&mut self) -> Result<Vec<T>>;
+pub trait Decodable {
+  type Item;
+  fn decode(&mut self) -> Result<Vec<Self::Item>>;
 }
