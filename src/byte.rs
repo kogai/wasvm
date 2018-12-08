@@ -64,7 +64,6 @@ macro_rules! decode_float {
 #[derive(Debug, PartialEq)]
 pub struct Byte {
   bytes: Vec<u8>,
-  pub bytes_decoded: Vec<Code>,
   byte_ptr: usize,
 }
 
@@ -92,7 +91,6 @@ impl Byte {
     let (_, bytes) = bytes.split_at(8);
     Byte {
       bytes: bytes.to_vec(),
-      bytes_decoded: vec![],
       byte_ptr: 0,
     }
   }
