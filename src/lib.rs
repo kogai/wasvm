@@ -1,6 +1,8 @@
 #![feature(try_trait)]
 mod byte;
 mod code;
+#[macro_use]
+mod decode;
 mod element;
 mod function;
 mod global;

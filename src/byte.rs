@@ -1,4 +1,6 @@
 use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
+use decode::decodable::Decodable;
+use decode::sec_type::SectionType;
 use element::Element;
 use function::FunctionType;
 use global::{GlobalInstance, GlobalType};
@@ -61,80 +63,6 @@ macro_rules! impl_decode_float {
       Ok($convert(buf))
     }
   };
-}
-
-macro_rules! impl_decodable {
-  ($name: ident) => {
-    struct $name {
-      bytes: Vec<u8>,
-      byte_ptr: usize,
-    }
-
-    impl $name {
-      impl_decode_leb128!(i32, u32, decode_leb128_i32);
-      impl_decode_leb128!(i64, u64, decode_leb128_i64);
-      impl_decode_float!(f32, u32, decode_f32, f32::from_bits, 32);
-      impl_decode_float!(f64, u64, decode_f64, f64::from_bits, 64);
-      // FIXME: Generalize with macro decoding signed integer.
-      fn decode_leb128_u32(&mut self) -> Result<u32> {
-        let mut buf: u32 = 0;
-        let mut shift = 0;
-        while (self.peek()? & 0b10000000) != 0 {
-          let num = (self.next()? ^ (0b10000000)) as u32;
-          buf = buf ^ (num << shift);
-          shift += 7;
-        }
-        let num = (self.next()?) as u32;
-        buf = buf ^ (num << shift);
-        Ok(buf)
-      }
-      pub fn new(bytes: Vec<u8>) -> Self {
-        $name {
-          bytes: bytes,
-          byte_ptr: 0,
-        }
-      }
-
-      fn has_next(&self) -> bool {
-        self.byte_ptr < self.bytes.len()
-      }
-
-      fn peek(&self) -> Option<u8> {
-        self.bytes.get(self.byte_ptr).map(|&x| x)
-      }
-
-      fn next(&mut self) -> Option<u8> {
-        let el = self.bytes.get(self.byte_ptr);
-        self.byte_ptr += 1;
-        el.map(|&x| x)
-      }
-    }
-  };
-}
-
-impl_decodable!(SectionType);
-
-impl SectionType {
-  fn decode(&mut self) -> Result<Vec<FunctionType>> {
-    let count_of_type = self.decode_leb128_u32()?;
-    let xs: Result<Vec<FunctionType>> = (0..count_of_type)
-      .map(|_| {
-        let mut parameters = vec![];
-        let mut returns = vec![];
-        let _type_function = Code::from(self.next());
-        let size_of_arity = self.decode_leb128_u32()?;
-        for _ in 0..size_of_arity {
-          parameters.push(ValueTypes::from(self.next()));
-        }
-        let size_of_result = self.decode_leb128_u32()?;
-        for _ in 0..size_of_result {
-          returns.push(ValueTypes::from(self.next()));
-        }
-        Ok(FunctionType::new(parameters, returns))
-      })
-      .collect::<Result<Vec<_>>>();
-    xs
-  }
 }
 
 #[derive(Debug, PartialEq)]
