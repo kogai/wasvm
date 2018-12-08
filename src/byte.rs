@@ -166,7 +166,6 @@ impl Byte {
     match (align, offset) {
       (Ok(align), Ok(offset)) => Ok((align as u32, offset as u32)),
       (Err(Trap::BitshiftOverflow), _) | (_, Err(Trap::BitshiftOverflow)) => {
-        println!("Decode int overflow");
         Err(Trap::MemoryAccessOutOfBounds)
       }
       _ => Err(Trap::Unknown),
@@ -337,6 +336,14 @@ impl Byte {
           let (align, offset) = self.decode_memory_inst()?;
           expressions.push(Inst::I64Store32(align, offset));
         }
+        Code::MemorySize => {
+          self.next()?; // Drop 0x00;
+          expressions.push(Inst::MemorySize);
+        }
+        Code::MemoryGrow => {
+          self.next()?; // Drop 0x00;
+          expressions.push(Inst::MemoryGrow);
+        }
         Code::I32CountLeadingZero => expressions.push(Inst::I32CountLeadingZero),
         Code::I32CountTrailingZero => expressions.push(Inst::I32CountTrailingZero),
         Code::I32CountNonZero => expressions.push(Inst::I32CountNonZero),
@@ -468,7 +475,6 @@ impl Byte {
         Code::F64ReinterpretI64 => expressions.push(Inst::F64ReinterpretI64),
 
         Code::Select => expressions.push(Inst::Select),
-        Code::TypeValueEmpty => expressions.push(Inst::RuntimeValue(ValueTypes::Empty)),
       };
     }
     match Code::from(self.next()) {
@@ -595,8 +601,8 @@ impl Byte {
     let mut index_of_types = vec![];
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
-    let mut _memories = vec![];
-    let mut data = vec![];
+    let mut memories = vec![];
+    let mut datas = vec![];
     let mut table_types = vec![];
     let mut global_instances = vec![];
     let mut elements = vec![];
@@ -607,8 +613,8 @@ impl Byte {
         SectionCode::Function => index_of_types = self.decode_section_function()?,
         SectionCode::Export => function_key_and_indexes = self.decode_section_export()?,
         SectionCode::Code => list_of_expressions = self.decode_section_code()?,
-        SectionCode::Data => data = self.decode_section_data()?,
-        SectionCode::Memory => _memories = self.decode_section_memory()?,
+        SectionCode::Data => datas = self.decode_section_data()?,
+        SectionCode::Memory => memories = self.decode_section_memory()?,
         SectionCode::Table => table_types = self.decode_section_table()?,
         SectionCode::Global => global_instances = self.decode_section_global()?,
         SectionCode::Element => elements = self.decode_section_element()?,
@@ -618,7 +624,11 @@ impl Byte {
       };
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
-    let memory_instances = MemoryInstance::new(data);
+    let memory_instances = datas
+      .into_iter()
+      .map(|d| MemoryInstance::new(d, &memories))
+      .collect::<Vec<_>>();
+
     let table_instances = elements
       .iter()
       .map(|el| {

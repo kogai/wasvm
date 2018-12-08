@@ -4,7 +4,7 @@ extern crate wabt;
 extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
-use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
+use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 use wasvm::value::Values;
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
@@ -60,12 +60,6 @@ macro_rules! impl_e2e {
             },
             ref expected,
           } => {
-            if line > 332 && $file_name == "tee_local" {
-              break;
-            };
-            if line > 327 && $file_name == "loop" {
-              break;
-            };
             println!("Assert return at {}:{}.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
@@ -104,6 +98,21 @@ macro_rules! impl_e2e {
               }
             };
           }
+          CommandKind::AssertInvalid {
+            ref message,
+            // ref module,
+            ..
+          } => {
+            println!("Skip assert invalid at '{}:{}'.", message, line);
+            continue;
+            // FIXME: Enable it later.
+            // match wasvm::Vm::new(module.clone().into_vec()) {
+            //   Ok(_) => unreachable!(),
+            //   Err(err) => {
+            //     assert_eq!(&String::from(err), message);
+            //   }
+            // }
+          }
           CommandKind::AssertReturnCanonicalNan {
             action: Action::Invoke {
               ref field,
@@ -111,7 +120,7 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            println!("Assert canonical NaN at {}:{}.", field, line);
+            println!("Assert canonical NaN at '{}:{}'.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
@@ -123,7 +132,7 @@ macro_rules! impl_e2e {
               ..
             },
           } => {
-            println!("Assert arithmetic NaN at {}:{}.", field, line);
+            println!("Assert arithmetic NaN at '{}:{}'.", field, line);
             let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
@@ -131,14 +140,7 @@ macro_rules! impl_e2e {
           CommandKind::PerformAction(Action::Invoke {
             ref field, args: _, ..
           }) => {
-            println!("Skip perform action at {}:{}.", field, line);
-            break;
-          }
-          CommandKind::AssertInvalid {
-            module: ModuleBinary { .. },
-            ref message,
-          } => {
-            println!("Skip assert invalid at {}:{}.", message, line);
+            println!("Skip perform action at '{}:{}'.", field, line);
             break;
           }
           x => unreachable!(
@@ -151,14 +153,14 @@ macro_rules! impl_e2e {
   };
 }
 
-impl_e2e!(test_address, "address");
+// impl_e2e!(test_address, "address");
 // impl_e2e!(test_align, "align");
 // impl_e2e!(test_binary, "binary");
 // impl_e2e!(test_block, "block");
 // impl_e2e!(test_br_if, "br_if");
 // impl_e2e!(test_br_table, "br_table");
 // impl_e2e!(test_br, "br");
-// impl_e2e!(test_break_drop, "break-drop");
+impl_e2e!(test_break_drop, "break-drop");
 // impl_e2e!(test_call_indirect, "call_indirect");
 // impl_e2e!(test_call, "call");
 impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
@@ -172,7 +174,7 @@ impl_e2e!(test_f64_bitwise, "f64_bitwise");
 impl_e2e!(test_float_exprs, "float_exprs");
 impl_e2e!(test_get_local, "get_local");
 impl_e2e!(test_set_local, "set_local");
-impl_e2e!(test_tee_local, "tee_local");
+// impl_e2e!(test_tee_local, "tee_local");
 // impl_e2e!(test_nop, "nop");
 // impl_e2e!(test_globals, "globals");
 impl_e2e!(test_i32, "i32");

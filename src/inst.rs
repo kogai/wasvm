@@ -54,6 +54,8 @@ pub enum Inst {
   I64Store8(u32, u32),
   I64Store16(u32, u32),
   I64Store32(u32, u32),
+  MemorySize,
+  MemoryGrow,
 
   I32CountLeadingZero,
   I32CountTrailingZero,
