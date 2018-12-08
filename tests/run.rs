@@ -4,7 +4,7 @@ extern crate wabt;
 extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
-use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
+use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 use wasvm::value::Values;
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {

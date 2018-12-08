@@ -64,10 +64,28 @@ impl Store {
   }
 
   pub fn data_size_small_than(&self, ptr: u32) -> bool {
-    self.memory_instance.data_size_smaller_than(ptr)
+    self
+      .memory_instances
+      .get(0)
+      .unwrap()
+      .data_size_smaller_than(ptr)
   }
 
+  pub fn size_of_data(&self) -> i32 {
+    self.memory_instances.get(0).unwrap().size()
+  }
   pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
-    self.memory_instance.load_data(from, to, value_kind)
+    self
+      .memory_instances
+      .get(0)
+      .unwrap()
+      .load_data(from, to, value_kind)
+  }
+  pub fn store_data(&mut self, from: u32, byte_size: u32, value: Values) {
+    // println!("{:?} {:?}", from, value);
+    // println!("f {:?}", &self.memory_instance);
+    // self.memory_instance.store_data(from, byte_size, value);
+    // println!("t {:?}", &self.memory_instance);
+    unimplemented!();
   }
 }

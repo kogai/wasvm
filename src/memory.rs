@@ -73,7 +73,7 @@ impl MemoryInstance {
     }
   }
   pub fn size(&self) -> i32 {
-    (self.data.len() / PAGE_SIZE) as i32
+    self.data.len() as i32
   }
 
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {

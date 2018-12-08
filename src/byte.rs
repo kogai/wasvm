@@ -337,8 +337,14 @@ impl Byte {
           let (align, offset) = self.decode_memory_inst()?;
           expressions.push(Inst::I64Store32(align, offset));
         }
-        Code::MemorySize => expressions.push(Inst::MemorySize),
-        Code::MemoryGrow => expressions.push(Inst::MemoryGrow),
+        Code::MemorySize => {
+          self.next()?; // Drop 0x00;
+          expressions.push(Inst::MemorySize);
+        }
+        Code::MemoryGrow => {
+          self.next()?; // Drop 0x00;
+          expressions.push(Inst::MemoryGrow);
+        }
         Code::I32CountLeadingZero => expressions.push(Inst::I32CountLeadingZero),
         Code::I32CountTrailingZero => expressions.push(Inst::I32CountTrailingZero),
         Code::I32CountNonZero => expressions.push(Inst::I32CountNonZero),
@@ -597,7 +603,7 @@ impl Byte {
     let mut function_key_and_indexes = vec![];
     let mut list_of_expressions = vec![];
     let mut memories = vec![];
-    let mut data = vec![];
+    let mut datas = vec![];
     let mut table_types = vec![];
     let mut global_instances = vec![];
     let mut elements = vec![];
@@ -608,7 +614,7 @@ impl Byte {
         SectionCode::Function => index_of_types = self.decode_section_function()?,
         SectionCode::Export => function_key_and_indexes = self.decode_section_export()?,
         SectionCode::Code => list_of_expressions = self.decode_section_code()?,
-        SectionCode::Data => data = self.decode_section_data()?,
+        SectionCode::Data => datas = self.decode_section_data()?,
         SectionCode::Memory => memories = self.decode_section_memory()?,
         SectionCode::Table => table_types = self.decode_section_table()?,
         SectionCode::Global => global_instances = self.decode_section_global()?,
@@ -619,7 +625,8 @@ impl Byte {
       };
     }
     let mut function_instances = Vec::with_capacity(list_of_expressions.len());
-    let memory_instances = data
+    println!("datas={:?}", &datas);
+    let memory_instances = datas
       .into_iter()
       .map(|d| MemoryInstance::new(d, &memories))
       .collect::<Vec<_>>();
