@@ -25,7 +25,7 @@ impl Decodable for Section {
     (0..count_of_section)
       .map(|_| {
         let table_idx = self.decode_leb128_u32()?;
-        let offset = self.decode_section_code_internal()?;
+        let offset = self.decode_instructions()?;
         let init = self.decode_function_idx()?;
         Ok(Element::new(
           table_idx,

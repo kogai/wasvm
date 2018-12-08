@@ -13,7 +13,7 @@ macro_rules! impl_decode_code {
         }
       }
 
-      fn decode_section_code_internal(&mut self) -> Result<Vec<$crate::inst::Inst>> {
+      fn decode_instructions(&mut self) -> Result<Vec<$crate::inst::Inst>> {
         use code::{Code, ValueTypes};
         use inst::Inst;
         let mut expressions = vec![];
@@ -25,7 +25,7 @@ macro_rules! impl_decode_code {
             Code::Nop => expressions.push(Inst::Nop),
             Code::Block => {
               let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
-              let mut instructions = self.decode_section_code_internal()?;
+              let mut instructions = self.decode_instructions()?;
               expressions.push(Inst::Block(
                 (2 /* If inst + Type of block */ + instructions.len()) as u32,
               ));
@@ -35,16 +35,16 @@ macro_rules! impl_decode_code {
             Code::Loop => {
               expressions.push(Inst::Loop);
               expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
-              let mut instructions = self.decode_section_code_internal()?;
+              let mut instructions = self.decode_instructions()?;
               expressions.append(&mut instructions);
             }
             Code::If => {
               let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
-              let mut if_insts = self.decode_section_code_internal()?;
+              let mut if_insts = self.decode_instructions()?;
               let last = if_insts.last().map(|x| x.clone());
 
               let mut else_insts = match last {
-                Some(Inst::Else) => self.decode_section_code_internal()?,
+                Some(Inst::Else) => self.decode_instructions()?,
                 Some(Inst::End) => vec![],
                 x => unreachable!("{:?}", x),
               };

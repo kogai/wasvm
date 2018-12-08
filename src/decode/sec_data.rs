@@ -13,7 +13,7 @@ impl Decodable for Section {
     (0..count_of_section)
       .map(|_| {
         let memidx = self.decode_leb128_u32()? as u32;
-        let offset = self.decode_section_code_internal()?;
+        let offset = self.decode_instructions()?;
         let mut size_of_data = self.next()?;
         let mut init = vec![];
         while size_of_data != 0 {

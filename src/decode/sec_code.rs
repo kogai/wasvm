@@ -25,7 +25,7 @@ impl Decodable for Section {
             locals.push(value_type.clone());
           }
         }
-        Ok(match self.decode_section_code_internal() {
+        Ok(match self.decode_instructions() {
           Ok(expressions) => Ok((expressions, locals)),
           Err(err) => {
             self.byte_ptr = end_of_function;

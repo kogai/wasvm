@@ -15,7 +15,7 @@ impl Decodable for Section {
       .map(|_| {
         let value_type = ValueTypes::from(self.next());
         let global_type = GlobalType::new(self.next(), value_type);
-        let init = self.decode_section_code_internal()?;
+        let init = self.decode_instructions()?;
         let value = init.first()?.get_value_ext();
         Ok(GlobalInstance::new(global_type, value))
       })
