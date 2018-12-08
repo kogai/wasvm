@@ -1,9 +1,9 @@
-use code::{Code, ValueTypes};
-use function::FunctionType;
-use std::convert::From;
-use std::default::Default;
-use std::{f32, f64};
-use store::Store;
+// use code::{Code, ValueTypes};
+// use function::FunctionType;
+// use std::convert::From;
+// use std::default::Default;
+// use std::{f32, f64};
+// use store::Store;
 use trap::Result;
 
 #[macro_export]

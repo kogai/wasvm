@@ -1,6 +1,6 @@
-use code::{Code, ExportDescriptionCode, SectionCode, ValueTypes};
+use code::{Code, SectionCode, ValueTypes};
 use decode::decodable::Decodable;
-use decode::sec_type::SectionType;
+use decode::{sec_export, sec_function, sec_type};
 use element::Element;
 use function::FunctionType;
 use global::{GlobalInstance, GlobalType};
@@ -131,27 +131,6 @@ impl Byte {
     let end = start + bin_size_of_section as usize;
     let bytes = self.bytes.drain(start..end).collect::<Vec<_>>();
     Ok(bytes)
-  }
-  fn decode_section_type(&mut self) -> Result<Vec<FunctionType>> {
-    SectionType::new(self.decode_section()?).decode()
-  }
-
-  fn decode_section_export(&mut self) -> Result<Vec<(String, usize)>> {
-    let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_exports = self.decode_leb128_u32()?;
-    Byte::decode_vec(count_of_exports, || {
-      let size_of_name = self.decode_leb128_u32()?;
-      let mut buf = vec![];
-      for _ in 0..size_of_name {
-        buf.push(self.next()?);
-      }
-      let key = String::from_utf8(buf).expect("To encode export name has been failured.");
-      let idx_of_fn = match ExportDescriptionCode::from(self.next()) {
-        ExportDescriptionCode::ExportDescFunctionIdx => self.next()?,
-        x => unimplemented!("{:?}", x),
-      };
-      Ok((key, idx_of_fn as usize))
-    })
   }
 
   fn decode_memory_inst(&mut self) -> Result<(u32, u32)> {
@@ -504,13 +483,16 @@ impl Byte {
     })
   }
 
+  fn decode_section_type(&mut self) -> Result<Vec<FunctionType>> {
+    sec_type::Section::new(self.decode_section()?).decode()
+  }
+
+  fn decode_section_export(&mut self) -> Result<Vec<(String, usize)>> {
+    sec_export::Section::new(self.decode_section()?).decode()
+  }
+
   fn decode_section_function(&mut self) -> Result<Vec<u32>> {
-    let _bin_size_of_section = self.decode_leb128_i32()?;
-    let count_of_type_idx = self.decode_leb128_u32()?;
-    Byte::decode_vec(count_of_type_idx, || {
-      let idx = self.next()? as u32;
-      Ok(idx)
-    })
+    sec_function::Section::new(self.decode_section()?).decode()
   }
 
   fn decode_limit(&mut self) -> Result<Limit> {
