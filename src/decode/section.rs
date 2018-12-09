@@ -1,4 +1,5 @@
 use code::ValueTypes;
+use decode::context::Context;
 use element::Element;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
@@ -151,13 +152,15 @@ impl Section {
         let function_instances =
           Section::function_instances(function_types, functions, exports, codes);
         let global_instances = Section::global_instances(globals);
-
-        Ok(Store::new(
-          function_instances,
-          memory_instances,
-          table_instances,
-          global_instances,
-        ))
+        Ok(
+          Context::new(
+            function_instances,
+            memory_instances,
+            table_instances,
+            global_instances,
+          )
+          .validate()?,
+        )
       }
       x => unreachable!("Sections did not decode properly.\n{:?}", x),
     }
