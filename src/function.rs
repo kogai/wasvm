@@ -1,7 +1,7 @@
 use code::ValueTypes;
 use inst::Inst;
 use std::fmt;
-use trap::Result;
+use trap::{Result, Trap};
 
 #[derive(PartialEq, Clone)]
 pub struct FunctionType {
@@ -47,6 +47,9 @@ impl FunctionType {
   pub fn get_arity(&self) -> u32 {
     self.parameters.len() as u32
   }
+  fn get_return(&self) -> Option<ValueTypes> {
+    self.returns.first().map(|x| x.to_owned())
+  }
 }
 
 #[derive(PartialEq, Clone)]
@@ -74,6 +77,44 @@ impl fmt::Debug for FunctionInstance {
 }
 
 impl FunctionInstance {
+  fn reduction_instructions(instructions: &Vec<Inst>) -> Result<Option<ValueTypes>> {
+    let mut return_types: Vec<ValueTypes> = vec![];
+    let mut inst_ptr = 0;
+    use self::Inst::*;
+    while inst_ptr < instructions.len() {
+      // NOTE: Peek next
+      if let Some(End) = instructions.get(inst_ptr + 1) {
+        let instruction = instructions.get(inst_ptr);
+        match instruction {
+          Some(I32Const(_)) => return_types.push(ValueTypes::I32),
+          Some(I64Const(_)) => return_types.push(ValueTypes::I64),
+          _ => { /* Nop */ }
+        };
+      };
+      inst_ptr += 1;
+    }
+    let mut return_type_ptr = 0;
+    let mut return_type = None;
+    while return_type_ptr < return_types.len() {
+      let current = return_types.get(return_type_ptr);
+      let next = return_types.get(return_type_ptr + 1);
+      match (current, next) {
+        (Some(t1), Some(t2)) => {
+          if t1 != t2 {
+            return Err(Trap::TypeMismatch);
+          };
+          return_type = Some(t1);
+        }
+        (Some(t), None) => {
+          return_type = Some(t);
+        }
+        _ => unreachable!(),
+      };
+      return_type_ptr += 1;
+    }
+    Ok(return_type.map(|x| x.to_owned()))
+  }
+
   pub fn new(
     export_name: Option<String>,
     function_type: Result<FunctionType>,
@@ -81,6 +122,11 @@ impl FunctionInstance {
     type_idex: u32,
     body: Vec<Inst>,
   ) -> Result<Self> {
+    let expect_return_type = function_type.to_owned()?.get_return();
+    let actual_return_type = FunctionInstance::reduction_instructions(&body)?;
+    if expect_return_type != actual_return_type {
+      return Err(Trap::TypeMismatch);
+    }
     Ok(FunctionInstance {
       export_name,
       function_type,
@@ -113,9 +159,6 @@ impl FunctionInstance {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use code::ValueTypes;
-  use inst::Inst;
-  use trap::Trap;
 
   macro_rules! impl_test_validate {
     ($fn_name:ident, $return_type: expr, $instructions: expr) => {
