@@ -109,3 +109,54 @@ impl FunctionInstance {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use code::ValueTypes;
+  use inst::Inst;
+  use trap::Trap;
+
+  macro_rules! impl_test_validate {
+    ($fn_name:ident, $return_type: expr, $instructions: expr) => {
+      #[test]
+      fn $fn_name() {
+        use self::Inst::*;
+        let actual = FunctionInstance::new(
+          None,
+          Ok(FunctionType::new(vec![], vec![$return_type])),
+          vec![],
+          0,
+          $instructions,
+        );
+        assert_eq!(actual, Err(Trap::TypeMismatch));
+      }
+    };
+    ($fn_name:ident, $return_type: expr, $locals: expr, $instructions: expr) => {
+      #[test]
+      fn $fn_name() {
+        use self::Inst::*;
+        let actual = FunctionInstance::new(
+          None,
+          Ok(FunctionType::new(vec![], vec![$return_type])),
+          $locals,
+          0,
+          $instructions,
+        );
+        assert_eq!(actual, Err(Trap::TypeMismatch));
+      }
+    };
+  }
+
+  impl_test_validate!(
+    validate_return_type,
+    ValueTypes::I32,
+    vec![I64Const(0), End]
+  );
+  impl_test_validate!(
+    validate_return_locals,
+    ValueTypes::I32,
+    vec![ValueTypes::I64],
+    vec![GetLocal(0), End]
+  );
+}

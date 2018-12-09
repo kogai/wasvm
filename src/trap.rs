@@ -13,6 +13,7 @@ pub enum Trap {
   StackUnderflow,
   Notfound,
   Undefined,
+  TypeMismatch,
 }
 
 impl From<Trap> for NoneError {
@@ -40,6 +41,7 @@ impl From<Trap> for String {
       Notfound => "not found",
       StackOverflow => "stack overflow",
       StackUnderflow => "stack underflow",
+      TypeMismatch => "type mismatch",
     }
     .to_owned()
   }
