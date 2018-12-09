@@ -5,6 +5,7 @@ use table::TableInstance;
 use trap::Result;
 use value::Values;
 
+#[derive(Debug)]
 pub struct Store {
   function_instances: Vec<FunctionInstance>,
   memory_instances: Vec<MemoryInstance>,
