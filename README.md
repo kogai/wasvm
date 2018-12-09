@@ -7,7 +7,7 @@
 * [ ] Show position where error occurred at docoding time
 * [ ] Separate Runtime-error "Trap" and Decoding-time-error
 * [x] Build wasm from wast at CI
-* [ ] Reasonable, pretty formattable Stack
+* [x] Reasonable, pretty formattable Stack
 
 ## Debug
 

@@ -87,17 +87,20 @@ impl Section {
   fn function_instances(
     function_types: Vec<FunctionType>,
     functions: Vec<u32>,
-    exports: Vec<(String, usize)>,
+    exports: Option<Vec<(String, usize)>>,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   ) -> Vec<FunctionInstance> {
     codes
       .into_iter()
       .enumerate()
       .map(|(idx, code)| {
-        let export_name = exports
-          .iter()
-          .find(|(_, i)| i == &idx)
-          .map(|(key, _)| key.to_owned());
+        let export_name = (match exports {
+          Some(ref exports) => exports.to_owned(),
+          None => vec![],
+        })
+        .iter()
+        .find(|(_, i)| i == &idx)
+        .map(|(key, _)| key.to_owned());
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
         let function_type = function_types
           .get(index_of_type as usize)
@@ -130,7 +133,7 @@ impl Section {
       Section {
         function_types: Some(function_types),
         functions: Some(functions),
-        exports: Some(exports),
+        exports,
         codes: Some(codes),
         datas,
         limits,
