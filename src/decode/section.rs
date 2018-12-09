@@ -84,6 +84,21 @@ impl Section {
       _ => vec![],
     }
   }
+  fn export_name(idx: usize, exports: &Option<Vec<(String, usize)>>) -> Option<String> {
+    (match exports {
+      Some(ref exports) => exports,
+      None => return None,
+    })
+    .iter()
+    .find(|(_, i)| i == &idx)
+    .map(|(key, _)| key.to_owned())
+  }
+  fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
+    function_types
+      .get(idx)
+      .expect("Function type can't found.")
+      .to_owned()
+  }
   fn function_instances(
     function_types: Vec<FunctionType>,
     functions: Vec<u32>,
@@ -94,19 +109,9 @@ impl Section {
       .into_iter()
       .enumerate()
       .map(|(idx, code)| {
-        let export_name = (match exports {
-          Some(ref exports) => exports.to_owned(),
-          None => vec![],
-        })
-        .iter()
-        .find(|(_, i)| i == &idx)
-        .map(|(key, _)| key.to_owned());
+        let export_name = Section::export_name(idx, &exports);
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
-        let function_type = function_types
-          .get(index_of_type as usize)
-          .expect("Function type can't found.")
-          .to_owned();
-
+        let function_type = Section::function_type(index_of_type as usize, &function_types);
         match code {
           Ok((expression, locals)) => FunctionInstance::new(
             export_name,

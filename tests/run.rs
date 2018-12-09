@@ -104,7 +104,7 @@ macro_rules! impl_e2e {
           } => {
             println!("Assert invalid at '{}:{}'.", message, line);
             match wasvm::Vm::new(module.clone().into_vec()) {
-              Ok(_) => unreachable!(),
+              Ok(_) => unreachable!("Expect to trap decoding, but decoded normally."),
               Err(err) => {
                 assert_eq!(&String::from(err), message);
               }
