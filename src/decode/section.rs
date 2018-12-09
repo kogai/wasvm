@@ -104,7 +104,7 @@ impl Section {
     functions: Vec<u32>,
     exports: Option<Vec<(String, usize)>>,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  ) -> Vec<FunctionInstance> {
+  ) -> Result<Vec<FunctionInstance>> {
     codes
       .into_iter()
       .enumerate()
@@ -123,7 +123,7 @@ impl Section {
           Err(err) => FunctionInstance::new(export_name, Err(err), vec![], index_of_type, vec![]),
         }
       })
-      .collect::<Vec<_>>()
+      .collect::<Result<Vec<_>>>()
   }
 
   fn global_instances(globals: Option<Vec<GlobalInstance>>) -> Vec<GlobalInstance> {
@@ -133,7 +133,7 @@ impl Section {
     }
   }
 
-  pub fn complete(self) -> Store {
+  pub fn complete(self) -> Result<Store> {
     match self {
       Section {
         function_types: Some(function_types),
@@ -149,15 +149,15 @@ impl Section {
         let memory_instances = Section::memory_instances(datas, limits);
         let table_instances = Section::table_instances(elements, tables);
         let function_instances =
-          Section::function_instances(function_types, functions, exports, codes);
+          Section::function_instances(function_types, functions, exports, codes)?;
         let global_instances = Section::global_instances(globals);
 
-        Store::new(
+        Ok(Store::new(
           function_instances,
           memory_instances,
           table_instances,
           global_instances,
-        )
+        ))
       }
       x => unreachable!("Sections did not decode properly.\n{:?}", x),
     }

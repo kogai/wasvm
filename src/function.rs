@@ -80,14 +80,14 @@ impl FunctionInstance {
     locals: Vec<ValueTypes>,
     type_idex: u32,
     body: Vec<Inst>,
-  ) -> Self {
-    FunctionInstance {
+  ) -> Result<Self> {
+    Ok(FunctionInstance {
       export_name,
       function_type,
       locals,
       type_idex,
       body,
-    }
+    })
   }
 
   pub fn call(&self) -> (Vec<Inst>, Vec<ValueTypes>) {
