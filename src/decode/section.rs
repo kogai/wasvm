@@ -133,7 +133,7 @@ impl Section {
     }
   }
 
-  pub fn complete(self) -> Store {
+  pub fn complete(self) -> Result<Store> {
     match self {
       Section {
         function_types: Some(function_types),
@@ -152,12 +152,12 @@ impl Section {
           Section::function_instances(function_types, functions, exports, codes);
         let global_instances = Section::global_instances(globals);
 
-        Store::new(
+        Ok(Store::new(
           function_instances,
           memory_instances,
           table_instances,
           global_instances,
-        )
+        ))
       }
       x => unreachable!("Sections did not decode properly.\n{:?}", x),
     }

@@ -64,7 +64,7 @@ impl Byte {
         }
       };
     }
-    Ok(section.complete())
+    Ok(section.complete()?)
   }
 }
 
