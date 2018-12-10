@@ -34,7 +34,6 @@ impl Context {
       .function_instances
       .iter()
       .map(|function_instance| {
-        println!("function_instance={:?}", &function_instance);
         let function_type = function_instance.get_function_type().to_owned()?;
         let expect_return_type = function_type.get_return_types();
         let actual_return_type = self.reduction_instructions(function_instance, &function_type)?;
@@ -62,7 +61,7 @@ impl Context {
     let mut parameters = function_type.get_parameter_types().to_owned();
     parameters.append(&mut locals);
     self
-      .reduction_instructions_internal(0, &instructions, &locals)
+      .reduction_instructions_internal(0, &instructions, &parameters)
       .map(|(_, return_type)| return_type)
   }
   fn reduction_instructions_internal(
