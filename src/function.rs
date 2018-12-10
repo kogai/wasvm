@@ -41,6 +41,12 @@ impl FunctionType {
   pub fn get_return_count(&self) -> u32 {
     self.returns.len() as u32
   }
+  pub fn get_parameter_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
+    &self.parameters
+  }
+  pub fn get_return_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
+    &self.returns
+  }
 }
 
 impl FunctionType {
@@ -100,7 +106,9 @@ impl FunctionInstance {
       _ => 0,
     }
   }
-
+  pub fn get_function_type<'a>(&'a self) -> &'a Result<FunctionType> {
+    &self.function_type
+  }
   pub fn find(&self, key: &str) -> bool {
     // FIXME: When using function_index, we might get exported function by O(1).
     match &self.export_name {
