@@ -1,7 +1,7 @@
 use code::ValueTypes;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
-use inst::{Inst, Instructions};
+use inst::{Inst, Instructions, TypeKind};
 use memory::MemoryInstance;
 use store::Store;
 use table::TableInstance;
@@ -60,7 +60,7 @@ impl Context {
     let (expressions, mut locals) = function_instance.call();
     let mut parameters = function_type.get_parameter_types().to_owned();
     parameters.append(&mut locals);
-    let instructions = Instructions::new(
+    let mut instructions = Instructions::new(
       expressions,
       vec![0],
       self
@@ -69,18 +69,30 @@ impl Context {
         .map(|f| f.function_type.to_owned())
         .collect(),
     );
-    self
-      .reduction_instructions_internal(&instructions, &parameters)
-      .map(|(_, return_type)| return_type)
+    let return_type = self.reduction_instructions_internal(&mut instructions, &parameters)?;
+    Ok(vec![return_type])
   }
+  // NOTE: Currently, WASM specification supposes to single return value.
   fn reduction_instructions_internal(
     &self,
-    instructions: &Instructions,
-    locals: &Vec<ValueTypes>,
-  ) -> Result<(usize, Vec<ValueTypes>)> {
-    use self::Inst::*;
-    let mut return_types: Vec<ValueTypes> = vec![];
-    // TODO: Do type checking to use Instructions!
+    instructions: &mut Instructions,
+    _locals: &Vec<ValueTypes>,
+  ) -> Result<ValueTypes> {
+    let mut _return_type: ValueTypes;
+    while !instructions.is_next_end_or_else() {
+      let instruction = instructions.pop_ref()?;
+      match instruction.into() {
+        TypeKind::Canonical(_ty) => {
+          println!("instruction={:?}", instruction);
+          unimplemented!();
+        }
+        TypeKind::Polymophic => {
+          println!("instruction={:?}", instruction);
+          unimplemented!();
+        }
+        TypeKind::Void => {}
+      }
+    }
     unimplemented!();
   }
 }

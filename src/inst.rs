@@ -195,13 +195,13 @@ pub enum Inst {
   RuntimeValue(ValueTypes),
 }
 
-enum TypeKind {
+pub enum TypeKind {
   Canonical(ValueTypes),
   Polymophic,
   Void,
 }
 
-impl Into<TypeKind> for Inst {
+impl Into<TypeKind> for &Inst {
   fn into(self) -> TypeKind {
     use self::Inst::*;
     match self {
@@ -439,6 +439,11 @@ impl Instructions {
   }
   pub fn pop(&mut self) -> Option<Inst> {
     let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
+    self.ptr += 1;
+    head
+  }
+  pub fn pop_ref(&mut self) -> Option<&Inst> {
+    let head = self.expressions.get(self.ptr as usize);
     self.ptr += 1;
     head
   }
