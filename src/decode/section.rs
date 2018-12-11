@@ -159,7 +159,7 @@ impl Section {
             table_instances,
             global_instances,
           )
-          .validate()?,
+          .without_validate()?,
         )
       }
       x => unreachable!("Sections did not decode properly.\n{:?}", x),
