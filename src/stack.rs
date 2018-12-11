@@ -64,6 +64,16 @@ impl StackEntry {
   }
 }
 
+/// Layout of Stack
+///
+/// | ..      |
+/// | Empty   | < Stack pointer
+/// | Local.. |
+/// | Local 2 |
+/// | Local 1 |
+/// | Args .. |
+/// | Args  2 |
+/// | Args  1 |
 pub struct Stack {
   stack_size: usize,
   entries: Vec<Rc<StackEntry>>,
