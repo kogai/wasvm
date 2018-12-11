@@ -1,4 +1,5 @@
 use code::ValueTypes;
+use decode::context::Context;
 use element::Element;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
@@ -84,26 +85,34 @@ impl Section {
       _ => vec![],
     }
   }
+  fn export_name(idx: usize, exports: &Option<Vec<(String, usize)>>) -> Option<String> {
+    (match exports {
+      Some(ref exports) => exports,
+      None => return None,
+    })
+    .iter()
+    .find(|(_, i)| i == &idx)
+    .map(|(key, _)| key.to_owned())
+  }
+  fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
+    function_types
+      .get(idx)
+      .expect("Function type can't found.")
+      .to_owned()
+  }
   fn function_instances(
     function_types: Vec<FunctionType>,
     functions: Vec<u32>,
-    exports: Vec<(String, usize)>,
+    exports: Option<Vec<(String, usize)>>,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   ) -> Vec<FunctionInstance> {
     codes
       .into_iter()
       .enumerate()
       .map(|(idx, code)| {
-        let export_name = exports
-          .iter()
-          .find(|(_, i)| i == &idx)
-          .map(|(key, _)| key.to_owned());
+        let export_name = Section::export_name(idx, &exports);
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
-        let function_type = function_types
-          .get(index_of_type as usize)
-          .expect("Function type can't found.")
-          .to_owned();
-
+        let function_type = Section::function_type(index_of_type as usize, &function_types);
         match code {
           Ok((expression, locals)) => FunctionInstance::new(
             export_name,
@@ -125,12 +134,12 @@ impl Section {
     }
   }
 
-  pub fn complete(self) -> Store {
+  pub fn complete(self) -> Result<Store> {
     match self {
       Section {
         function_types: Some(function_types),
         functions: Some(functions),
-        exports: Some(exports),
+        exports,
         codes: Some(codes),
         datas,
         limits,
@@ -143,12 +152,14 @@ impl Section {
         let function_instances =
           Section::function_instances(function_types, functions, exports, codes);
         let global_instances = Section::global_instances(globals);
-
-        Store::new(
-          function_instances,
-          memory_instances,
-          table_instances,
-          global_instances,
+        Ok(
+          Context::new(
+            function_instances,
+            memory_instances,
+            table_instances,
+            global_instances,
+          )
+          .without_validate()?,
         )
       }
       x => unreachable!("Sections did not decode properly.\n{:?}", x),
