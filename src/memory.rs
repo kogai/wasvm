@@ -3,7 +3,7 @@ use std::fmt;
 use value::Values;
 
 // NOTE: 65536 is constant page size of webassembly.
-// const PAGE_SIZE: usize = 65536;
+const PAGE_SIZE: u32 = 65536;
 
 #[derive(Clone)]
 pub enum Limit {
@@ -66,16 +66,15 @@ macro_rules! impl_load_data {
 impl MemoryInstance {
   pub fn new(data: Data, limits: &Vec<Limit>) -> Self {
     let limit = limits.get(data.memidx as usize).expect("").to_owned();
-    MemoryInstance {
-      data: data.init,
-      limit,
-    }
+    let mut data = data.init;
+    data.resize(PAGE_SIZE as usize, 0);
+    MemoryInstance { data, limit }
   }
-  // pub fn size(&self) -> i32 {
-  //   self.data.len() as i32
-  // }
+  fn data_size(&self) -> u32 {
+    self.data.len() as u32
+  }
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
-    ptr > (self.data.len()) as u32
+    ptr > self.data_size()
   }
 
   impl_load_data!(load_data_i32, u32, i32, Values::I32);
@@ -104,13 +103,15 @@ impl fmt::Debug for MemoryInstance {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(
       f,
-      "[{}] {:?}",
+      "[{}]:{} {:?}",
       self
         .data
         .iter()
+        .filter(|d| d != &&0)
         .map(|d| format!("{}", d))
         .collect::<Vec<String>>()
         .join(", "),
+      self.data.len(),
       self.limit
     )
   }
