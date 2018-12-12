@@ -154,6 +154,7 @@ macro_rules! impl_e2e {
 }
 
 // impl_e2e!(test_address, "address");
+impl_e2e!(test_address, "address");
 // impl_e2e!(test_align, "align");
 // impl_e2e!(test_binary, "binary");
 // impl_e2e!(test_block, "block");
