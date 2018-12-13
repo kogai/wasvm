@@ -125,8 +125,12 @@ impl Vm {
                     instructions.push_label(continuation);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
-                    instructions.pop_label()?; // Drop own label.
-                    instructions.pop()?; // Drop End instruction.
+                    if continuation >= instructions.ptr {
+                        instructions.pop_label()?; // Drop own label.
+                        instructions.ptr = continuation;
+                    } else {
+                        break;
+                    }
                 }
                 Loop => {
                     let start_of_control = instructions.ptr - 1;
@@ -153,7 +157,7 @@ impl Vm {
                         }
                     }
                     instructions.jump_to_label(0);
-                    instructions.pop_label()?; // Drop own label.
+                    instructions.pop_label()?; // Drop own label. It may not need anymore?
                 }
                 Else => unreachable!(),
                 End => break,
