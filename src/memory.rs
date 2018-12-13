@@ -25,6 +25,7 @@ impl fmt::Debug for Limit {
   }
 }
 
+// May define at decode/sec_data.rs
 #[derive(Debug)]
 pub struct Data {
   pub memidx: u32,
