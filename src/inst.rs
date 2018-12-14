@@ -462,23 +462,26 @@ impl Instructions {
   pub fn is_next_end_or_else(&self) -> bool {
     self.is_next_end() || self.is_next_else()
   }
-
   pub fn push_label(&mut self, ptr_of_label: u32) {
     self.label_ptrs.push(ptr_of_label)
   }
-  pub fn pop_label(&mut self) -> Option<()> {
-    self.label_ptrs.pop()?;
-    Some(())
+  pub fn pop_label(&mut self) -> Option<u32> {
+    let ptr = self.label_ptrs.pop()?;
+    Some(ptr)
   }
-
   pub fn jump_to(&mut self, ptr_of_label: u32) {
     self.ptr = ptr_of_label;
   }
-  pub fn jump_to_label(&mut self, label: u32) -> Option<()> {
-    let idx = self.label_ptrs.len() - 1 - (label as usize);
-    let ptr_of_label = *self.label_ptrs.get(idx)?;
+  pub fn jump_to_label(&mut self, label: u32) {
+    let mut label = label;
+    let mut ptr_of_label = self
+      .pop_label()
+      .expect("When jump label excuted, at least one label should exists.");
+    while label != 0 {
+      label -= 1;
+      ptr_of_label = self.pop_label().unwrap();
+    }
     self.jump_to(ptr_of_label);
-    Some(())
   }
   pub fn get_table_address(&self) -> u32 {
     *self

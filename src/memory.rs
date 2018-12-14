@@ -1,5 +1,6 @@
 use inst::Inst;
 use std::fmt;
+use std::mem::transmute;
 use value::Values;
 
 // NOTE: 65536 is constant page size of webassembly.
@@ -25,6 +26,7 @@ impl fmt::Debug for Limit {
   }
 }
 
+// May define at decode/sec_data.rs
 #[derive(Debug)]
 pub struct Data {
   pub memidx: u32,
@@ -63,6 +65,18 @@ macro_rules! impl_load_data {
   };
 }
 
+macro_rules! impl_store_data {
+  ($name: ident, $length: expr, $ty: ty) => {
+    fn $name (&mut self, v: $ty, from: u32, to: u32) {
+        let bytes: [u8; $length] = unsafe { transmute(v) };
+        for address in from..to {
+          let idx = address - from;
+          self.data[address as usize] = bytes[idx as usize];
+        }
+    }
+  };
+}
+
 impl MemoryInstance {
   pub fn new(data: Data, limits: &Vec<Limit>) -> Self {
     let limit = limits.get(data.memidx as usize).expect("").to_owned();
@@ -81,6 +95,10 @@ impl MemoryInstance {
   impl_load_data!(load_data_i64, u64, i64, Values::I64);
   impl_load_data!(load_data_f32, u32, u32, Values::F32);
   impl_load_data!(load_data_f64, u64, u64, Values::F64);
+  impl_store_data!(store_data_i32, 4, i32);
+  impl_store_data!(store_data_f32, 4, f32);
+  impl_store_data!(store_data_i64, 8, i64);
+  impl_store_data!(store_data_f64, 8, f64);
 
   pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
     match value_kind {
@@ -96,6 +114,15 @@ impl MemoryInstance {
       }
       _ => unreachable!(),
     }
+  }
+  pub fn store_data(&mut self, from: u32, to: u32, value_kind: &str, value: Values) {
+    match (value_kind, value) {
+      ("i32", Values::I32(v)) => self.store_data_i32(v, from, to),
+      ("f32", Values::F32(v)) => self.store_data_f32(v, from, to),
+      ("i64", Values::I64(v)) => self.store_data_i64(v, from, to),
+      ("f64", Values::F64(v)) => self.store_data_f64(v, from, to),
+      _ => unreachable!(),
+    };
   }
 }
 

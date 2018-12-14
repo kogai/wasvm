@@ -116,7 +116,10 @@ impl Stack {
     self.stack_ptr += 1;
     Ok(())
   }
-
+  #[allow(dead_code)] // This function useful for debugging.
+  pub fn peek(&self) -> Option<Rc<StackEntry>> {
+    self.entries.get(self.stack_ptr - 1).map(|x| x.clone())
+  }
   pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
     if self.stack_ptr <= 0 {
       return Err(Trap::StackOverflow);

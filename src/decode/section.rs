@@ -65,6 +65,7 @@ impl Section {
         .into_iter()
         .map(|d| MemoryInstance::new(d, &limits))
         .collect::<Vec<_>>(),
+      (None, Some(limits)) => vec![MemoryInstance::new(Data::new(0, vec![], vec![]), &limits)],
       _ => vec![],
     }
   }

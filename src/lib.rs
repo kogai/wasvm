@@ -1,4 +1,5 @@
 #![feature(try_trait)]
+#![feature(int_to_from_bytes)]
 mod code;
 #[macro_use]
 mod decode;
@@ -39,6 +40,26 @@ macro_rules! impl_load_inst {
         };
         let data = $self.store.load_data(ea, ptr, $value_kind);
         $self.stack.push(StackEntry::new_value(data))?;
+    }};
+}
+
+macro_rules! impl_store_inst {
+    ($data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
+        let c = $self.stack.pop_value_ext();
+        let width = $data_width / 8;
+        let i = match $self.stack.pop_value_ext() {
+            Values::I32(i) => i,
+            x => unreachable!("{:?}", x),
+        } as u32;
+        let (ea, overflowed) = i.overflowing_add($offset); // NOTE: What 'ea' stands for?
+        if overflowed {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        let (ptr, overflowed) = ea.overflowing_add(width);
+        if overflowed || $self.store.data_size_small_than(ptr) {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        $self.store.store_data(ea, ptr, $value_kind, c);
     }};
 }
 
@@ -125,8 +146,12 @@ impl Vm {
                     instructions.push_label(continuation);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
-                    instructions.pop_label()?; // Drop own label.
-                    instructions.pop()?; // Drop End instruction.
+                    if continuation > instructions.ptr {
+                        instructions.pop_label()?; // Drop own label.
+                        instructions.ptr = continuation;
+                    } else {
+                        break;
+                    }
                 }
                 Loop => {
                     let start_of_control = instructions.ptr - 1;
@@ -153,7 +178,6 @@ impl Vm {
                         }
                     }
                     instructions.jump_to_label(0);
-                    instructions.pop_label()?; // Drop own label.
                 }
                 Else => unreachable!(),
                 End => break,
@@ -321,28 +345,34 @@ impl Vm {
                 I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
                 I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
 
-                I32Load8Unsign(_, offset) | I32Load8Sign(_, offset) => {
-                    impl_load_inst!(8, self, offset, "i32")
-                }
-                I32Load16Unsign(_, offset) | I32Load16Sign(_, offset) => {
-                    impl_load_inst!(16, self, offset, "i32")
-                }
                 I32Load(_, offset) => impl_load_inst!(32, self, offset, "i32"),
-                I64Load8Unsign(_, offset) | I64Load8Sign(_, offset) => {
-                    impl_load_inst!(8, self, offset, "i64")
-                }
-                I64Load16Unsign(_, offset) | I64Load16Sign(_, offset) => {
-                    impl_load_inst!(16, self, offset, "i64")
-                }
-                I64Load32Sign(_, offset) | I64Load32Unsign(_, offset) => {
-                    impl_load_inst!(32, self, offset, "i64")
-                }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
+                F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
+                F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
+                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
+                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
+                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
+                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
+                I64Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
+                I64Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
+                I64Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
+                I64Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
+                I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+                I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+
+                I32Store(_, offset) => impl_store_inst!(32, self, offset, "i32"),
+                F32Store(_, offset) => impl_store_inst!(32, self, offset, "f32"),
+                I64Store(_, offset) => impl_store_inst!(64, self, offset, "i64"),
+                F64Store(_, offset) => impl_store_inst!(64, self, offset, "f64"),
+                I32Store8(_, offset) => impl_store_inst!(8, self, offset, "i32"),
+                I32Store16(_, offset) => impl_store_inst!(16, self, offset, "i32"),
+                I64Store8(_, offset) => impl_store_inst!(8, self, offset, "i64"),
+                I64Store16(_, offset) => impl_store_inst!(16, self, offset, "i64"),
+                I64Store32(_, offset) => impl_store_inst!(32, self, offset, "i64"),
+
                 F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
                 F32Abs | F64Abs => impl_unary_inst!(self, abs),
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
-                F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
-                F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
                 MemorySize => {
                     unimplemented!();
                 }
@@ -375,17 +405,6 @@ impl Vm {
 
                 I64ExtendSignI32 | I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32
                 | F64ReinterpretI64 => {
-                    unimplemented!("{:?}", expression);
-                }
-                I32Store(_, _offset)
-                | I64Store(_, _offset)
-                | F32Store(_, _offset)
-                | F64Store(_, _offset)
-                | I32Store8(_, _offset)
-                | I32Store16(_, _offset)
-                | I64Store8(_, _offset)
-                | I64Store16(_, _offset)
-                | I64Store32(_, _offset) => {
                     unimplemented!("{:?}", expression);
                 }
                 RuntimeValue(t) => unreachable!("{:?}", t),
