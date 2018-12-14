@@ -178,7 +178,6 @@ impl Vm {
                         }
                     }
                     instructions.jump_to_label(0);
-                    instructions.pop_label()?; // Drop own label. It may not need anymore?
                 }
                 Else => unreachable!(),
                 End => break,

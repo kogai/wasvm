@@ -472,15 +472,16 @@ impl Instructions {
   pub fn jump_to(&mut self, ptr_of_label: u32) {
     self.ptr = ptr_of_label;
   }
-  pub fn jump_to_label(&mut self, label: u32) -> Option<()> {
+  pub fn jump_to_label(&mut self, label: u32) {
     let mut label = label;
-    let mut ptr_of_label = self.pop_label()?;
+    let mut ptr_of_label = self
+      .pop_label()
+      .expect("When jump label excuted, at least one label should exists.");
     while label != 0 {
       label -= 1;
       ptr_of_label = self.pop_label().unwrap();
     }
     self.jump_to(ptr_of_label);
-    Some(())
   }
   pub fn get_table_address(&self) -> u32 {
     *self
