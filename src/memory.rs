@@ -1,6 +1,7 @@
 use inst::Inst;
 use std::fmt;
 use std::mem::transmute;
+use trap::{Result, Trap};
 use value::Values;
 
 // NOTE: 65536 is constant page size of webassembly.
@@ -89,6 +90,22 @@ impl MemoryInstance {
   }
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
     ptr > self.data_size()
+  }
+  pub fn size_by_pages(&self) -> u32 {
+    self.data_size() / PAGE_SIZE
+  }
+  pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
+    match self.limit {
+      Limit::HasUpperLimit(_, max) if self.size_by_pages() + increase_page >= max => {
+        return Err(Trap::FailToGrow)
+      }
+      _ => {
+        let current_size = self.data.len();
+        let growing_size = (increase_page * PAGE_SIZE) as usize;
+        self.data.resize(current_size + growing_size, 0);
+        Ok(())
+      }
+    }
   }
 
   impl_load_data!(load_data_i32, u32, i32, Values::I32);

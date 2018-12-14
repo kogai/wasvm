@@ -71,10 +71,6 @@ impl Store {
       .expect("Memory instance does not exist.")
       .data_size_smaller_than(ptr)
   }
-
-  // pub fn size_of_data(&self) -> i32 {
-  //   self.memory_instances.get(0).unwrap().size()
-  // }
   pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
     self
       .memory_instances
@@ -88,5 +84,15 @@ impl Store {
       .get_mut(0)
       .unwrap()
       .store_data(from, to, value_kind, value)
+  }
+  pub fn size_by_pages(&self) -> u32 {
+    self.memory_instances.get(0).unwrap().size_by_pages()
+  }
+  pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
+    self
+      .memory_instances
+      .get_mut(0)
+      .unwrap()
+      .memory_grow(increase_page)
   }
 }

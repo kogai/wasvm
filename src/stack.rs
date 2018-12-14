@@ -63,6 +63,16 @@ impl StackEntry {
     Rc::new(StackEntry::Frame(frame))
   }
 }
+macro_rules! impl_pop_value_ext {
+  ($name: ident, $path: path, $ret: ty) => {
+    pub fn $name(&mut self) -> $ret {
+      match self.pop_value_ext() {
+        $path(n) => n,
+        _ => unreachable!(),
+      }
+    }
+  };
+}
 
 /// Layout of Stack
 ///
@@ -146,6 +156,12 @@ impl Stack {
       .pop_value()
       .expect("Expect to pop up value, but got None")
   }
+
+  impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);
+  impl_pop_value_ext!(pop_value_ext_i64, Values::I64, i64);
+  impl_pop_value_ext!(pop_value_ext_f32, Values::F32, f32);
+  impl_pop_value_ext!(pop_value_ext_f64, Values::F64, f64);
+
   pub fn get_frame_ptr(&mut self) -> usize {
     match self.frame_ptr.last() {
       Some(p) => *p,

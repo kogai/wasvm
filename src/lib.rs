@@ -377,7 +377,15 @@ impl Vm {
                     unimplemented!();
                 }
                 MemoryGrow => {
-                    unimplemented!();
+                    let page_size = self.store.size_by_pages();
+                    let n = self.stack.pop_value_ext_i32() as u32;
+                    let result = match self.store.memory_grow(n) {
+                        Ok(()) => (page_size as i32),
+                        Err(Trap::FailToGrow) => -1,
+                        _ => unreachable!(),
+                    };
+                    self.stack
+                        .push(StackEntry::new_value(Values::I32(result)))?;
                 }
 
                 I64ExtendUnsignI32 => impl_unary_inst!(self, extend_to_i64),
