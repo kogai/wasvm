@@ -153,11 +153,10 @@ macro_rules! impl_e2e {
   };
 }
 
-// impl_e2e!(test_address, "address");
 impl_e2e!(test_address, "address");
 impl_e2e!(test_align, "align");
 // impl_e2e!(test_binary, "binary");
-// impl_e2e!(test_block, "block");
+impl_e2e!(test_block, "block");
 // impl_e2e!(test_br_if, "br_if");
 // impl_e2e!(test_br_table, "br_table");
 // impl_e2e!(test_br, "br");
