@@ -146,7 +146,7 @@ impl Vm {
                     instructions.push_label(continuation);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
-                    if continuation >= instructions.ptr {
+                    if continuation > instructions.ptr {
                         instructions.pop_label()?; // Drop own label.
                         instructions.ptr = continuation;
                     } else {
