@@ -346,39 +346,34 @@ impl Vm {
                 I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
                 I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
 
-                I32Load8Unsign(_, offset) | I32Load8Sign(_, offset) => {
-                    impl_load_inst!(8, self, offset, "i32")
-                }
-                I32Load16Unsign(_, offset) | I32Load16Sign(_, offset) => {
-                    impl_load_inst!(16, self, offset, "i32")
-                }
                 I32Load(_, offset) => impl_load_inst!(32, self, offset, "i32"),
-                I64Load8Unsign(_, offset) | I64Load8Sign(_, offset) => {
-                    impl_load_inst!(8, self, offset, "i64")
-                }
-                I64Load16Unsign(_, offset) | I64Load16Sign(_, offset) => {
-                    impl_load_inst!(16, self, offset, "i64")
-                }
-                I64Load32Sign(_, offset) | I64Load32Unsign(_, offset) => {
-                    impl_load_inst!(32, self, offset, "i64")
-                }
                 I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
-                F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
-                F32Abs | F64Abs => impl_unary_inst!(self, abs),
-                F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
                 F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
+                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
+                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
+                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
+                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
+                I64Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
+                I64Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
+                I64Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
+                I64Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
+                I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+                I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+
                 I32Store(_, offset) => impl_store_inst!(32, self, offset, "i32"),
                 F32Store(_, offset) => impl_store_inst!(32, self, offset, "f32"),
                 I64Store(_, offset) => impl_store_inst!(64, self, offset, "i64"),
                 F64Store(_, offset) => impl_store_inst!(64, self, offset, "f64"),
-                I32Store8(_, _offset)
-                | I32Store16(_, _offset)
-                | I64Store8(_, _offset)
-                | I64Store16(_, _offset)
-                | I64Store32(_, _offset) => {
-                    unimplemented!("{:?}", expression);
-                }
+                I32Store8(_, offset) => impl_store_inst!(8, self, offset, "i32"),
+                I32Store16(_, offset) => impl_store_inst!(16, self, offset, "i32"),
+                I64Store8(_, offset) => impl_store_inst!(8, self, offset, "i64"),
+                I64Store16(_, offset) => impl_store_inst!(16, self, offset, "i64"),
+                I64Store32(_, offset) => impl_store_inst!(32, self, offset, "i64"),
+
+                F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
+                F32Abs | F64Abs => impl_unary_inst!(self, abs),
+                F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 MemorySize => {
                     unimplemented!();
                 }
