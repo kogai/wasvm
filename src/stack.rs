@@ -158,9 +158,10 @@ impl Stack {
   }
 
   impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);
-  impl_pop_value_ext!(pop_value_ext_i64, Values::I64, i64);
-  impl_pop_value_ext!(pop_value_ext_f32, Values::F32, f32);
-  impl_pop_value_ext!(pop_value_ext_f64, Values::F64, f64);
+  // NOTE: May not needed?
+  // impl_pop_value_ext!(pop_value_ext_i64, Values::I64, i64);
+  // impl_pop_value_ext!(pop_value_ext_f32, Values::F32, f32);
+  // impl_pop_value_ext!(pop_value_ext_f64, Values::F64, f64);
 
   pub fn get_frame_ptr(&mut self) -> usize {
     match self.frame_ptr.last() {

@@ -27,6 +27,9 @@ impl GlobalInstance {
   pub fn new(global_type: GlobalType, value: Values) -> Self {
     GlobalInstance { global_type, value }
   }
+  pub fn get_value(&self) -> &Values {
+    &self.value
+  }
   pub fn set_value(&mut self, value: Values) {
     self.value = value;
   }

@@ -26,10 +26,7 @@ use value::Values;
 macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let width = $load_data_width / 8;
-        let i = match $self.stack.pop_value_ext() {
-            Values::I32(i) => i,
-            x => unreachable!("{:?}", x),
-        } as u32;
+        let i = $self.stack.pop_value_ext_i32() as u32;
         let (ea, overflowed) = i.overflowing_add($offset); // NOTE: What 'ea' stands for?
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
@@ -47,10 +44,7 @@ macro_rules! impl_store_inst {
     ($data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let c = $self.stack.pop_value_ext();
         let width = $data_width / 8;
-        let i = match $self.stack.pop_value_ext() {
-            Values::I32(i) => i,
-            x => unreachable!("{:?}", x),
-        } as u32;
+        let i = $self.stack.pop_value_ext_i32() as u32;
         let (ea, overflowed) = i.overflowing_add($offset); // NOTE: What 'ea' stands for?
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
@@ -215,10 +209,7 @@ impl Vm {
                 CallIndirect(_idx) => {
                     let ta = instructions.get_table_address();
                     let table = self.store.get_table_at(ta)?.clone();
-                    let i = match self.stack.pop_value_ext() {
-                        Values::I32(i) => i as u32,
-                        _ => unreachable!(),
-                    };
+                    let i = self.stack.pop_value_ext_i32() as u32;
                     if i >= table.len() {
                         return Err(Trap::MemoryAccessOutOfBounds);
                     }
@@ -250,8 +241,9 @@ impl Vm {
                     let frame_ptr = self.stack.get_frame_ptr();
                     self.stack.set((idx as usize) + frame_ptr, value)?;
                 }
-                GetGlobal(_idx) => {
-                    unimplemented!();
+                GetGlobal(idx) => {
+                    let value = self.store.get_global(idx)?.to_owned();
+                    self.stack.push(StackEntry::new_value(value))?;
                 }
                 SetGlobal(idx) => {
                     let value = self.stack.pop_value_ext();
