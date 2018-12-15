@@ -2,12 +2,13 @@
 
 ## TODO
 
-* [ ] Test assert_trap and assert_malformed
-* [x] Return Result from evaluate_inst
-* [ ] Show position where error occurred at docoding time
-* [ ] Separate Runtime-error "Trap" and Decoding-time-error
-* [x] Build wasm from wast at CI
-* [x] Reasonable, pretty formattable Stack
+- [ ] Test assert_trap and assert_malformed
+- [x] Return Result from evaluate_inst
+- [ ] Show position where error occurred at docoding time
+- [ ] Separate Runtime-error "Trap" and Decoding-time-error
+- [x] Build wasm from wast at CI
+- [x] Reasonable, pretty formattable Stack
+- [ ] Investigate whether a test of block/at-load-operand is correct
 
 ## Debug
 
