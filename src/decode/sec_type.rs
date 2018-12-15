@@ -1,9 +1,10 @@
-use code::{Code, ValueTypes};
+use code::Code;
 use decode::decodable::Decodable;
 use function::FunctionType;
 use std::convert::From;
 use std::{f32, f64};
 use trap::Result;
+use value_type::ValueTypes;
 
 impl_decodable!(Section);
 

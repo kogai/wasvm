@@ -71,11 +71,11 @@ impl Byte {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use code::ValueTypes;
   use function::{FunctionInstance, FunctionType};
   use inst::Inst;
   use std::fs::File;
   use std::io::Read;
+  use value_type::ValueTypes;
 
   macro_rules! test_decode {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {

@@ -1,4 +1,3 @@
-use code::ValueTypes;
 use decode::context::Context;
 use decode::Data;
 use element::Element;
@@ -10,6 +9,7 @@ use std::default::Default;
 use store::Store;
 use table::{TableInstance, TableType};
 use trap::Result;
+use value_type::ValueTypes;
 
 #[derive(Debug)]
 pub struct Section {

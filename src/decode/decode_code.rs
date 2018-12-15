@@ -14,8 +14,9 @@ macro_rules! impl_decode_code {
       }
 
       fn decode_instructions(&mut self) -> Result<Vec<$crate::inst::Inst>> {
-        use code::{Code, ValueTypes};
+        use code::Code;
         use inst::Inst;
+        use value_type::ValueTypes;
         let mut expressions = vec![];
         while !Code::is_else_or_end(self.peek()) {
           let code = Code::from(self.next());

@@ -13,8 +13,8 @@ mod store;
 mod table;
 mod trap;
 pub mod value;
+mod value_type;
 
-use code::ValueTypes;
 use function::FunctionType;
 use inst::{Inst, Instructions};
 use stack::Frame;
@@ -22,6 +22,7 @@ use stack::{Stack, StackEntry};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
+use value_type::ValueTypes;
 
 macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{

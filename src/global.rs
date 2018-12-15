@@ -1,5 +1,5 @@
-use code::ValueTypes;
 use value::Values;
+use value_type::ValueTypes;
 
 #[derive(Debug)]
 pub enum GlobalType {

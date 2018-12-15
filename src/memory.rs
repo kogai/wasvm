@@ -1,9 +1,9 @@
-use code::ValueTypes;
 use decode::Data;
 use std::fmt;
 use std::mem::transmute;
 use trap::{Result, Trap};
 use value::Values;
+use value_type::ValueTypes;
 
 // NOTE: 65536 is constant page size of webassembly.
 const PAGE_SIZE: u32 = 65536;
