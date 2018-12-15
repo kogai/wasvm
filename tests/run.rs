@@ -5,7 +5,7 @@ extern crate wasvm;
 use std::fs::File;
 use std::io::Read;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
-use wasvm::value::Values;
+use wasvm::{Values, Vm};
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -65,7 +65,7 @@ macro_rules! impl_e2e {
               continue;
             };
             println!("Assert return at {}:{}.", field, line);
-            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let mut vm = Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             let expectation = get_expectation(expected);
             assert_eq!(actual, expectation);
@@ -79,7 +79,7 @@ macro_rules! impl_e2e {
             ref message,
           } => {
             println!("Assert trap at {}:{}.", field, line,);
-            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let mut vm = Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, message);
           }
@@ -92,7 +92,7 @@ macro_rules! impl_e2e {
                 println!("Skip malformed text form at line:{}.", line);
               }
               Err(_) => {
-                let mut vm = wasvm::Vm::new(module.clone().into_vec());
+                let mut vm = Vm::new(module.clone().into_vec());
                 match vm {
                   Ok(_) => unreachable!(),
                   Err(err) => {
@@ -125,7 +125,7 @@ macro_rules! impl_e2e {
             },
           } => {
             println!("Assert canonical NaN at '{}:{}'.", field, line);
-            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let mut vm = Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
           }
@@ -137,7 +137,7 @@ macro_rules! impl_e2e {
             },
           } => {
             println!("Assert arithmetic NaN at '{}:{}'.", field, line);
-            let mut vm = wasvm::Vm::new(current_module.clone()).unwrap();
+            let mut vm = Vm::new(current_module.clone()).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
           }

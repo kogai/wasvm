@@ -42,7 +42,7 @@ pub enum StackEntry {
 
 impl fmt::Debug for StackEntry {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    use StackEntry::*;
+    use self::StackEntry::*;
     let label = match self {
       Empty => "_".to_owned(),
       Value(v) => format!("{:?}", v),

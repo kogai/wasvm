@@ -27,7 +27,7 @@ impl From<Option<u8>> for ValueTypes {
 
 impl fmt::Debug for ValueTypes {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    use ValueTypes::*;
+    use self::ValueTypes::*;
     write!(
       f,
       "{}",
