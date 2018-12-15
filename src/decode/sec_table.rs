@@ -26,9 +26,9 @@ pub struct TableInstance {
 }
 
 impl TableInstance {
-  pub fn new(table: &TableType, element: &Element) -> Self {
+  pub fn new(table: &TableType, element: Element) -> Self {
     TableInstance {
-      elements: element.init.to_owned(),
+      elements: element.move_init_to(),
       max: match table.limit {
         Limit::NoUpperLimit(_) => None,
         Limit::HasUpperLimit(_, max) => Some(max),

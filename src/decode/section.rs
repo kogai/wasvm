@@ -114,10 +114,10 @@ impl Section {
   ) -> Vec<TableInstance> {
     match (elements, tables) {
       (Some(elements), Some(tables)) => elements
-        .iter()
+        .into_iter()
         .map(|el| {
           let table_type = tables
-            .get(el.table_idx as usize)
+            .get(el.get_table_idx())
             .expect("Table type not found.");
           TableInstance::new(&table_type, el)
         })

@@ -5,9 +5,9 @@ use trap::{Result, Trap};
 
 #[derive(Debug)]
 pub struct Element {
-  pub table_idx: u32,
+  table_idx: u32,
   offset: Instructions,
-  pub init: Vec<u32>, // vec of funcidx
+  init: Vec<u32>, // vec of funcidx
 }
 
 impl Element {
@@ -17,6 +17,12 @@ impl Element {
       offset,
       init,
     }
+  }
+  pub fn get_table_idx(&self) -> usize {
+    self.table_idx as usize
+  }
+  pub fn move_init_to(self) -> Vec<u32> {
+    self.init
   }
 }
 
