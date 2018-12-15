@@ -1,3 +1,4 @@
+use code::ValueTypes;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use memory::MemoryInstance;
@@ -86,7 +87,7 @@ impl Store {
   pub fn data_size_small_than(&self, ptr: u32) -> bool {
     self.get_memory_instance().data_size_smaller_than(ptr)
   }
-  pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
+  pub fn load_data(&self, from: u32, to: u32, value_kind: &ValueTypes) -> Values {
     self.get_memory_instance().load_data(from, to, value_kind)
   }
   pub fn store_data(&mut self, from: u32, to: u32, value: Values) {

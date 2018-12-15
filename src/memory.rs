@@ -1,3 +1,4 @@
+use code::ValueTypes;
 use decode::Data;
 use std::fmt;
 use std::mem::transmute;
@@ -102,19 +103,20 @@ impl MemoryInstance {
   impl_store_data!(store_data_i64, 8, i64);
   impl_store_data!(store_data_f64, 8, f64);
 
-  pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
+  pub fn load_data(&self, from: u32, to: u32, value_kind: &ValueTypes) -> Values {
+    use self::ValueTypes::*;
     match value_kind {
-      "i32" => Values::I32(self.load_data_i32(from, to)),
-      "i64" => Values::I64(self.load_data_i64(from, to)),
-      "f32" => {
+      I32 => Values::I32(self.load_data_i32(from, to)),
+      I64 => Values::I64(self.load_data_i64(from, to)),
+      F32 => {
         let loaded = self.load_data_f32(from, to);
         Values::F32(f32::from_bits(loaded))
       }
-      "f64" => {
+      F64 => {
         let loaded = self.load_data_f64(from, to);
         Values::F64(f64::from_bits(loaded))
       }
-      _ => unreachable!(),
+      Empty => unreachable!("Loading empty type does not make any sense."),
     }
   }
   pub fn store_data(&mut self, from: u32, to: u32, value: Values) {

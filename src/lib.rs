@@ -35,7 +35,7 @@ macro_rules! impl_load_inst {
         if overflowed || $self.store.data_size_small_than(ptr) {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        let data = $self.store.load_data(effective_address, ptr, $value_kind);
+        let data = $self.store.load_data(effective_address, ptr, &$value_kind);
         $self.stack.push(StackEntry::new_value(data))?;
     }};
 }
@@ -337,20 +337,20 @@ impl Vm {
                 I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
                 I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
 
-                I32Load(_, offset) => impl_load_inst!(32, self, offset, "i32"),
-                I64Load(_, offset) => impl_load_inst!(64, self, offset, "i64"),
-                F32Load(_, offset) => impl_load_inst!(32, self, offset, "f32"),
-                F64Load(_, offset) => impl_load_inst!(64, self, offset, "f64"),
-                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
-                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i32"),
-                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
-                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i32"),
-                I64Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
-                I64Load8Sign(_, offset) => impl_load_inst!(8, self, offset, "i64"),
-                I64Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
-                I64Load16Sign(_, offset) => impl_load_inst!(16, self, offset, "i64"),
-                I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
-                I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
+                I32Load(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::I32),
+                I64Load(_, offset) => impl_load_inst!(64, self, offset, ValueTypes::I64),
+                F32Load(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::F32),
+                F64Load(_, offset) => impl_load_inst!(64, self, offset, ValueTypes::F64),
+                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I32),
+                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I32),
+                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I32),
+                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I32),
+                I64Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I64),
+                I64Load8Sign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I64),
+                I64Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I64),
+                I64Load16Sign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I64),
+                I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::I64),
+                I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::I64),
 
                 I32Store(_, offset) => impl_store_inst!(32, self, offset),
                 F32Store(_, offset) => impl_store_inst!(32, self, offset),
