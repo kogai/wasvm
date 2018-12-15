@@ -504,17 +504,8 @@ impl Vm {
 
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
-                Ok(Values::I32(v)) => format!("i32:{}", v),
-                Ok(Values::I64(v)) => format!("i64:{}", v),
-                Ok(Values::F32(v)) => {
-                    let prefix = if v.is_nan() { "" } else { "f32:" };
-                    format!("{}{}", prefix, v)
-                }
-                Ok(Values::F64(v)) => {
-                    let prefix = if v.is_nan() { "" } else { "f64:" };
-                    format!("{}{}", prefix, v)
-                }
-                Err(_) => "".to_owned(),
+                Ok(v) => String::from(v),
+                Err(err) => String::from(err),
             },
             Err(err) => String::from(err),
         }

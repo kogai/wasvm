@@ -798,15 +798,27 @@ impl Values {
   }
 }
 
-impl fmt::Debug for Values {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl From<Values> for String {
+  fn from(x: Values) -> Self {
     use Values::*;
-    let value = match self {
+    match x {
       I32(n) => format!("i32:{}", n),
       I64(n) => format!("i64:{}", n),
-      F32(n) => format!("f32:{}", n),
-      F64(n) => format!("f64:{}", n),
-    };
-    write!(f, "{}", value)
+      F32(n) => {
+        let prefix = if n.is_nan() { "" } else { "f32:" };
+        format!("{}{}", prefix, n)
+      }
+      F64(n) => {
+        let prefix = if n.is_nan() { "" } else { "f64:" };
+        format!("{}{}", prefix, n)
+      }
+    }
+    .to_owned()
+  }
+}
+
+impl fmt::Debug for Values {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    write!(f, "{}", String::from(self.to_owned()))
   }
 }
