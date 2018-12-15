@@ -151,11 +151,13 @@ impl Vm {
                     //                              |    without any label instruction.
                     let continuation = instructions.ptr - 1;
                     let ptr_of_end = size + continuation - 1;
+                    instructions.push_label(ptr_of_end);
                     instructions.push_label(continuation);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
                     if ptr_of_end == instructions.ptr {
-                        instructions.pop_label()?; // Drop own label.
+                        instructions.pop_label_when(continuation); // Drop loop label.
+                        instructions.pop_label_when(ptr_of_end); // Drop block label.
                         instructions.pop()?; // Drop End instruction.
                     } else {
                         break;

@@ -478,6 +478,14 @@ impl Instructions {
     Some(ptr)
   }
 
+  pub fn pop_label_when(&mut self, label_ptr_expected: u32) -> Option<u32> {
+    let label_ptr = self.label_ptrs.last().map(|n| *n);
+    match label_ptr {
+      Some(n) if n == label_ptr_expected => self.pop_label(),
+      _ => None,
+    }
+  }
+
   pub fn jump_to(&mut self, ptr_of_label: u32) {
     self.ptr = ptr_of_label;
   }
@@ -489,7 +497,9 @@ impl Instructions {
       .expect("When jump label excuted, at least one label should exists.");
     while label != 0 {
       label -= 1;
-      ptr_of_label = self.pop_label().unwrap();
+      ptr_of_label = self
+        .pop_label()
+        .expect("When label remaind, at least one label should exists.");
     }
     self.jump_to(ptr_of_label);
   }
