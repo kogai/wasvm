@@ -132,7 +132,7 @@ impl Stack {
   }
   pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
     if self.stack_ptr <= 0 {
-      return Err(Trap::StackOverflow);
+      return Err(Trap::StackUnderflow);
     }
     self.stack_ptr -= 1;
     match self.entries.get(self.stack_ptr) {

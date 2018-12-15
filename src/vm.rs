@@ -490,7 +490,7 @@ impl Vm {
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),
-                Err(err) => String::from(err),
+                Err(_) => "".to_owned(),
             },
             Err(err) => String::from(err),
         }
