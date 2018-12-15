@@ -1,4 +1,4 @@
-use decode::decodable::Decodable;
+use super::decodable::Decodable;
 use element::Element;
 use inst::Instructions;
 use std::{f32, f64};

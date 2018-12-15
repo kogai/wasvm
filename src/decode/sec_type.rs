@@ -1,5 +1,5 @@
-use code::Code;
-use decode::decodable::Decodable;
+use super::code::Code;
+use super::decodable::Decodable;
 use function::FunctionType;
 use std::convert::From;
 use std::{f32, f64};

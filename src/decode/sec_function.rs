@@ -1,4 +1,4 @@
-use decode::decodable::Decodable;
+use super::decodable::Decodable;
 use std::{f32, f64};
 use trap::Result;
 

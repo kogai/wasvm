@@ -3,6 +3,7 @@ mod decodable;
 #[macro_use]
 mod decode_code;
 pub mod byte;
+mod code;
 mod context;
 mod sec_code;
 mod sec_data;

@@ -1,6 +1,5 @@
 #![feature(try_trait)]
 #![feature(int_to_from_bytes)]
-mod code;
 #[macro_use]
 mod decode;
 mod element;

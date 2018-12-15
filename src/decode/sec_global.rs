@@ -1,4 +1,4 @@
-use decode::decodable::Decodable;
+use super::decodable::Decodable;
 use global::{GlobalInstance, GlobalType};
 use std::{f32, f64};
 use trap::{Result, Trap};
