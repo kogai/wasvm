@@ -42,7 +42,7 @@ pub enum StackEntry {
 
 impl fmt::Debug for StackEntry {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    use StackEntry::*;
+    use self::StackEntry::*;
     let label = match self {
       Empty => "_".to_owned(),
       Value(v) => format!("{:?}", v),
@@ -62,6 +62,16 @@ impl StackEntry {
   pub fn new_fram(frame: Frame) -> Rc<Self> {
     Rc::new(StackEntry::Frame(frame))
   }
+}
+macro_rules! impl_pop_value_ext {
+  ($name: ident, $path: path, $ret: ty) => {
+    pub fn $name(&mut self) -> $ret {
+      match self.pop_value_ext() {
+        $path(n) => n,
+        _ => unreachable!(),
+      }
+    }
+  };
 }
 
 /// Layout of Stack
@@ -122,7 +132,7 @@ impl Stack {
   }
   pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
     if self.stack_ptr <= 0 {
-      return Err(Trap::StackOverflow);
+      return Err(Trap::StackUnderflow);
     }
     self.stack_ptr -= 1;
     match self.entries.get(self.stack_ptr) {
@@ -146,6 +156,13 @@ impl Stack {
       .pop_value()
       .expect("Expect to pop up value, but got None")
   }
+
+  impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);
+  // NOTE: May not needed?
+  // impl_pop_value_ext!(pop_value_ext_i64, Values::I64, i64);
+  // impl_pop_value_ext!(pop_value_ext_f32, Values::F32, f32);
+  // impl_pop_value_ext!(pop_value_ext_f64, Values::F64, f64);
+
   pub fn get_frame_ptr(&mut self) -> usize {
     match self.frame_ptr.last() {
       Some(p) => *p,

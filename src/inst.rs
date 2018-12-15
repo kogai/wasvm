@@ -1,9 +1,9 @@
-use code::ValueTypes;
 use function::FunctionType;
 use std::convert::Into;
 use std::fmt;
 use trap::Result;
 use value::Values;
+use value_type::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
@@ -383,7 +383,7 @@ impl Into<TypeKind> for &Inst {
 }
 impl Inst {
   pub fn get_value_ext(&self) -> Values {
-    use Inst::*;
+    use self::Inst::*;
     match self {
       I32Const(n) => Values::I32(*n),
       I64Const(n) => Values::I64(*n),

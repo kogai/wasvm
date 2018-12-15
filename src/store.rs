@@ -4,6 +4,7 @@ use memory::MemoryInstance;
 use table::TableInstance;
 use trap::Result;
 use value::Values;
+use value_type::ValueTypes;
 
 #[derive(Debug)]
 pub struct Store {
@@ -40,6 +41,14 @@ impl Store {
       .expect(&format!("Function [{}] did not found.", invoke))
   }
 
+  pub fn get_global(&mut self, idx: u32) -> Result<&Values> {
+    let result = self
+      .global_instances
+      .get(idx as usize)
+      .map(|g| g.get_value())?;
+    Ok(result)
+  }
+
   pub fn set_global(&mut self, idx: u32, value: Values) {
     self
       .global_instances
@@ -63,30 +72,31 @@ impl Store {
   pub fn get_function_instance(&self) -> Vec<FunctionInstance> {
     self.function_instances.to_owned()
   }
-
-  pub fn data_size_small_than(&self, ptr: u32) -> bool {
+  fn get_memory_instance(&self) -> &MemoryInstance {
     self
       .memory_instances
       .get(0)
-      .expect("Memory instance does not exist.")
-      .data_size_smaller_than(ptr)
+      .expect("At least one memory instance expected")
   }
-
-  // pub fn size_of_data(&self) -> i32 {
-  //   self.memory_instances.get(0).unwrap().size()
-  // }
-  pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
-    self
-      .memory_instances
-      .get(0)
-      .unwrap()
-      .load_data(from, to, value_kind)
-  }
-  pub fn store_data(&mut self, from: u32, to: u32, value_kind: &str, value: Values) {
+  fn get_mut_memory_instance(&mut self) -> &mut MemoryInstance {
     self
       .memory_instances
       .get_mut(0)
-      .unwrap()
-      .store_data(from, to, value_kind, value)
+      .expect("At least one memory instance expected")
+  }
+  pub fn data_size_small_than(&self, ptr: u32) -> bool {
+    self.get_memory_instance().data_size_smaller_than(ptr)
+  }
+  pub fn load_data(&self, from: u32, to: u32, value_kind: &ValueTypes) -> Values {
+    self.get_memory_instance().load_data(from, to, value_kind)
+  }
+  pub fn store_data(&mut self, from: u32, to: u32, value: Values) {
+    self.get_mut_memory_instance().store_data(from, to, value)
+  }
+  pub fn size_by_pages(&self) -> u32 {
+    self.get_memory_instance().size_by_pages()
+  }
+  pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
+    self.get_mut_memory_instance().memory_grow(increase_page)
   }
 }

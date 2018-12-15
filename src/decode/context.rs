@@ -1,4 +1,3 @@
-use code::ValueTypes;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::{Instructions, TypeKind};
@@ -6,6 +5,7 @@ use memory::MemoryInstance;
 use store::Store;
 use table::TableInstance;
 use trap::{Result, Trap};
+use value_type::ValueTypes;
 
 pub struct Context {
   function_instances: Vec<FunctionInstance>,

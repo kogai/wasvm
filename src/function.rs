@@ -1,7 +1,7 @@
-use code::ValueTypes;
 use inst::Inst;
 use std::fmt;
 use trap::Result;
+use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
 pub struct FunctionType {

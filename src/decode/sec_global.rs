@@ -1,8 +1,8 @@
-use code::ValueTypes;
-use decode::decodable::Decodable;
+use super::decodable::Decodable;
 use global::{GlobalInstance, GlobalType};
 use std::{f32, f64};
 use trap::{Result, Trap};
+use value_type::ValueTypes;
 
 impl_decodable!(Section);
 impl_decode_code!(Section);

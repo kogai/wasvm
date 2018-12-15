@@ -1,8 +1,6 @@
-use code::SectionCode;
-use decode::decodable::Decodable;
-use decode::section::Section;
-use decode::*;
-use std::convert::From;
+use super::decodable::Decodable;
+use super::section::{Section, SectionCode};
+use super::*;
 use std::default::Default;
 use store::Store;
 use trap::Result;
@@ -28,38 +26,21 @@ impl Byte {
   }
 
   pub fn decode(&mut self) -> Result<Store> {
+    use self::SectionCode::*;
     let mut section: Section = Default::default();
     while self.has_next() {
       let code = SectionCode::from(self.next());
       match code {
-        SectionCode::Type => {
-          section.function_types(sec_type::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Function => {
-          section.functions(sec_function::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Export => {
-          section.exports(sec_export::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Code => {
-          section.codes(sec_code::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Data => {
-          section.datas(sec_data::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Memory => {
-          section.limits(sec_memory::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Table => {
-          section.tables(sec_table::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Global => {
-          section.globals(sec_global::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Element => {
-          section.elements(sec_element::Section::new(self.decode_section()?).decode()?)
-        }
-        SectionCode::Custom | SectionCode::Import | SectionCode::Start => {
+        Type => section.function_types(sec_type::Section::new(self.decode_section()?).decode()?),
+        Function => section.functions(sec_function::Section::new(self.decode_section()?).decode()?),
+        Export => section.exports(sec_export::Section::new(self.decode_section()?).decode()?),
+        Code => section.codes(sec_code::Section::new(self.decode_section()?).decode()?),
+        Data => section.datas(sec_data::Section::new(self.decode_section()?).decode()?),
+        Memory => section.limits(sec_memory::Section::new(self.decode_section()?).decode()?),
+        Table => section.tables(sec_table::Section::new(self.decode_section()?).decode()?),
+        Global => section.globals(sec_global::Section::new(self.decode_section()?).decode()?),
+        Element => section.elements(sec_element::Section::new(self.decode_section()?).decode()?),
+        Custom | Import | Start => {
           unimplemented!("{:?}", code);
         }
       };
@@ -71,11 +52,11 @@ impl Byte {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use code::ValueTypes;
   use function::{FunctionInstance, FunctionType};
   use inst::Inst;
   use std::fs::File;
   use std::io::Read;
+  use value_type::ValueTypes;
 
   macro_rules! test_decode {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {

@@ -1,5 +1,4 @@
 use std::convert::From;
-use std::fmt;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {
@@ -391,43 +390,6 @@ impl Code {
   }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum SectionCode {
-  Custom,
-  Type,
-  Import,
-  Function,
-  Table,
-  Memory,
-  Global,
-  Export,
-  Start,
-  Element,
-  Code,
-  Data,
-}
-
-impl From<Option<u8>> for SectionCode {
-  fn from(code: Option<u8>) -> Self {
-    use self::SectionCode::*;
-    match code {
-      Some(0x0) => Custom,
-      Some(0x1) => Type,
-      Some(0x2) => Import,
-      Some(0x3) => Function,
-      Some(0x4) => Table,
-      Some(0x5) => Memory,
-      Some(0x6) => Global,
-      Some(0x7) => Export,
-      Some(0x8) => Start,
-      Some(0x9) => Element,
-      Some(0xa) => Code,
-      Some(0xb) => Data,
-      x => unreachable!("Expect section code, got {:x?}.", x),
-    }
-  }
-}
-
 #[derive(Debug)]
 pub enum ExportDescriptionCode {
   ExportDescFunctionIdx,
@@ -446,46 +408,5 @@ impl From<Option<u8>> for ExportDescriptionCode {
       Some(0x03) => ExportDescGlobalIdx,
       x => unreachable!("Export description code {:x?} does not supported yet.", x),
     }
-  }
-}
-
-#[derive(PartialEq, Clone)]
-pub enum ValueTypes {
-  Empty, // TODO: Rename to Unit
-  I32,
-  I64,
-  F32,
-  F64,
-}
-
-impl From<Option<u8>> for ValueTypes {
-  fn from(code: Option<u8>) -> Self {
-    match code {
-      Some(0x40) => ValueTypes::Empty,
-      // Some(0x60) => TypeFunction,
-      Some(0x7f) => ValueTypes::I32,
-      Some(0x7e) => ValueTypes::I64,
-      Some(0x7d) => ValueTypes::F32,
-      Some(0x7c) => ValueTypes::F64,
-      Some(x) => unimplemented!("ValueTypes of {:x} does not implemented yet.", x),
-      None => unreachable!("ValueTypes not found"),
-    }
-  }
-}
-
-impl fmt::Debug for ValueTypes {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    use ValueTypes::*;
-    write!(
-      f,
-      "{}",
-      match self {
-        Empty => "*",
-        I32 => "i32",
-        I64 => "i64",
-        F32 => "f32",
-        F64 => "f64",
-      }
-    )
   }
 }

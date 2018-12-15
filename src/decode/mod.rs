@@ -2,7 +2,8 @@
 mod decodable;
 #[macro_use]
 mod decode_code;
-pub mod byte;
+mod byte;
+mod code;
 mod context;
 mod sec_code;
 mod sec_data;
@@ -14,3 +15,6 @@ mod sec_memory;
 mod sec_table;
 mod sec_type;
 mod section;
+
+pub use self::byte::Byte;
+pub use self::sec_data::Data;
