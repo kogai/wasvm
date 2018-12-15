@@ -28,15 +28,18 @@ macro_rules! impl_decode_code {
               let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
               let mut instructions = self.decode_instructions()?;
               expressions.push(Inst::Block(
-                (2 /* If inst + Type of block */ + instructions.len()) as u32,
+                (2 /* Block inst + Type of block */ + instructions.len()) as u32,
               ));
               expressions.push(block_type);
               expressions.append(&mut instructions);
             }
             Code::Loop => {
-              expressions.push(Inst::Loop);
-              expressions.push(Inst::RuntimeValue(ValueTypes::from(self.next())));
+              let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
               let mut instructions = self.decode_instructions()?;
+              expressions.push(Inst::Loop(
+                (2 /* Loop inst + Type of block */ + instructions.len()) as u32,
+              ));
+              expressions.push(block_type);
               expressions.append(&mut instructions);
             }
             Code::If => {

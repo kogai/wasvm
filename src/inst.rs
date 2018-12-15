@@ -10,7 +10,7 @@ pub enum Inst {
   Unreachable,
   Nop,
   Block(u32),
-  Loop,
+  Loop(u32),
   If(u32, u32),
   Else,
   End,
@@ -367,7 +367,7 @@ impl Into<TypeKind> for &Inst {
       Unreachable
       | Block(_)
       | If(_, _)
-      | Loop
+      | Loop(_)
       | Br(_)
       | BrIf(_)
       | BrTable(_, _)

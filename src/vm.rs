@@ -139,13 +139,27 @@ impl Vm {
                         break;
                     }
                 }
-                Loop => {
-                    let start_of_control = instructions.ptr - 1;
-                    instructions.push_label(start_of_control);
+                Loop(size) => {
+                    // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
+                    // In case of ptr of instructions starts by 5,
+                    //
+                    // [05] Loop                    | <- continuation
+                    // [06] Block_type              | <- instructions.ptr
+                    //        Instructions * 6      |
+                    // [13]   Last Instruction      |
+                    // [14] End                     | <- insturctions.ptr when evaluation of instructions completed
+                    //                              |    without any label instruction.
+                    let continuation = instructions.ptr - 1;
+                    let ptr_of_end = size + continuation - 1;
+                    instructions.push_label(continuation);
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
-                    instructions.pop_label()?; // Drop own label.
-                    instructions.pop()?; // Drop End instruction.
+                    if ptr_of_end == instructions.ptr {
+                        instructions.pop_label()?; // Drop own label.
+                        instructions.pop()?; // Drop End instruction.
+                    } else {
+                        break;
+                    }
                 }
                 If(if_size, else_size) => {
                     let cond = &self.stack.pop_value_ext();
@@ -493,7 +507,6 @@ impl Vm {
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
         let _ = self.expand_frame(start_idx, arguments);
-
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),
