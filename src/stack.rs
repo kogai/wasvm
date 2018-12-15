@@ -1,7 +1,6 @@
 use function::FunctionType;
 use inst::Inst;
 use std::fmt;
-use std::rc::Rc;
 use trap::{Result, Trap};
 use value::Values;
 
@@ -33,7 +32,7 @@ impl fmt::Debug for Frame {
   }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum StackEntry {
   Empty,
   Value(Values),
@@ -53,14 +52,14 @@ impl fmt::Debug for StackEntry {
 }
 
 impl StackEntry {
-  pub fn new_empty() -> Rc<Self> {
-    Rc::new(StackEntry::Empty)
+  pub fn new_empty() -> Self {
+    StackEntry::Empty
   }
-  pub fn new_value(value: Values) -> Rc<Self> {
-    Rc::new(StackEntry::Value(value))
+  pub fn new_value(value: Values) -> Self {
+    StackEntry::Value(value)
   }
-  pub fn new_fram(frame: Frame) -> Rc<Self> {
-    Rc::new(StackEntry::Frame(frame))
+  pub fn new_fram(frame: Frame) -> Self {
+    StackEntry::Frame(frame)
   }
 }
 macro_rules! impl_pop_value_ext {
@@ -86,7 +85,7 @@ macro_rules! impl_pop_value_ext {
 /// | Args  1 |
 pub struct Stack {
   stack_size: usize,
-  entries: Vec<Rc<StackEntry>>,
+  entries: Vec<StackEntry>,
   pub stack_ptr: usize,
   pub frame_ptr: Vec<usize>,
 }
@@ -106,11 +105,11 @@ impl Stack {
     self.stack_ptr == 0
   }
 
-  pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
-    self.entries.get(ptr).map(|rc| rc.clone())
+  pub fn get(&self, ptr: usize) -> Option<StackEntry> {
+    self.entries.get(ptr).map(|rc| rc.to_owned())
   }
 
-  pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) -> Result<()> {
+  pub fn set(&mut self, ptr: usize, entry: StackEntry) -> Result<()> {
     if ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
@@ -118,7 +117,7 @@ impl Stack {
     Ok(())
   }
 
-  pub fn push(&mut self, entry: Rc<StackEntry>) -> Result<()> {
+  pub fn push(&mut self, entry: StackEntry) -> Result<()> {
     if self.stack_ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
@@ -126,11 +125,12 @@ impl Stack {
     self.stack_ptr += 1;
     Ok(())
   }
-  #[allow(dead_code)] // This function useful for debugging.
-  pub fn peek(&self) -> Option<Rc<StackEntry>> {
-    self.entries.get(self.stack_ptr - 1).map(|x| x.clone())
+
+  pub fn peek(&self) -> Option<&StackEntry> {
+    self.entries.get(self.stack_ptr - 1)
   }
-  pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
+
+  pub fn pop(&mut self) -> Result<StackEntry> {
     if self.stack_ptr <= 0 {
       return Err(Trap::StackUnderflow);
     }
@@ -143,18 +143,23 @@ impl Stack {
 
   pub fn pop_value(&mut self) -> Result<Values> {
     let value = self.pop()?;
-    match *value {
+    match value {
       StackEntry::Value(ref v) => Ok(v.to_owned()),
       _ => {
-        self.push(value.clone())?;
+        self.push(value.to_owned())?;
         Err(Trap::Notfound)
       }
     }
   }
+
   pub fn pop_value_ext(&mut self) -> Values {
     self
       .pop_value()
       .expect("Expect to pop up value, but got None")
+  }
+
+  pub fn pop_until(&mut self, until: StackEntry) {
+    unimplemented!();
   }
 
   impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);
@@ -208,14 +213,14 @@ mod tests {
     let mut stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(1));
     stack.push(value).unwrap();
-    assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
+    assert_eq!(stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
   }
   #[test]
   fn stack_set() {
     let mut stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(2));
     stack.set(2, value).unwrap();
-    assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
+    assert_eq!(stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
   }
   #[test]
   fn stack_print() {

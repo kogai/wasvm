@@ -434,44 +434,54 @@ impl Instructions {
       types,
     }
   }
+
   pub fn peek(&self) -> Option<&Inst> {
     self.expressions.get(self.ptr as usize)
   }
+
   pub fn pop(&mut self) -> Option<Inst> {
     let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
     self.ptr += 1;
     head
   }
+
   pub fn pop_ref(&mut self) -> Option<&Inst> {
     let head = self.expressions.get(self.ptr as usize);
     self.ptr += 1;
     head
   }
+
   pub fn is_next_end(&self) -> bool {
     match self.peek() {
       Some(Inst::End) | None => true,
       _ => false,
     }
   }
+
   pub fn is_next_else(&self) -> bool {
     match self.peek() {
       Some(Inst::Else) => true,
       _ => false,
     }
   }
+
   pub fn is_next_end_or_else(&self) -> bool {
     self.is_next_end() || self.is_next_else()
   }
+
   pub fn push_label(&mut self, ptr_of_label: u32) {
     self.label_ptrs.push(ptr_of_label)
   }
+
   pub fn pop_label(&mut self) -> Option<u32> {
     let ptr = self.label_ptrs.pop()?;
     Some(ptr)
   }
+
   pub fn jump_to(&mut self, ptr_of_label: u32) {
     self.ptr = ptr_of_label;
   }
+
   pub fn jump_to_label(&mut self, label: u32) {
     let mut label = label;
     let mut ptr_of_label = self
@@ -483,6 +493,7 @@ impl Instructions {
     }
     self.jump_to(ptr_of_label);
   }
+
   pub fn get_table_address(&self) -> u32 {
     *self
       .table_addresses

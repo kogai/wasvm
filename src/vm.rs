@@ -455,7 +455,7 @@ impl Vm {
                     break;
                 }
             };
-            match *popped {
+            match popped {
                 StackEntry::Value(ref v) => {
                     result = Some(StackEntry::new_value(v.to_owned()));
                     break;
