@@ -1,6 +1,7 @@
-use decode::context::Context;
-use decode::Data;
-use element::Element;
+use super::context::Context;
+use super::sec_element::Element;
+use super::sec_table::{TableInstance, TableType};
+use super::Data;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::Inst;
@@ -8,7 +9,6 @@ use memory::{Limit, MemoryInstance};
 use std::convert::From;
 use std::default::Default;
 use store::Store;
-use table::{TableInstance, TableType};
 use trap::Result;
 use value_type::ValueTypes;
 

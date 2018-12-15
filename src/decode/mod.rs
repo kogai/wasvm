@@ -18,3 +18,4 @@ mod section;
 
 pub use self::byte::Byte;
 pub use self::sec_data::Data;
+pub use self::sec_table::TableInstance;
