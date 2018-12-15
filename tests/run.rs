@@ -61,7 +61,7 @@ macro_rules! impl_e2e {
             ref expected,
           } => {
             if field == "as-load-operand" && $file_name == "block" {
-              println!("Skip assert return at {}:{}.", field, line);
+              println!("Skip {}:{}, it seems not reasonable...", field, line);
               continue;
             };
             println!("Assert return at {}:{}.", field, line);

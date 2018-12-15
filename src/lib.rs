@@ -27,33 +27,33 @@ macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let width = $load_data_width / 8;
         let i = $self.stack.pop_value_ext_i32() as u32;
-        let (ea, overflowed) = i.overflowing_add($offset); // NOTE: What 'ea' stands for?
+        let (effective_address, overflowed) = i.overflowing_add($offset);
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        let (ptr, overflowed) = ea.overflowing_add(width);
+        let (ptr, overflowed) = effective_address.overflowing_add(width);
         if overflowed || $self.store.data_size_small_than(ptr) {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        let data = $self.store.load_data(ea, ptr, $value_kind);
+        let data = $self.store.load_data(effective_address, ptr, $value_kind);
         $self.stack.push(StackEntry::new_value(data))?;
     }};
 }
 
 macro_rules! impl_store_inst {
-    ($data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
+    ($data_width: expr, $self: ident, $offset: ident) => {{
         let c = $self.stack.pop_value_ext();
         let width = $data_width / 8;
         let i = $self.stack.pop_value_ext_i32() as u32;
-        let (ea, overflowed) = i.overflowing_add($offset); // NOTE: What 'ea' stands for?
+        let (effective_address, overflowed) = i.overflowing_add($offset);
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        let (ptr, overflowed) = ea.overflowing_add(width);
+        let (ptr, overflowed) = effective_address.overflowing_add(width);
         if overflowed || $self.store.data_size_small_than(ptr) {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        $self.store.store_data(ea, ptr, $value_kind, c);
+        $self.store.store_data(effective_address, ptr, c);
     }};
 }
 
@@ -352,15 +352,15 @@ impl Vm {
                 I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
                 I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, "i64"),
 
-                I32Store(_, offset) => impl_store_inst!(32, self, offset, "i32"),
-                F32Store(_, offset) => impl_store_inst!(32, self, offset, "f32"),
-                I64Store(_, offset) => impl_store_inst!(64, self, offset, "i64"),
-                F64Store(_, offset) => impl_store_inst!(64, self, offset, "f64"),
-                I32Store8(_, offset) => impl_store_inst!(8, self, offset, "i32"),
-                I32Store16(_, offset) => impl_store_inst!(16, self, offset, "i32"),
-                I64Store8(_, offset) => impl_store_inst!(8, self, offset, "i64"),
-                I64Store16(_, offset) => impl_store_inst!(16, self, offset, "i64"),
-                I64Store32(_, offset) => impl_store_inst!(32, self, offset, "i64"),
+                I32Store(_, offset) => impl_store_inst!(32, self, offset),
+                F32Store(_, offset) => impl_store_inst!(32, self, offset),
+                I64Store(_, offset) => impl_store_inst!(64, self, offset),
+                F64Store(_, offset) => impl_store_inst!(64, self, offset),
+                I32Store8(_, offset) => impl_store_inst!(8, self, offset),
+                I32Store16(_, offset) => impl_store_inst!(16, self, offset),
+                I64Store8(_, offset) => impl_store_inst!(8, self, offset),
+                I64Store16(_, offset) => impl_store_inst!(16, self, offset),
+                I64Store32(_, offset) => impl_store_inst!(32, self, offset),
 
                 F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
                 F32Abs | F64Abs => impl_unary_inst!(self, abs),

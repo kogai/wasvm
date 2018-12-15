@@ -117,13 +117,12 @@ impl MemoryInstance {
       _ => unreachable!(),
     }
   }
-  pub fn store_data(&mut self, from: u32, to: u32, value_kind: &str, value: Values) {
-    match (value_kind, value) {
-      ("i32", Values::I32(v)) => self.store_data_i32(v, from, to),
-      ("f32", Values::F32(v)) => self.store_data_f32(v, from, to),
-      ("i64", Values::I64(v)) => self.store_data_i64(v, from, to),
-      ("f64", Values::F64(v)) => self.store_data_f64(v, from, to),
-      _ => unreachable!(),
+  pub fn store_data(&mut self, from: u32, to: u32, value: Values) {
+    match value {
+      Values::I32(v) => self.store_data_i32(v, from, to),
+      Values::F32(v) => self.store_data_f32(v, from, to),
+      Values::I64(v) => self.store_data_i64(v, from, to),
+      Values::F64(v) => self.store_data_f64(v, from, to),
     };
   }
 }

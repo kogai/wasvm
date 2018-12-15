@@ -71,36 +71,31 @@ impl Store {
   pub fn get_function_instance(&self) -> Vec<FunctionInstance> {
     self.function_instances.to_owned()
   }
-
-  pub fn data_size_small_than(&self, ptr: u32) -> bool {
+  fn get_memory_instance(&self) -> &MemoryInstance {
     self
       .memory_instances
       .get(0)
-      .expect("Memory instance does not exist.")
-      .data_size_smaller_than(ptr)
+      .expect("At least one memory instance expected")
+  }
+  fn get_mut_memory_instance(&mut self) -> &mut MemoryInstance {
+    self
+      .memory_instances
+      .get_mut(0)
+      .expect("At least one memory instance expected")
+  }
+  pub fn data_size_small_than(&self, ptr: u32) -> bool {
+    self.get_memory_instance().data_size_smaller_than(ptr)
   }
   pub fn load_data(&self, from: u32, to: u32, value_kind: &str) -> Values {
-    self
-      .memory_instances
-      .get(0)
-      .unwrap()
-      .load_data(from, to, value_kind)
+    self.get_memory_instance().load_data(from, to, value_kind)
   }
-  pub fn store_data(&mut self, from: u32, to: u32, value_kind: &str, value: Values) {
-    self
-      .memory_instances
-      .get_mut(0)
-      .unwrap()
-      .store_data(from, to, value_kind, value)
+  pub fn store_data(&mut self, from: u32, to: u32, value: Values) {
+    self.get_mut_memory_instance().store_data(from, to, value)
   }
   pub fn size_by_pages(&self) -> u32 {
-    self.memory_instances.get(0).unwrap().size_by_pages()
+    self.get_memory_instance().size_by_pages()
   }
   pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
-    self
-      .memory_instances
-      .get_mut(0)
-      .unwrap()
-      .memory_grow(increase_page)
+    self.get_mut_memory_instance().memory_grow(increase_page)
   }
 }
