@@ -116,6 +116,13 @@ impl Vm {
                     unimplemented!("{:?}", expression);
                 }
                 Return => {
+                    // FIXME: Prefer to pop and push with count of return_types.
+                    let return_val = self.stack.pop_value_ext();
+                    instructions.jump_to_last();
+                    while !self.stack.is_next_end_of_frame() {
+                        self.stack.pop_value()?;
+                    }
+                    self.stack.push(StackEntry::new_value(return_val))?;
                     return Ok(());
                 }
                 Nop => {}

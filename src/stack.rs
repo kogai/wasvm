@@ -127,6 +127,12 @@ impl Stack {
   }
 
   pub fn peek(&self) -> Option<&StackEntry> {
+    if self.stack_ptr >= self.stack_size {
+      return None;
+    }
+    if self.stack_ptr <= 0 {
+      return None;
+    }
     self.entries.get(self.stack_ptr - 1)
   }
 
@@ -158,8 +164,11 @@ impl Stack {
       .expect("Expect to pop up value, but got None")
   }
 
-  pub fn pop_until(&mut self, until: StackEntry) {
-    unimplemented!();
+  pub fn is_next_end_of_frame(&mut self) -> bool {
+    match self.peek() {
+      Some(StackEntry::Frame(_)) | None => true,
+      _ => false,
+    }
   }
 
   impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);
