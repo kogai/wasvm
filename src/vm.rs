@@ -133,7 +133,7 @@ impl Vm {
                     let _block_type = instructions.pop().unwrap();
                     self.evaluate_instructions(instructions)?;
                     if continuation > instructions.ptr {
-                        instructions.pop_label()?; // Drop own label.
+                        instructions.pop_label_when(continuation)?; // Drop own label.
                         instructions.ptr = continuation;
                     } else {
                         break;
@@ -170,7 +170,6 @@ impl Vm {
                     let start_of_else = start_of_if + if_size;
                     instructions.push_label(continuation);
                     let _return_type = instructions.pop().unwrap();
-
                     if cond.is_truthy() {
                         self.evaluate_instructions(instructions)?;
                     } else {
@@ -179,7 +178,7 @@ impl Vm {
                             self.evaluate_instructions(instructions)?;
                         }
                     }
-                    instructions.jump_to_label(0);
+                    instructions.pop_label_when(continuation); // Drop If label.
                 }
                 Else => unreachable!(),
                 End => break,

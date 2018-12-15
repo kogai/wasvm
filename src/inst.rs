@@ -492,9 +492,10 @@ impl Instructions {
 
   pub fn jump_to_label(&mut self, label: u32) {
     let mut label = label;
-    let mut ptr_of_label = self
-      .pop_label()
-      .expect("When jump label excuted, at least one label should exists.");
+    let mut ptr_of_label = self.pop_label().expect(&format!(
+      "Label={} When jump label excuted, at least one label should exists.",
+      label
+    ));
     while label != 0 {
       label -= 1;
       ptr_of_label = self
