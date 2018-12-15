@@ -14,3 +14,5 @@ mod sec_memory;
 mod sec_table;
 mod sec_type;
 mod section;
+
+pub use self::sec_data::Data;

@@ -1,4 +1,4 @@
-use inst::Inst;
+use decode::Data;
 use std::fmt;
 use std::mem::transmute;
 use trap::{Result, Trap};
@@ -24,25 +24,6 @@ impl fmt::Debug for Limit {
         HasUpperLimit(min, max) => format!("min:{},max:{}", min, max),
       }
     )
-  }
-}
-
-// May define at decode/sec_data.rs
-#[derive(Debug)]
-pub struct Data {
-  pub memidx: u32,
-  // FIXME: Offset may represents as u32?
-  offset: Vec<Inst>,
-  pub init: Vec<u8>,
-}
-
-impl Data {
-  pub fn new(memidx: u32, offset: Vec<Inst>, init: Vec<u8>) -> Self {
-    Data {
-      memidx,
-      offset,
-      init,
-    }
   }
 }
 
@@ -80,8 +61,12 @@ macro_rules! impl_store_data {
 
 impl MemoryInstance {
   pub fn new(data: Data, limits: &Vec<Limit>) -> Self {
-    let limit = limits.get(data.memidx as usize).expect("").to_owned();
-    let mut data = data.init;
+    let idx = data.get_data_idx();
+    let limit = limits
+      .get(idx as usize)
+      .expect("Limitation of Data can't found.")
+      .to_owned();
+    let mut data = data.get_init();
     data.resize(PAGE_SIZE as usize, 0);
     MemoryInstance { data, limit }
   }

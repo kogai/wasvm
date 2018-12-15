@@ -1,10 +1,11 @@
 use code::ValueTypes;
 use decode::context::Context;
+use decode::Data;
 use element::Element;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::Inst;
-use memory::{Data, Limit, MemoryInstance};
+use memory::{Limit, MemoryInstance};
 use std::default::Default;
 use store::Store;
 use table::{TableInstance, TableType};
