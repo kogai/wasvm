@@ -280,13 +280,12 @@ impl Stack {
 
 impl fmt::Debug for Stack {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let entries = self
-      .entries
+    let (entries, _) = self.entries.split_at(self.stack_ptr);
+    let entries = entries
       .iter()
       .map(|x| format!("{:?}", x))
       .collect::<Vec<String>>()
       .join(", ");
-
     write!(
       f,
       "{}, frame={:?}, stack_size={}, stack_ptr={}",

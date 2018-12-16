@@ -480,6 +480,11 @@ impl Instructions {
     self.ptr = ptr_of_label;
   }
 
+  pub fn jump_to_last(&mut self) {
+    let last = self.expressions.len();
+    self.jump_to(last as u32);
+  }
+
   pub fn get_table_address(&self) -> u32 {
     *self
       .table_addresses

@@ -118,6 +118,7 @@ impl Vm {
                 Return => {
                     let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
                     self.stack.push_entries(&mut buf_values)?;
+                    instructions.jump_to_last();
                     return Ok(());
                 }
                 Nop => {}
@@ -128,7 +129,6 @@ impl Vm {
                     let label = StackEntry::new_label(continuation, block_type);
                     self.stack.push(label)?;
                     self.evaluate_instructions(instructions)?;
-
                     if continuation > instructions.ptr {
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
                         self.stack.pop()?; // Drop own label.
@@ -490,11 +490,9 @@ impl Vm {
                     result = Some(StackEntry::new_value(v.to_owned()));
                     break;
                 }
-                StackEntry::Label(ref label) => {
-                    unreachable!(
-                        "Popping Label at evaluation context not make any sense.\n{:?}",
-                        label
-                    );
+                StackEntry::Label(_) => {
+                    self.stack.push(popped)?;
+                    return Ok(());
                 }
                 StackEntry::Frame(ref frame) => {
                     self.stack.frame_ptr.push(frame.return_ptr);
