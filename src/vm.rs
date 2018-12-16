@@ -2,7 +2,7 @@ use decode::Byte;
 use function::FunctionType;
 use inst::{Inst, Instructions};
 use stack::Frame;
-use stack::{Stack, StackEntry};
+use stack::{Stack, StackEntry, StackEntryKind};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -129,11 +129,15 @@ impl Vm {
                 Block(size) => {
                     let start_of_control = instructions.ptr - 1;
                     let continuation = start_of_control + size;
-                    instructions.push_label(continuation);
-                    let _block_type = instructions.pop().unwrap();
+                    let block_type = instructions.pop_runtime_type()?;
+                    let label = StackEntry::new_label(continuation, block_type);
+                    self.stack.push(label)?;
                     self.evaluate_instructions(instructions)?;
+
                     if continuation > instructions.ptr {
-                        instructions.pop_label_when(continuation)?; // Drop own label.
+                        let mut buf_values = self.stack.pop_until(&StackEntryKind::Label)?;
+                        self.stack.pop()?; // Drop own label.
+                        self.stack.push_entries(&mut buf_values)?;
                         instructions.ptr = continuation;
                     } else {
                         break;
@@ -188,7 +192,8 @@ impl Vm {
                 BrIf(l) => {
                     let cond = &self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        instructions.jump_to_label(l);
+                        let continuation = self.stack.jump_to_label(l)?;
+                        instructions.jump_to(continuation);
                     };
                 }
                 BrTable(ref tables, ref idx) => {
@@ -481,6 +486,12 @@ impl Vm {
                 StackEntry::Value(ref v) => {
                     result = Some(StackEntry::new_value(v.to_owned()));
                     break;
+                }
+                StackEntry::Label(ref label) => {
+                    unreachable!(
+                        "Popping Label at evaluation context not make any sense.\n{:?}",
+                        label
+                    );
                 }
                 StackEntry::Frame(ref frame) => {
                     self.stack.frame_ptr.push(frame.return_ptr);

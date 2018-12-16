@@ -445,6 +445,13 @@ impl Instructions {
     head
   }
 
+  pub fn pop_runtime_type(&mut self) -> Option<ValueTypes> {
+    match self.pop()? {
+      Inst::RuntimeValue(ty) => Some(ty),
+      _ => None,
+    }
+  }
+
   pub fn pop_ref(&mut self) -> Option<&Inst> {
     let head = self.expressions.get(self.ptr as usize);
     self.ptr += 1;
