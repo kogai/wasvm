@@ -107,7 +107,10 @@ impl Vm {
         }
     }
 
-    fn evaluate_instructions(&mut self, instructions: &mut Instructions) -> Result<()> {
+    fn evaluate_instructions(
+        &mut self,
+        instructions: &mut Instructions, /* TODO: Consider to use RefCell type. */
+    ) -> Result<()> {
         use self::Inst::*;
         while !instructions.is_next_end_or_else() {
             let expression = instructions.pop().unwrap();
@@ -135,12 +138,12 @@ impl Vm {
                     let start_of_control = instructions.ptr - 1;
                     let continuation = start_of_control + size;
                     let block_type = instructions.pop_runtime_type()?;
-                    let label = StackEntry::new_label(continuation, block_type);
+                    let label = StackEntry::new_label(continuation, block_type, "Block");
                     self.stack.push(label)?;
                     self.evaluate_instructions(instructions)?;
                     if continuation > instructions.ptr {
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
-                        self.stack.pop()?; // Drop own label.
+                        let _ = self.stack.pop_label(); // Drop own label.
                         self.stack.push_entries(&mut buf_values)?;
                         instructions.jump_to(continuation);
                     } else {
@@ -160,16 +163,18 @@ impl Vm {
                     let continuation = instructions.ptr - 1;
                     let ptr_of_end = size + continuation - 1;
                     let block_type = instructions.pop_runtime_type()?;
-                    let label_end = StackEntry::new_label(ptr_of_end, block_type.clone());
-                    let label_continue = StackEntry::new_label(continuation, block_type);
+                    let label_end =
+                        StackEntry::new_label(ptr_of_end, block_type.clone(), "Loop(End)");
+                    let label_continue =
+                        StackEntry::new_label(continuation, block_type, "Loop(Start)");
                     self.stack.push(label_end)?;
                     self.stack.push(label_continue)?;
                     self.evaluate_instructions(instructions)?;
                     if ptr_of_end == instructions.ptr {
-                        self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
-                        self.stack.pop_label_ext(); // Drop loop label.
-                        self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
-                        self.stack.pop_label_ext(); // Drop block label.
+                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        let _ = self.stack.pop_label(); // Drop loop label.
+                        let _ = self.stack.pop_label(); // Drop block label.
+                        self.stack.push_entries(&mut buf_values)?;
                         instructions.pop()?; // Drop End instruction.
                     } else {
                         break;
@@ -181,7 +186,7 @@ impl Vm {
                     let continuation = start_of_if + if_size + else_size;
                     let start_of_else = start_of_if + if_size;
                     let block_type = instructions.pop_runtime_type()?;
-                    let label = StackEntry::new_label(continuation, block_type);
+                    let label = StackEntry::new_label(continuation, block_type, "If");
                     self.stack.push(label)?;
                     if cond.is_truthy() {
                         self.evaluate_instructions(instructions)?;
@@ -191,8 +196,10 @@ impl Vm {
                             self.evaluate_instructions(instructions)?;
                         }
                     }
-                    self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
-                    self.stack.pop_label_ext(); // Drop if label.
+                    let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                    let _ = self.stack.pop_label(); // Drop if label.
+                    self.stack.push_entries(&mut buf_values)?;
+                    instructions.jump_to(continuation);
                 }
                 Else => unreachable!(),
                 End => break,

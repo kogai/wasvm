@@ -7,6 +7,7 @@ use value_type::ValueTypes;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Label {
+  source_instruction: String,
   return_type: ValueTypes,
   continuation: u32,
 }
@@ -80,10 +81,11 @@ impl StackEntry {
   pub fn new_value(value: Values) -> Self {
     StackEntry::Value(value)
   }
-  pub fn new_label(continuation: u32, return_type: ValueTypes) -> Self {
+  pub fn new_label(continuation: u32, return_type: ValueTypes, source_instruction: &str) -> Self {
     StackEntry::Label(Label {
       continuation,
       return_type,
+      source_instruction: source_instruction.to_owned(),
     })
   }
   pub fn new_fram(frame: Frame) -> Self {
@@ -238,10 +240,12 @@ impl Stack {
       Some(Label {
         return_type: ValueTypes::Empty,
         continuation,
+        ..
       }) => continuation,
       Some(Label {
         return_type: _,
         continuation,
+        ..
       }) => {
         // FIXME: Prefer to pop and push with count of return_types.
         let return_val = buf_values
@@ -323,7 +327,7 @@ mod tests {
     }
     assert_eq!(
       format!("{:?}", stack),
-      "[i32:0, i32:1, i32:2, _, _, _, _, _], frame=[], stack_size=8, stack_ptr=3".to_owned()
+      "[i32:0, i32:1, i32:2], frame=[], stack_size=8, stack_ptr=3".to_owned()
     );
   }
 }

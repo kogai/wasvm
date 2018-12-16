@@ -157,6 +157,9 @@ macro_rules! impl_e2e {
   };
 }
 
+// NOTE: Convient to debug wast specs.
+// impl_e2e!(test_sandbox, "sandbox");
+
 impl_e2e!(test_address, "address");
 impl_e2e!(test_align, "align");
 // impl_e2e!(test_binary, "binary");

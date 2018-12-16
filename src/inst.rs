@@ -398,7 +398,6 @@ impl Inst {
 pub struct Instructions {
   pub ptr: u32,
   expressions: Vec<Inst>,
-  label_ptrs: Vec<u32>,
   table_addresses: Vec<u32>,
   types: Vec<Result<FunctionType>>,
 }
@@ -407,7 +406,7 @@ impl fmt::Debug for Instructions {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(
       f,
-      "[{}][{}] labels[{:?}]",
+      "[{}][{}]",
       self
         .expressions
         .iter()
@@ -415,7 +414,6 @@ impl fmt::Debug for Instructions {
         .collect::<Vec<String>>()
         .join(", "),
       self.ptr,
-      self.label_ptrs,
     )
   }
 }
@@ -429,7 +427,6 @@ impl Instructions {
     Instructions {
       ptr: 0,
       expressions,
-      label_ptrs: vec![],
       table_addresses,
       types,
     }
