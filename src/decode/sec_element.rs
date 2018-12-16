@@ -1,8 +1,44 @@
 use super::decodable::Decodable;
-use element::Element;
 use inst::Instructions;
 use std::{f32, f64};
 use trap::{Result, Trap};
+
+#[derive(Debug)]
+pub struct Element {
+  table_idx: u32,
+  offset: Instructions,
+  init: Vec<u32>, // vec of funcidx
+}
+
+impl Element {
+  pub fn new(table_idx: u32, offset: Instructions, init: Vec<u32>) -> Self {
+    Element {
+      table_idx,
+      offset,
+      init,
+    }
+  }
+  pub fn get_table_idx(&self) -> usize {
+    self.table_idx as usize
+  }
+  pub fn move_init_to(self) -> Vec<u32> {
+    self.init
+  }
+}
+
+#[derive(Debug)]
+pub enum ElementType {
+  AnyFunc,
+}
+
+impl From<Option<u8>> for ElementType {
+  fn from(code: Option<u8>) -> Self {
+    match code {
+      Some(0x70) => ElementType::AnyFunc,
+      x => unreachable!("Expected element-type code, got {:?}", x),
+    }
+  }
+}
 
 impl_decodable!(Section);
 impl_decode_code!(Section);

@@ -1,7 +1,7 @@
+use decode::TableInstance;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use memory::MemoryInstance;
-use table::TableInstance;
 use trap::Result;
 use value::Values;
 use value_type::ValueTypes;

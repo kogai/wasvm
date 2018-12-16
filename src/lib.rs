@@ -2,14 +2,12 @@
 #![feature(int_to_from_bytes)]
 #[macro_use]
 mod decode;
-mod element;
 mod function;
 mod global;
 mod inst;
 mod memory;
 mod stack;
 mod store;
-mod table;
 mod trap;
 mod value;
 mod value_type;
@@ -20,9 +18,6 @@ pub use self::vm::Vm;
 
 #[cfg(test)]
 mod tests {
-    // use self::inst::Inst;
-    // use self::stack::StackEntry;
-    // use self::value_type::ValueTypes;
     use super::*;
     use std::fs::File;
     use std::io::Read;

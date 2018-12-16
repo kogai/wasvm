@@ -2,7 +2,7 @@ use decode::Byte;
 use function::FunctionType;
 use inst::{Inst, Instructions};
 use stack::Frame;
-use stack::{Stack, StackEntry};
+use stack::{Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -107,7 +107,10 @@ impl Vm {
         }
     }
 
-    fn evaluate_instructions(&mut self, instructions: &mut Instructions) -> Result<()> {
+    fn evaluate_instructions(
+        &mut self,
+        instructions: &mut Instructions, /* TODO: Consider to use RefCell type. */
+    ) -> Result<()> {
         use self::Inst::*;
         while !instructions.is_next_end_or_else() {
             let expression = instructions.pop().unwrap();
@@ -116,38 +119,75 @@ impl Vm {
                     unimplemented!("{:?}", expression);
                 }
                 Return => {
+                    let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
+                    self.stack.push_entries(&mut buf_values)?;
+                    instructions.jump_to_last();
                     return Ok(());
                 }
                 Nop => {}
                 Block(size) => {
+                    // Size = 10 = 1(Block) + 1(BlockType) + 7(Instructions) + 1(End)
+                    // In case of ptr of instructions starts by 5,
+                    //
+                    // [05] Block                   | <- start_of_control
+                    // [06] Block_type              | <- instructions.ptr
+                    //        Instructions * 6      |
+                    // [13]   Last Instruction      |
+                    // [14] End                     |
+                    // [15] NextInstruction         |  <- continuation
                     let start_of_control = instructions.ptr - 1;
                     let continuation = start_of_control + size;
-                    instructions.push_label(continuation);
-                    let _block_type = instructions.pop().unwrap();
+                    let block_type = instructions.pop_runtime_type()?;
+                    let label = StackEntry::new_label(continuation, block_type, "Block");
+                    self.stack.push(label)?;
                     self.evaluate_instructions(instructions)?;
                     if continuation > instructions.ptr {
-                        instructions.pop_label()?; // Drop own label.
-                        instructions.ptr = continuation;
+                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        let _ = self.stack.pop_label(); // Drop own label.
+                        self.stack.push_entries(&mut buf_values)?;
+                        instructions.jump_to(continuation);
                     } else {
                         break;
                     }
                 }
-                Loop => {
-                    let start_of_control = instructions.ptr - 1;
-                    instructions.push_label(start_of_control);
-                    let _block_type = instructions.pop().unwrap();
+                Loop(size) => {
+                    // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
+                    // In case of ptr of instructions starts by 5,
+                    //
+                    // [05] Loop                    | <- continuation
+                    // [06] Block_type              | <- instructions.ptr
+                    //        Instructions * 6      |
+                    // [13]   Last Instruction      |
+                    // [14] End                     | <- insturctions.ptr when evaluation of instructions completed
+                    //                              |    without any label instruction.
+                    let continuation = instructions.ptr - 1;
+                    let ptr_of_end = size + continuation - 1;
+                    let block_type = instructions.pop_runtime_type()?;
+                    let label_end =
+                        StackEntry::new_label(ptr_of_end, block_type.clone(), "Loop(End)");
+                    let label_continue =
+                        StackEntry::new_label(continuation, block_type, "Loop(Start)");
+                    self.stack.push(label_end)?;
+                    self.stack.push(label_continue)?;
                     self.evaluate_instructions(instructions)?;
-                    instructions.pop_label()?; // Drop own label.
-                    instructions.pop()?; // Drop End instruction.
+                    if ptr_of_end == instructions.ptr {
+                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        let _ = self.stack.pop_label(); // Drop loop label.
+                        let _ = self.stack.pop_label(); // Drop block label.
+                        self.stack.push_entries(&mut buf_values)?;
+                        instructions.pop()?; // Drop End instruction.
+                    } else {
+                        break;
+                    }
                 }
                 If(if_size, else_size) => {
                     let cond = &self.stack.pop_value_ext();
                     let start_of_if = instructions.ptr - 1;
                     let continuation = start_of_if + if_size + else_size;
                     let start_of_else = start_of_if + if_size;
-                    instructions.push_label(continuation);
-                    let _return_type = instructions.pop().unwrap();
-
+                    let block_type = instructions.pop_runtime_type()?;
+                    let label = StackEntry::new_label(continuation, block_type, "If");
+                    self.stack.push(label)?;
                     if cond.is_truthy() {
                         self.evaluate_instructions(instructions)?;
                     } else {
@@ -156,17 +196,22 @@ impl Vm {
                             self.evaluate_instructions(instructions)?;
                         }
                     }
-                    instructions.jump_to_label(0);
+                    let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                    let _ = self.stack.pop_label(); // Drop if label.
+                    self.stack.push_entries(&mut buf_values)?;
+                    instructions.jump_to(continuation);
                 }
                 Else => unreachable!(),
                 End => break,
                 Br(l) => {
-                    instructions.jump_to_label(l);
+                    let continuation = self.stack.jump_to_label(l)?;
+                    instructions.jump_to(continuation);
                 }
                 BrIf(l) => {
                     let cond = &self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        instructions.jump_to_label(l);
+                        let continuation = self.stack.jump_to_label(l)?;
+                        instructions.jump_to(continuation);
                     };
                 }
                 BrTable(ref tables, ref idx) => {
@@ -175,12 +220,13 @@ impl Vm {
                     } else {
                         unreachable!();
                     };
-                    let label = if i < tables.len() {
+                    let l = if i < tables.len() {
                         tables.get(i)?
                     } else {
                         idx
                     };
-                    instructions.jump_to_label(*label);
+                    let continuation = self.stack.jump_to_label(*l)?;
+                    instructions.jump_to(continuation);
                 }
                 Call(idx) => {
                     let count_of_arguments = self.store.call(idx)?.get_arity();
@@ -455,10 +501,14 @@ impl Vm {
                     break;
                 }
             };
-            match *popped {
+            match popped {
                 StackEntry::Value(ref v) => {
                     result = Some(StackEntry::new_value(v.to_owned()));
                     break;
+                }
+                StackEntry::Label(_) => {
+                    self.stack.push(popped)?;
+                    return Ok(());
                 }
                 StackEntry::Frame(ref frame) => {
                     self.stack.frame_ptr.push(frame.return_ptr);
@@ -486,7 +536,6 @@ impl Vm {
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
         let _ = self.expand_frame(start_idx, arguments);
-
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),

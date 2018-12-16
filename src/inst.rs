@@ -10,7 +10,7 @@ pub enum Inst {
   Unreachable,
   Nop,
   Block(u32),
-  Loop,
+  Loop(u32),
   If(u32, u32),
   Else,
   End,
@@ -367,7 +367,7 @@ impl Into<TypeKind> for &Inst {
       Unreachable
       | Block(_)
       | If(_, _)
-      | Loop
+      | Loop(_)
       | Br(_)
       | BrIf(_)
       | BrTable(_, _)
@@ -398,7 +398,6 @@ impl Inst {
 pub struct Instructions {
   pub ptr: u32,
   expressions: Vec<Inst>,
-  label_ptrs: Vec<u32>,
   table_addresses: Vec<u32>,
   types: Vec<Result<FunctionType>>,
 }
@@ -407,7 +406,7 @@ impl fmt::Debug for Instructions {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(
       f,
-      "[{}][{}] labels[{:?}]",
+      "[{}][{}]",
       self
         .expressions
         .iter()
@@ -415,7 +414,6 @@ impl fmt::Debug for Instructions {
         .collect::<Vec<String>>()
         .join(", "),
       self.ptr,
-      self.label_ptrs,
     )
   }
 }
@@ -429,60 +427,61 @@ impl Instructions {
     Instructions {
       ptr: 0,
       expressions,
-      label_ptrs: vec![],
       table_addresses,
       types,
     }
   }
+
   pub fn peek(&self) -> Option<&Inst> {
     self.expressions.get(self.ptr as usize)
   }
+
   pub fn pop(&mut self) -> Option<Inst> {
     let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
     self.ptr += 1;
     head
   }
+
+  pub fn pop_runtime_type(&mut self) -> Option<ValueTypes> {
+    match self.pop()? {
+      Inst::RuntimeValue(ty) => Some(ty),
+      _ => None,
+    }
+  }
+
   pub fn pop_ref(&mut self) -> Option<&Inst> {
     let head = self.expressions.get(self.ptr as usize);
     self.ptr += 1;
     head
   }
+
   pub fn is_next_end(&self) -> bool {
     match self.peek() {
       Some(Inst::End) | None => true,
       _ => false,
     }
   }
+
   pub fn is_next_else(&self) -> bool {
     match self.peek() {
       Some(Inst::Else) => true,
       _ => false,
     }
   }
+
   pub fn is_next_end_or_else(&self) -> bool {
     self.is_next_end() || self.is_next_else()
   }
-  pub fn push_label(&mut self, ptr_of_label: u32) {
-    self.label_ptrs.push(ptr_of_label)
-  }
-  pub fn pop_label(&mut self) -> Option<u32> {
-    let ptr = self.label_ptrs.pop()?;
-    Some(ptr)
-  }
+
   pub fn jump_to(&mut self, ptr_of_label: u32) {
     self.ptr = ptr_of_label;
   }
-  pub fn jump_to_label(&mut self, label: u32) {
-    let mut label = label;
-    let mut ptr_of_label = self
-      .pop_label()
-      .expect("When jump label excuted, at least one label should exists.");
-    while label != 0 {
-      label -= 1;
-      ptr_of_label = self.pop_label().unwrap();
-    }
-    self.jump_to(ptr_of_label);
+
+  pub fn jump_to_last(&mut self) {
+    let last = self.expressions.len();
+    self.jump_to(last as u32);
   }
+
   pub fn get_table_address(&self) -> u32 {
     *self
       .table_addresses
