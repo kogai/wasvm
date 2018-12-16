@@ -123,6 +123,15 @@ impl Vm {
                 }
                 Nop => {}
                 Block(size) => {
+                    // Size = 10 = 1(Block) + 1(BlockType) + 7(Instructions) + 1(End)
+                    // In case of ptr of instructions starts by 5,
+                    //
+                    // [05] Block                   | <- start_of_control
+                    // [06] Block_type              | <- instructions.ptr
+                    //        Instructions * 6      |
+                    // [13]   Last Instruction      |
+                    // [14] End                     |
+                    // [15] NextInstruction         |  <- continuation
                     let start_of_control = instructions.ptr - 1;
                     let continuation = start_of_control + size;
                     let block_type = instructions.pop_runtime_type()?;
