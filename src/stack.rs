@@ -60,12 +60,18 @@ impl fmt::Debug for StackEntry {
   }
 }
 
+#[allow(dead_code)]
 pub enum StackEntryKind {
   Empty,
   Value,
   Label,
   Frame,
 }
+
+// pub const STACK_ENTRY_KIND_EMPTY: StackEntryKind = StackEntryKind::Empty;
+// pub const STACK_ENTRY_KIND_VALUE: StackEntryKind = StackEntryKind::Value;
+pub const STACK_ENTRY_KIND_LABEL: StackEntryKind = StackEntryKind::Label;
+pub const STACK_ENTRY_KIND_FRAME: StackEntryKind = StackEntryKind::Frame;
 
 impl StackEntry {
   pub fn new_empty() -> Self {
@@ -214,7 +220,7 @@ impl Stack {
 
   pub fn pop_until(&mut self, kind: &StackEntryKind) -> Result<Vec<StackEntry>> {
     let mut entry_buffer = vec![];
-    while !self.peek().map_or(false, |entry| entry.is_same_kind(kind)) {
+    while !self.peek().map_or(true, |entry| entry.is_same_kind(kind)) {
       entry_buffer.push(self.pop()?);
     }
     Ok(entry_buffer)
@@ -237,6 +243,7 @@ impl Stack {
         return_type: _,
         continuation,
       }) => {
+        // FIXME: Prefer to pop and push with count of return_types.
         let return_val = buf_values
           .first()
           .expect("At least one return value should exists.")
@@ -247,13 +254,6 @@ impl Stack {
       x => unreachable!("At least one label should exists.\n{:?}", x),
     };
     Ok(continuation)
-  }
-
-  pub fn is_next_end_of_frame(&mut self) -> bool {
-    match self.peek() {
-      Some(StackEntry::Frame(_)) | None => true,
-      _ => false,
-    }
   }
 
   impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);

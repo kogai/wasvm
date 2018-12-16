@@ -2,7 +2,7 @@ use decode::Byte;
 use function::FunctionType;
 use inst::{Inst, Instructions};
 use stack::Frame;
-use stack::{Stack, StackEntry, StackEntryKind};
+use stack::{Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -116,13 +116,8 @@ impl Vm {
                     unimplemented!("{:?}", expression);
                 }
                 Return => {
-                    // FIXME: Prefer to pop and push with count of return_types.
-                    let return_val = self.stack.pop_value_ext();
-                    instructions.jump_to_last();
-                    while !self.stack.is_next_end_of_frame() {
-                        self.stack.pop_value()?;
-                    }
-                    self.stack.push(StackEntry::new_value(return_val))?;
+                    let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
+                    self.stack.push_entries(&mut buf_values)?;
                     return Ok(());
                 }
                 Nop => {}
@@ -135,10 +130,10 @@ impl Vm {
                     self.evaluate_instructions(instructions)?;
 
                     if continuation > instructions.ptr {
-                        let mut buf_values = self.stack.pop_until(&StackEntryKind::Label)?;
+                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
                         self.stack.pop()?; // Drop own label.
                         self.stack.push_entries(&mut buf_values)?;
-                        instructions.ptr = continuation;
+                        instructions.jump_to(continuation);
                     } else {
                         break;
                     }
@@ -155,13 +150,17 @@ impl Vm {
                     //                              |    without any label instruction.
                     let continuation = instructions.ptr - 1;
                     let ptr_of_end = size + continuation - 1;
-                    instructions.push_label(ptr_of_end);
-                    instructions.push_label(continuation);
-                    let _block_type = instructions.pop().unwrap();
+                    let block_type = instructions.pop_runtime_type()?;
+                    let label_end = StackEntry::new_label(ptr_of_end, block_type.clone());
+                    let label_continue = StackEntry::new_label(continuation, block_type);
+                    self.stack.push(label_end)?;
+                    self.stack.push(label_continue)?;
                     self.evaluate_instructions(instructions)?;
                     if ptr_of_end == instructions.ptr {
-                        instructions.pop_label_when(continuation); // Drop loop label.
-                        instructions.pop_label_when(ptr_of_end); // Drop block label.
+                        self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        self.stack.pop_label_ext(); // Drop loop label.
+                        self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        self.stack.pop_label_ext(); // Drop block label.
                         instructions.pop()?; // Drop End instruction.
                     } else {
                         break;
@@ -172,8 +171,9 @@ impl Vm {
                     let start_of_if = instructions.ptr - 1;
                     let continuation = start_of_if + if_size + else_size;
                     let start_of_else = start_of_if + if_size;
-                    instructions.push_label(continuation);
-                    let _return_type = instructions.pop().unwrap();
+                    let block_type = instructions.pop_runtime_type()?;
+                    let label = StackEntry::new_label(continuation, block_type);
+                    self.stack.push(label)?;
                     if cond.is_truthy() {
                         self.evaluate_instructions(instructions)?;
                     } else {
@@ -182,12 +182,14 @@ impl Vm {
                             self.evaluate_instructions(instructions)?;
                         }
                     }
-                    instructions.pop_label_when(continuation); // Drop If label.
+                    self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                    self.stack.pop_label_ext(); // Drop if label.
                 }
                 Else => unreachable!(),
                 End => break,
                 Br(l) => {
-                    instructions.jump_to_label(l);
+                    let continuation = self.stack.jump_to_label(l)?;
+                    instructions.jump_to(continuation);
                 }
                 BrIf(l) => {
                     let cond = &self.stack.pop_value_ext();
@@ -202,12 +204,13 @@ impl Vm {
                     } else {
                         unreachable!();
                     };
-                    let label = if i < tables.len() {
+                    let l = if i < tables.len() {
                         tables.get(i)?
                     } else {
                         idx
                     };
-                    instructions.jump_to_label(*label);
+                    let continuation = self.stack.jump_to_label(*l)?;
+                    instructions.jump_to(continuation);
                 }
                 Call(idx) => {
                     let count_of_arguments = self.store.call(idx)?.get_arity();
