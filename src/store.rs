@@ -71,14 +71,6 @@ impl Store {
       .map(|g| g.set_value(value));
   }
 
-  pub fn gather_function_types(&self) -> Vec<Result<FunctionType>> {
-    self
-      .function_instances
-      .iter()
-      .map(|f| f.get_function_type().to_owned())
-      .collect()
-  }
-
   pub fn get_table_at(&self, idx: u32) -> Option<&TableInstance> {
     self.table_instances.get(idx as usize)
   }

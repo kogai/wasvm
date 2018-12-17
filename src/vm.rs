@@ -491,7 +491,6 @@ impl Vm {
             return_ptr: self.stack.stack_ptr,
             function_idx,
             table_addresses: vec![0],
-            types: self.store.gather_function_types(),
             own_type,
         });
         self.stack.push(frame)?;
@@ -523,11 +522,8 @@ impl Vm {
                     for local in frame.locals {
                         self.stack.push(StackEntry::new_value(local))?;
                     }
-                    let mut insts = Instructions::new(
-                        frame.expressions,
-                        frame.table_addresses.to_owned(),
-                        frame.types.to_owned(),
-                    );
+                    let mut insts =
+                        Instructions::new(frame.expressions, frame.table_addresses.to_owned());
                     self.evaluate_frame(&mut insts, own_type?)?;
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),

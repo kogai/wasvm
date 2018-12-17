@@ -77,15 +77,7 @@ impl Context {
     let (expressions, mut locals) = function_instance.call();
     let mut parameters = function_type.get_parameter_types().to_owned();
     parameters.append(&mut locals);
-    let mut instructions = Instructions::new(
-      expressions,
-      vec![0],
-      self
-        .function_instances
-        .iter()
-        .map(|f| f.get_function_type().to_owned())
-        .collect(),
-    );
+    let mut instructions = Instructions::new(expressions, vec![0]);
     let return_type = self.reduction_instructions_internal(&mut instructions, &parameters)?;
     Ok(vec![return_type])
   }

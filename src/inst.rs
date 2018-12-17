@@ -1,7 +1,5 @@
-use function::FunctionType;
 use std::convert::Into;
 use std::fmt;
-use trap::Result;
 use value::Values;
 use value_type::ValueTypes;
 
@@ -401,7 +399,6 @@ pub struct Instructions {
   expressions: Vec<Inst>,
   // FIXME: May not need to store tables here, use instead of Store.
   table_addresses: Vec<u32>,
-  types: Vec<Result<FunctionType>>,
 }
 
 impl fmt::Debug for Instructions {
@@ -421,16 +418,11 @@ impl fmt::Debug for Instructions {
 }
 
 impl Instructions {
-  pub fn new(
-    expressions: Vec<Inst>,
-    table_addresses: Vec<u32>,
-    types: Vec<Result<FunctionType>>,
-  ) -> Self {
+  pub fn new(expressions: Vec<Inst>, table_addresses: Vec<u32>) -> Self {
     Instructions {
       ptr: 0,
       expressions,
       table_addresses,
-      types,
     }
   }
 

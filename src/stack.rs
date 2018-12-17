@@ -20,7 +20,6 @@ pub struct Frame {
   pub return_ptr: usize,
   pub table_addresses: Vec<u32>,
   pub own_type: Option<FunctionType>,
-  pub types: Vec<Result<FunctionType>>,
 }
 
 impl fmt::Debug for Frame {
