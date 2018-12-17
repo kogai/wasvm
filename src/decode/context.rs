@@ -9,6 +9,7 @@ use value_type::ValueTypes;
 
 pub struct Context {
   function_instances: Vec<FunctionInstance>,
+  function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
   global_instances: Vec<GlobalInstance>,
@@ -18,12 +19,14 @@ pub struct Context {
 impl Context {
   pub fn new(
     function_instances: Vec<FunctionInstance>,
+    function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,
     global_instances: Vec<GlobalInstance>,
   ) -> Self {
     Context {
       function_instances,
+      function_types,
       memory_instances,
       table_instances,
       global_instances,
@@ -34,6 +37,7 @@ impl Context {
   pub fn without_validate(self) -> Result<Store> {
     Ok(Store::new(
       self.function_instances,
+      self.function_types,
       self.memory_instances,
       self.table_instances,
       self.global_instances,
@@ -58,6 +62,7 @@ impl Context {
       .collect::<Result<Vec<_>>>()?;
     Ok(Store::new(
       self.function_instances,
+      self.function_types,
       self.memory_instances,
       self.table_instances,
       self.global_instances,
@@ -78,7 +83,7 @@ impl Context {
       self
         .function_instances
         .iter()
-        .map(|f| f.function_type.to_owned())
+        .map(|f| f.get_function_type().to_owned())
         .collect(),
     );
     let return_type = self.reduction_instructions_internal(&mut instructions, &parameters)?;

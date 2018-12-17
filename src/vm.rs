@@ -237,7 +237,7 @@ impl Vm {
                     self.expand_frame(idx, arguments)?;
                     self.evaluate()?;
                 }
-                CallIndirect(_idx) => {
+                CallIndirect(idx) => {
                     let ta = instructions.get_table_address();
                     let table = self.store.get_table_at(ta)?.clone();
                     let i = self.stack.pop_value_ext_i32() as u32;
@@ -245,13 +245,19 @@ impl Vm {
                         return Err(Trap::MemoryAccessOutOfBounds);
                     }
                     let address = table.get_function_address(i)?;
-                    // FIXME: Use idx pass from CallIndirect instruction :thinking:
-                    let function_type = instructions.get_type_at(address)?;
-                    let mut arguments = vec![];
-                    for _ in 0..function_type.get_arity() {
-                        arguments.push(self.stack.pop_value_ext());
-                    }
-                    arguments.reverse();
+                    let arguments = {
+                        let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
+                        let expect_fn_ty = self.store.get_function_type(idx)?;
+                        if actual_fn_ty != expect_fn_ty {
+                            return Err(Trap::IndirectCallTypeMismatch);
+                        }
+                        let mut arg = vec![];
+                        for _ in 0..actual_fn_ty.get_arity() {
+                            arg.push(self.stack.pop_value_ext());
+                        }
+                        arg.reverse();
+                        arg
+                    };
 
                     self.expand_frame(address as usize, arguments)?;
                     self.evaluate()?;
@@ -463,7 +469,7 @@ impl Vm {
 
     fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) -> Result<()> {
         let function_instance = self.store.call(function_idx)?;
-        let own_type = match function_instance.function_type {
+        let own_type = match function_instance.get_function_type() {
             Ok(ref t) => Some(t.to_owned()),
             _ => None,
         };

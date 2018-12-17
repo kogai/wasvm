@@ -381,6 +381,7 @@ impl Into<TypeKind> for &Inst {
     }
   }
 }
+
 impl Inst {
   pub fn get_value_ext(&self) -> Values {
     use self::Inst::*;
@@ -398,6 +399,7 @@ impl Inst {
 pub struct Instructions {
   pub ptr: u32,
   expressions: Vec<Inst>,
+  // FIXME: May not need to store tables here, use instead of Store.
   table_addresses: Vec<u32>,
   types: Vec<Result<FunctionType>>,
 }
@@ -487,11 +489,5 @@ impl Instructions {
       .table_addresses
       .get(0)
       .expect("Table address [0] not found")
-  }
-  pub fn get_type_at(&self, idx: u32) -> Option<&FunctionType> {
-    match self.types.get(idx as usize) {
-      Some(Ok(t)) => Some(t),
-      _ => None,
-    }
   }
 }

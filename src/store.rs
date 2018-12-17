@@ -9,6 +9,7 @@ use value_type::ValueTypes;
 #[derive(Debug)]
 pub struct Store {
   function_instances: Vec<FunctionInstance>,
+  function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
   global_instances: Vec<GlobalInstance>,
@@ -17,12 +18,14 @@ pub struct Store {
 impl Store {
   pub fn new(
     function_instances: Vec<FunctionInstance>,
+    function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,
     global_instances: Vec<GlobalInstance>,
   ) -> Self {
     Store {
       function_instances,
+      function_types,
       memory_instances,
       table_instances,
       global_instances,
@@ -31,6 +34,18 @@ impl Store {
 
   pub fn call(&self, fn_idx: usize) -> Option<&FunctionInstance> {
     self.function_instances.get(fn_idx)
+  }
+
+  pub fn get_function_type(&self, idx: u32) -> Option<&FunctionType> {
+    self.function_types.get(idx as usize)
+  }
+
+  pub fn get_function_type_by_instance(&self, idx: u32) -> Option<&FunctionType> {
+    let function_type = self.call(idx as usize).map(|x| x.get_function_type());
+    match function_type {
+      Some(Ok(x)) => Some(x),
+      _ => None,
+    }
   }
 
   pub fn get_function_idx(&self, invoke: &str) -> usize {
@@ -60,7 +75,7 @@ impl Store {
     self
       .function_instances
       .iter()
-      .map(|f| f.function_type.to_owned())
+      .map(|f| f.get_function_type().to_owned())
       .collect()
   }
 

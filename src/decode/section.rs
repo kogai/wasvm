@@ -141,7 +141,7 @@ impl Section {
       .to_owned()
   }
   fn function_instances(
-    function_types: Vec<FunctionType>,
+    function_types: &Vec<FunctionType>,
     functions: Vec<u32>,
     exports: Option<Vec<(String, usize)>>,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
@@ -152,7 +152,7 @@ impl Section {
       .map(|(idx, code)| {
         let export_name = Section::export_name(idx, &exports);
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
-        let function_type = Section::function_type(index_of_type as usize, &function_types);
+        let function_type = Section::function_type(index_of_type as usize, function_types);
         match code {
           Ok((expression, locals)) => FunctionInstance::new(
             export_name,
@@ -190,11 +190,12 @@ impl Section {
         let memory_instances = Section::memory_instances(datas, limits);
         let table_instances = Section::table_instances(elements, tables);
         let function_instances =
-          Section::function_instances(function_types, functions, exports, codes);
+          Section::function_instances(&function_types, functions, exports, codes);
         let global_instances = Section::global_instances(globals);
         Ok(
           Context::new(
             function_instances,
+            function_types,
             memory_instances,
             table_instances,
             global_instances,
