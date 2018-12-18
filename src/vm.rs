@@ -107,6 +107,40 @@ impl Vm {
         }
     }
 
+    fn get_local(&mut self, idx: u32) -> Result<()> {
+        let frame_ptr = self.stack.get_frame_ptr();
+        let value = self.stack.get((idx as usize) + frame_ptr)?;
+        self.stack.push(value)?;
+        Ok(())
+    }
+
+    fn set_local(&mut self, idx: u32) -> Result<()> {
+        let value = self.stack.pop().map(|s| s.to_owned())?;
+        let frame_ptr = self.stack.get_frame_ptr();
+        self.stack.set((idx as usize) + frame_ptr, value)?;
+        Ok(())
+    }
+
+    fn tee_local(&mut self, idx: u32) -> Result<()> {
+        let value = self.stack.pop().map(|s| s.to_owned())?;
+        self.stack.push(value.clone())?;
+        let frame_ptr = self.stack.get_frame_ptr();
+        self.stack.set((idx as usize) + frame_ptr, value)?;
+        Ok(())
+    }
+
+    fn get_global(&mut self, idx: u32) -> Result<()> {
+        let value = self.store.get_global(idx)?.to_owned();
+        self.stack.push(StackEntry::new_value(value))?;
+        Ok(())
+    }
+
+    fn set_global(&mut self, idx: u32) -> Result<()> {
+        let value = self.stack.pop_value_ext();
+        self.store.set_global(idx, value);
+        Ok(())
+    }
+
     fn evaluate_instructions(
         &mut self,
         instructions: &mut Instructions, /* TODO: Consider to use RefCell type. */
@@ -262,30 +296,11 @@ impl Vm {
                     self.expand_frame(address as usize, arguments)?;
                     self.evaluate()?;
                 }
-                GetLocal(idx) => {
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    let value = self.stack.get((idx as usize) + frame_ptr)?;
-                    self.stack.push(value)?;
-                }
-                SetLocal(idx) => {
-                    let value = self.stack.pop().map(|s| s.to_owned())?;
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set((idx as usize) + frame_ptr, value)?;
-                }
-                TeeLocal(idx) => {
-                    let value = self.stack.pop().map(|s| s.to_owned())?;
-                    self.stack.push(value.clone())?;
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set((idx as usize) + frame_ptr, value)?;
-                }
-                GetGlobal(idx) => {
-                    let value = self.store.get_global(idx)?.to_owned();
-                    self.stack.push(StackEntry::new_value(value))?;
-                }
-                SetGlobal(idx) => {
-                    let value = self.stack.pop_value_ext();
-                    self.store.set_global(idx, value);
-                }
+                GetLocal(idx) => self.get_local(idx)?,
+                SetLocal(idx) => self.set_local(idx)?,
+                TeeLocal(idx) => self.tee_local(idx)?,
+                GetGlobal(idx) => self.get_global(idx)?,
+                SetGlobal(idx) => self.set_global(idx)?,
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n)))?,
                 F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(n)))?,
