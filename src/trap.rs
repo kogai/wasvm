@@ -13,7 +13,9 @@ pub enum Trap {
   StackUnderflow,
   Notfound,
   Undefined,
+  UndefinedElement,
   TypeMismatch,
+  IndirectCallTypeMismatch,
   FailToGrow,
 }
 
@@ -39,10 +41,12 @@ impl From<Trap> for String {
       BitshiftOverflow => "bit shift overflow",
       Unknown => "unknown",
       Undefined => "undefined behavior occurred",
+      UndefinedElement => "undefined element",
       Notfound => "not found",
       StackOverflow => "stack overflow",
       StackUnderflow => "stack underflow",
       TypeMismatch => "type mismatch",
+      IndirectCallTypeMismatch => "indirect call type mismatch",
       FailToGrow => "fail to grow",
     }
     .to_owned()

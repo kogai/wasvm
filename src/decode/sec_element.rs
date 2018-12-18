@@ -65,7 +65,7 @@ impl Decodable for Section {
         let init = self.decode_function_idx()?;
         Ok(Element::new(
           table_idx,
-          Instructions::new(offset, vec![], vec![]),
+          Instructions::new(offset, vec![]),
           init,
         ))
       })

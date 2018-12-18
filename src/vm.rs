@@ -107,6 +107,40 @@ impl Vm {
         }
     }
 
+    fn get_local(&mut self, idx: u32) -> Result<()> {
+        let frame_ptr = self.stack.get_frame_ptr();
+        let value = self.stack.get((idx as usize) + frame_ptr)?;
+        self.stack.push(value)?;
+        Ok(())
+    }
+
+    fn set_local(&mut self, idx: u32) -> Result<()> {
+        let value = self.stack.pop().map(|s| s.to_owned())?;
+        let frame_ptr = self.stack.get_frame_ptr();
+        self.stack.set((idx as usize) + frame_ptr, value)?;
+        Ok(())
+    }
+
+    fn tee_local(&mut self, idx: u32) -> Result<()> {
+        let value = self.stack.pop().map(|s| s.to_owned())?;
+        self.stack.push(value.clone())?;
+        let frame_ptr = self.stack.get_frame_ptr();
+        self.stack.set((idx as usize) + frame_ptr, value)?;
+        Ok(())
+    }
+
+    fn get_global(&mut self, idx: u32) -> Result<()> {
+        let value = self.store.get_global(idx)?.to_owned();
+        self.stack.push(StackEntry::new_value(value))?;
+        Ok(())
+    }
+
+    fn set_global(&mut self, idx: u32) -> Result<()> {
+        let value = self.stack.pop_value_ext();
+        self.store.set_global(idx, value);
+        Ok(())
+    }
+
     fn evaluate_instructions(
         &mut self,
         instructions: &mut Instructions, /* TODO: Consider to use RefCell type. */
@@ -237,49 +271,36 @@ impl Vm {
                     self.expand_frame(idx, arguments)?;
                     self.evaluate()?;
                 }
-                CallIndirect(_idx) => {
+                CallIndirect(idx) => {
                     let ta = instructions.get_table_address();
                     let table = self.store.get_table_at(ta)?.clone();
-                    let i = self.stack.pop_value_ext_i32() as u32;
-                    if i >= table.len() {
-                        return Err(Trap::MemoryAccessOutOfBounds);
+                    let i = self.stack.pop_value_ext_i32();
+                    if i > table.len() as i32 {
+                        return Err(Trap::UndefinedElement);
                     }
-                    let address = table.get_function_address(i)?;
-                    // FIXME: Use idx pass from CallIndirect instruction :thinking:
-                    let function_type = instructions.get_type_at(address)?;
-                    let mut arguments = vec![];
-                    for _ in 0..function_type.get_arity() {
-                        arguments.push(self.stack.pop_value_ext());
-                    }
-                    arguments.reverse();
+                    let address = table.get_function_address(i as u32)?;
+                    let arguments = {
+                        let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
+                        let expect_fn_ty = self.store.get_function_type(idx)?;
+                        if actual_fn_ty != expect_fn_ty {
+                            return Err(Trap::IndirectCallTypeMismatch);
+                        }
+                        let mut arg = vec![];
+                        for _ in 0..actual_fn_ty.get_arity() {
+                            arg.push(self.stack.pop_value_ext());
+                        }
+                        arg.reverse();
+                        arg
+                    };
 
                     self.expand_frame(address as usize, arguments)?;
                     self.evaluate()?;
                 }
-                GetLocal(idx) => {
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    let value = self.stack.get((idx as usize) + frame_ptr)?;
-                    self.stack.push(value)?;
-                }
-                SetLocal(idx) => {
-                    let value = self.stack.pop().map(|s| s.to_owned())?;
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set((idx as usize) + frame_ptr, value)?;
-                }
-                TeeLocal(idx) => {
-                    let value = self.stack.pop().map(|s| s.to_owned())?;
-                    self.stack.push(value.clone())?;
-                    let frame_ptr = self.stack.get_frame_ptr();
-                    self.stack.set((idx as usize) + frame_ptr, value)?;
-                }
-                GetGlobal(idx) => {
-                    let value = self.store.get_global(idx)?.to_owned();
-                    self.stack.push(StackEntry::new_value(value))?;
-                }
-                SetGlobal(idx) => {
-                    let value = self.stack.pop_value_ext();
-                    self.store.set_global(idx, value);
-                }
+                GetLocal(idx) => self.get_local(idx)?,
+                SetLocal(idx) => self.set_local(idx)?,
+                TeeLocal(idx) => self.tee_local(idx)?,
+                GetGlobal(idx) => self.get_global(idx)?,
+                SetGlobal(idx) => self.set_global(idx)?,
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n)))?,
                 F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(n)))?,
@@ -463,7 +484,7 @@ impl Vm {
 
     fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) -> Result<()> {
         let function_instance = self.store.call(function_idx)?;
-        let own_type = match function_instance.function_type {
+        let own_type = match function_instance.get_function_type() {
             Ok(ref t) => Some(t.to_owned()),
             _ => None,
         };
@@ -485,7 +506,6 @@ impl Vm {
             return_ptr: self.stack.stack_ptr,
             function_idx,
             table_addresses: vec![0],
-            types: self.store.gather_function_types(),
             own_type,
         });
         self.stack.push(frame)?;
@@ -517,11 +537,8 @@ impl Vm {
                     for local in frame.locals {
                         self.stack.push(StackEntry::new_value(local))?;
                     }
-                    let mut insts = Instructions::new(
-                        frame.expressions,
-                        frame.table_addresses.to_owned(),
-                        frame.types.to_owned(),
-                    );
+                    let mut insts =
+                        Instructions::new(frame.expressions, frame.table_addresses.to_owned());
                     self.evaluate_frame(&mut insts, own_type?)?;
                 }
                 StackEntry::Empty => unreachable!("Invalid popping stack."),

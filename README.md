@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/kogai/vm.svg?branch=master)](https://travis-ci.org/kogai/vm)
+[![Build Status](https://travis-ci.org/kogai/wasvm.svg?branch=master)](https://travis-ci.org/kogai/vm)
 
 ## TODO
 
