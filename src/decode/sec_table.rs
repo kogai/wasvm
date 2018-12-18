@@ -2,7 +2,7 @@ use super::decodable::Decodable;
 use super::sec_element::{Element, ElementType};
 use memory::Limit;
 use std::{f32, f64};
-use trap::Result;
+use trap::{Result, Trap};
 
 #[derive(Debug)]
 pub struct TableType {
@@ -35,11 +35,16 @@ impl TableInstance {
       },
     }
   }
-  pub fn len(&self) -> u32 {
-    self.elements.len() as u32
+
+  pub fn len(&self) -> usize {
+    self.elements.len()
   }
-  pub fn get_function_address(&self, idx: u32) -> Option<u32> {
-    self.elements.get(idx as usize).map(|x| *x)
+
+  pub fn get_function_address(&self, idx: u32) -> Result<u32> {
+    match self.elements.get(idx as usize) {
+      Some(x) => Ok(*x),
+      None => Err(Trap::UndefinedElement),
+    }
   }
 }
 

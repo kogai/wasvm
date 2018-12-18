@@ -274,11 +274,11 @@ impl Vm {
                 CallIndirect(idx) => {
                     let ta = instructions.get_table_address();
                     let table = self.store.get_table_at(ta)?.clone();
-                    let i = self.stack.pop_value_ext_i32() as u32;
-                    if i >= table.len() {
-                        return Err(Trap::MemoryAccessOutOfBounds);
+                    let i = self.stack.pop_value_ext_i32();
+                    if i > table.len() as i32 {
+                        return Err(Trap::UndefinedElement);
                     }
-                    let address = table.get_function_address(i)?;
+                    let address = table.get_function_address(i as u32)?;
                     let arguments = {
                         let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
                         let expect_fn_ty = self.store.get_function_type(idx)?;
