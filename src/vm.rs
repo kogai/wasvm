@@ -263,12 +263,12 @@ impl Vm {
                     instructions.jump_to(continuation);
                 }
                 Call(idx) => {
-                    let count_of_arguments = self.store.call(idx)?.get_arity();
+                    let count_of_arguments = self.store.get_function_instance(idx)?.get_arity();
                     let mut arguments = vec![];
                     for _ in 0..count_of_arguments {
                         arguments.push(self.stack.pop_value_ext());
                     }
-                    self.expand_frame(idx, arguments)?;
+                    self.expand_frame(idx, &mut arguments)?;
                     self.evaluate()?;
                 }
                 CallIndirect(idx) => {
@@ -279,7 +279,7 @@ impl Vm {
                         return Err(Trap::UndefinedElement);
                     }
                     let address = table.get_function_address(i as u32)?;
-                    let arguments = {
+                    let mut arguments = {
                         let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
                         let expect_fn_ty = self.store.get_function_type(idx)?;
                         if actual_fn_ty != expect_fn_ty {
@@ -293,7 +293,7 @@ impl Vm {
                         arg
                     };
 
-                    self.expand_frame(address as usize, arguments)?;
+                    self.expand_frame(address as usize, &mut arguments)?;
                     self.evaluate()?;
                 }
                 GetLocal(idx) => self.get_local(idx)?,
@@ -482,32 +482,14 @@ impl Vm {
         Ok(())
     }
 
-    fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) -> Result<()> {
-        let function_instance = self.store.call(function_idx)?;
-        let own_type = match function_instance.get_function_type() {
-            Ok(ref t) => Some(t.to_owned()),
-            _ => None,
-        };
-        let (expressions, local_types) = function_instance.call();
-        let mut locals = arguments;
-        for local in local_types {
-            let v = match local {
-                ValueTypes::I32 => Values::I32(0),
-                ValueTypes::I64 => Values::I64(0),
-                ValueTypes::F32 => Values::F32(0.0),
-                ValueTypes::F64 => Values::F64(0.0),
-                _ => unreachable!(),
-            };
-            locals.push(v);
-        }
-        let frame = StackEntry::new_fram(Frame {
-            locals,
-            expressions,
-            return_ptr: self.stack.stack_ptr,
-            table_addresses: vec![0],
-            own_type,
-        });
-        self.stack.push(frame)?;
+    fn expand_frame(&mut self, function_idx: usize, arguments: &mut Vec<Values>) -> Result<()> {
+        let frame = Frame::new(
+            &mut self.store,
+            self.stack.stack_ptr,
+            function_idx,
+            arguments,
+        )?;
+        self.stack.push(StackEntry::new_frame(frame))?;
         Ok(())
     }
 
@@ -551,7 +533,8 @@ impl Vm {
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
-        let _ = self.expand_frame(start_idx, arguments);
+        let mut arguments = arguments;
+        let _ = self.expand_frame(start_idx, &mut arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),

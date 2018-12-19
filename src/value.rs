@@ -3,6 +3,7 @@ use std::f64;
 use std::fmt;
 use std::ops::{BitAnd, BitOr, BitXor, Neg};
 use trap::Trap;
+use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
 pub enum Values {
@@ -814,6 +815,18 @@ impl From<Values> for String {
       }
     }
     .to_owned()
+  }
+}
+
+impl From<ValueTypes> for Values {
+  fn from(x: ValueTypes) -> Self {
+    match x {
+      ValueTypes::I32 => Values::I32(0),
+      ValueTypes::I64 => Values::I64(0),
+      ValueTypes::F32 => Values::F32(0.0),
+      ValueTypes::F64 => Values::F64(0.0),
+      ValueTypes::Empty => unreachable!(),
+    }
   }
 }
 

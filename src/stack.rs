@@ -59,7 +59,7 @@ impl StackEntry {
       source_instruction: source_instruction.to_owned(),
     })
   }
-  pub fn new_fram(frame: Frame) -> Self {
+  pub fn new_frame(frame: Frame) -> Self {
     StackEntry::Frame(frame)
   }
 
