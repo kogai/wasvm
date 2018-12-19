@@ -15,6 +15,7 @@ pub struct Label {
 #[derive(PartialEq, Clone)]
 pub enum StackEntry {
   Empty,
+  Pointer(usize),
   Value(Values),
   Label(Label),
   Frame(Frame),
@@ -25,6 +26,7 @@ impl fmt::Debug for StackEntry {
     use self::StackEntry::*;
     let label = match self {
       Empty => "_".to_owned(),
+      Pointer(v) => format!("P(*{:?})", v),
       Value(v) => format!("{:?}", v),
       Label(v) => format!("{:?}", v),
       Frame(v) => format!("Frame({:?})", v),
@@ -122,7 +124,7 @@ pub struct Stack {
   stack_size: usize,
   entries: Vec<StackEntry>,
   pub stack_ptr: usize,
-  pub frame_ptr: Vec<usize>,
+  pub frame_ptr: usize,
 }
 
 impl Stack {
@@ -132,7 +134,7 @@ impl Stack {
       stack_size,
       entries,
       stack_ptr: 0,
-      frame_ptr: vec![],
+      frame_ptr: 0,
     }
   }
 
@@ -141,7 +143,7 @@ impl Stack {
   }
 
   pub fn get(&self, ptr: usize) -> Option<StackEntry> {
-    self.entries.get(ptr).map(|rc| rc.to_owned())
+    self.entries.get(ptr).map(|x| x.to_owned())
   }
 
   pub fn set(&mut self, ptr: usize, entry: StackEntry) -> Result<()> {
@@ -250,18 +252,17 @@ impl Stack {
   // impl_pop_value_ext!(pop_value_ext_f64, Values::F64, f64);
 
   pub fn get_frame_ptr(&mut self) -> usize {
-    match self.frame_ptr.last() {
-      Some(p) => *p,
-      None => unreachable!("Frame pointer not found."),
-    }
+    self.frame_ptr
   }
+
   pub fn update_frame_ptr(&mut self) {
-    match self.frame_ptr.pop() {
-      Some(p) => {
-        self.stack_ptr = p;
+    match self.get(self.frame_ptr) {
+      Some(StackEntry::Pointer(p)) => {
+        self.stack_ptr = self.frame_ptr;
+        self.frame_ptr = p;
       }
-      None => unreachable!("Frame pointer not found."),
-    }
+      x => unreachable!("Expected Frame pointer, got {:?}", x),
+    };
   }
 }
 
@@ -275,10 +276,9 @@ impl fmt::Debug for Stack {
       .join(", ");
     write!(
       f,
-      "{}, frame={:?}, stack_size={}, stack_ptr={}",
+      "{}, frame_ptr={:?}, stack_ptr={}",
       format!("[{}]", entries),
       self.frame_ptr,
-      self.stack_size,
       self.stack_ptr,
     )
   }
@@ -310,7 +310,7 @@ mod tests {
     }
     assert_eq!(
       format!("{:?}", stack),
-      "[i32:0, i32:1, i32:2], frame=[], stack_size=8, stack_ptr=3".to_owned()
+      "[i32:0, i32:1, i32:2], frame_ptr=0, stack_ptr=3".to_owned()
     );
   }
 }

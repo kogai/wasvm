@@ -108,7 +108,7 @@ impl Vm {
 
     fn get_local(&mut self, idx: u32) -> Result<()> {
         let frame_ptr = self.stack.get_frame_ptr();
-        let value = self.stack.get((idx as usize) + frame_ptr)?;
+        let value = self.stack.get((idx as usize) + frame_ptr + 1)?;
         self.stack.push(value)?;
         Ok(())
     }
@@ -116,7 +116,7 @@ impl Vm {
     fn set_local(&mut self, idx: u32) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        self.stack.set((idx as usize) + frame_ptr + 1, value)?;
         Ok(())
     }
 
@@ -124,7 +124,7 @@ impl Vm {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         self.stack.push(value.clone())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        self.stack.set((idx as usize) + frame_ptr + 1, value)?;
         Ok(())
     }
 
@@ -469,7 +469,7 @@ impl Vm {
     fn evaluate_frame(
         &mut self,
         instructions: &mut Instructions,
-        function_type: FunctionType,
+        function_type: &FunctionType,
     ) -> Result<()> {
         self.evaluate_instructions(instructions)?;
         let mut returns = vec![];
@@ -502,17 +502,21 @@ impl Vm {
                     return Ok(());
                 }
                 StackEntry::Frame(ref frame) => {
-                    self.stack.frame_ptr.push(frame.return_ptr);
+                    let prev_frame_ptr = self.stack.frame_ptr;
+                    self.stack.frame_ptr = frame.return_ptr;
+                    self.stack.push(StackEntry::Pointer(prev_frame_ptr))?;
+                    // TODO: May can drop cloning.
                     let frame = frame.clone();
-                    let own_type = frame.own_type;
                     for local in frame.locals {
                         self.stack.push(StackEntry::new_value(local))?;
                     }
                     let mut insts =
                         Instructions::new(frame.expressions, frame.table_addresses.to_owned());
-                    self.evaluate_frame(&mut insts, own_type?)?;
+                    self.evaluate_frame(&mut insts, &frame.own_type?)?;
                 }
-                StackEntry::Empty => unreachable!("Invalid popping stack."),
+                StackEntry::Empty | StackEntry::Pointer(_) => {
+                    unreachable!("Invalid popping stack.")
+                }
             }
         }
         if let Some(v) = result {
