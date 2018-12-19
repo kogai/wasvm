@@ -1,5 +1,4 @@
 use decode::Byte;
-use frame::Frame;
 use function::FunctionType;
 use inst::{Inst, Instructions};
 use stack::{Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
@@ -268,7 +267,8 @@ impl Vm {
                     for _ in 0..count_of_arguments {
                         arguments.push(self.stack.pop_value_ext());
                     }
-                    self.expand_frame(idx, &mut arguments)?;
+                    self.stack
+                        .push_frame(&mut self.store, idx, &mut arguments)?;
                     self.evaluate()?;
                 }
                 CallIndirect(idx) => {
@@ -293,7 +293,8 @@ impl Vm {
                         arg
                     };
 
-                    self.expand_frame(address as usize, &mut arguments)?;
+                    self.stack
+                        .push_frame(&mut self.store, address as usize, &mut arguments)?;
                     self.evaluate()?;
                 }
                 GetLocal(idx) => self.get_local(idx)?,
@@ -482,17 +483,6 @@ impl Vm {
         Ok(())
     }
 
-    fn expand_frame(&mut self, function_idx: usize, arguments: &mut Vec<Values>) -> Result<()> {
-        let frame = Frame::new(
-            &mut self.store,
-            self.stack.stack_ptr,
-            function_idx,
-            arguments,
-        )?;
-        self.stack.push(StackEntry::new_frame(frame))?;
-        Ok(())
-    }
-
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty() {
@@ -534,7 +524,9 @@ impl Vm {
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
         let mut arguments = arguments;
-        let _ = self.expand_frame(start_idx, &mut arguments);
+        let _ = self
+            .stack
+            .push_frame(&mut self.store, start_idx, &mut arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),

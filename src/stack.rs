@@ -1,5 +1,6 @@
 use frame::Frame;
 use std::fmt;
+use store::Store;
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
@@ -164,6 +165,17 @@ impl Stack {
     while let Some(entry) = entries.pop() {
       self.push(entry)?;
     }
+    Ok(())
+  }
+
+  pub fn push_frame(
+    &mut self,
+    store: &mut Store,
+    function_idx: usize,
+    arguments: &mut Vec<Values>,
+  ) -> Result<()> {
+    let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
+    self.push(StackEntry::new_frame(frame))?;
     Ok(())
   }
 
