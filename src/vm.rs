@@ -1,7 +1,7 @@
 use decode::Byte;
+use frame::Frame;
 use function::FunctionType;
 use inst::{Inst, Instructions};
-use stack::Frame;
 use stack::{Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
@@ -504,7 +504,6 @@ impl Vm {
             locals,
             expressions,
             return_ptr: self.stack.stack_ptr,
-            function_idx,
             table_addresses: vec![0],
             own_type,
         });

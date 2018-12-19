@@ -2,6 +2,7 @@
 #![feature(int_to_from_bytes)]
 #[macro_use]
 mod decode;
+mod frame;
 mod function;
 mod global;
 mod inst;

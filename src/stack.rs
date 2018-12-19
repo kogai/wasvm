@@ -1,5 +1,4 @@
-use function::FunctionType;
-use inst::Inst;
+use frame::Frame;
 use std::fmt;
 use trap::{Result, Trap};
 use value::Values;
@@ -10,33 +9,6 @@ pub struct Label {
   source_instruction: String,
   return_type: ValueTypes,
   continuation: u32,
-}
-
-#[derive(PartialEq, Clone)]
-pub struct Frame {
-  pub locals: Vec<Values>,
-  pub expressions: Vec<Inst>,
-  pub function_idx: usize,
-  pub return_ptr: usize,
-  pub table_addresses: Vec<u32>,
-  pub own_type: Option<FunctionType>,
-}
-
-impl fmt::Debug for Frame {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    // NOTE: Omit to present expressions and types would be worth :thinking: .
-    let locals = self
-      .locals
-      .iter()
-      .map(|x| format!("{:?}", x))
-      .collect::<Vec<String>>()
-      .join(", ");
-    write!(
-      f,
-      "[{}] locals:({}) return:{} table{:?}",
-      self.function_idx, locals, self.return_ptr, self.table_addresses
-    )
-  }
 }
 
 #[derive(PartialEq, Clone)]
