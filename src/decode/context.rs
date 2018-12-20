@@ -1,7 +1,8 @@
 use super::sec_table::TableInstance;
+use frame::Frame;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
-use inst::{Instructions, TypeKind};
+use inst::TypeKind;
 use memory::MemoryInstance;
 use store::Store;
 use trap::{Result, Trap};
@@ -71,20 +72,22 @@ impl Context {
 
   fn reduction_instructions(
     &self,
-    function_instance: &FunctionInstance,
-    function_type: &FunctionType,
+    _function_instance: &FunctionInstance,
+    _function_type: &FunctionType,
   ) -> Result<Vec<ValueTypes>> {
-    let (expressions, mut locals) = function_instance.call();
-    let mut parameters = function_type.get_parameter_types().to_owned();
-    parameters.append(&mut locals);
-    let mut instructions = Instructions::new(expressions, vec![0]);
-    let return_type = self.reduction_instructions_internal(&mut instructions, &parameters)?;
-    Ok(vec![return_type])
+    // let (expressions, mut locals) = function_instance.call();
+    // let mut parameters = function_type.get_parameter_types().to_owned();
+    // parameters.append(&mut locals);
+    // let mut instructions = Instructions::new(expressions, vec![0]);
+    // let return_type = self.reduction_instructions_internal(&mut instructions, &parameters)?;
+    // Ok(vec![return_type])
+    unimplemented!();
   }
   // NOTE: Currently, WASM specification supposes to single return value.
+  #[allow(dead_code)]
   fn reduction_instructions_internal(
     &self,
-    instructions: &mut Instructions,
+    instructions: &mut Frame,
     _locals: &Vec<ValueTypes>,
   ) -> Result<ValueTypes> {
     let mut _return_type: ValueTypes;

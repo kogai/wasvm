@@ -1,6 +1,6 @@
 use decode::Byte;
-use function::FunctionType;
-use inst::{Inst, Instructions};
+use frame::Frame;
+use inst::Inst;
 use stack::{Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
@@ -142,7 +142,7 @@ impl Vm {
 
     fn evaluate_instructions(
         &mut self,
-        instructions: &mut Instructions, /* TODO: Consider to use RefCell type. */
+        instructions: &mut Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
         use self::Inst::*;
         while !instructions.is_next_end_or_else() {
@@ -466,23 +466,6 @@ impl Vm {
         Ok(())
     }
 
-    fn evaluate_frame(
-        &mut self,
-        instructions: &mut Instructions,
-        function_type: &FunctionType,
-    ) -> Result<()> {
-        self.evaluate_instructions(instructions)?;
-        let mut returns = vec![];
-        for _ in 0..function_type.get_return_count() {
-            returns.push(self.stack.pop_value()?);
-        }
-        self.stack.update_frame_ptr();
-        for v in returns.iter() {
-            self.stack.push(StackEntry::new_value(v.clone()))?;
-        }
-        Ok(())
-    }
-
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty() {
@@ -503,16 +486,23 @@ impl Vm {
                 }
                 StackEntry::Frame(ref frame) => {
                     let prev_frame_ptr = self.stack.frame_ptr;
+                    let count_of_returns = frame.own_type.get_return_count();
                     self.stack.frame_ptr = frame.return_ptr;
                     self.stack.push(StackEntry::Pointer(prev_frame_ptr))?;
                     // TODO: May can drop cloning.
-                    let frame = frame.clone();
-                    for local in frame.locals {
+                    let mut frame = frame.clone();
+                    for local in frame.get_locals().into_iter() {
                         self.stack.push(StackEntry::new_value(local))?;
                     }
-                    let mut insts =
-                        Instructions::new(frame.expressions, frame.table_addresses.to_owned());
-                    self.evaluate_frame(&mut insts, &frame.own_type)?;
+                    self.evaluate_instructions(&mut frame)?;
+                    let mut returns = vec![];
+                    for _ in 0..count_of_returns {
+                        returns.push(self.stack.pop_value()?);
+                    }
+                    self.stack.update_frame_ptr();
+                    for v in returns.iter() {
+                        self.stack.push(StackEntry::new_value(v.clone()))?;
+                    }
                 }
                 StackEntry::Empty | StackEntry::Pointer(_) => {
                     unreachable!("Invalid popping stack.")

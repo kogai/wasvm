@@ -14,7 +14,7 @@ pub struct Frame {
   // FIXME: May not need to store tables here, use instead of Store.
   pub table_addresses: Vec<u32>,
   pub own_type: FunctionType,
-  ptr: usize,
+  pub ptr: u32,
 }
 
 impl Frame {
@@ -38,6 +38,67 @@ impl Frame {
       own_type,
       ptr: 0,
     })
+  }
+
+  pub fn get_locals(&self) -> Vec<Values> {
+    self.locals.to_owned()
+  }
+
+  pub fn peek(&self) -> Option<&Inst> {
+    self.expressions.get(self.ptr as usize)
+  }
+
+  pub fn pop(&mut self) -> Option<Inst> {
+    let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
+    self.ptr += 1;
+    head
+  }
+
+  pub fn pop_runtime_type(&mut self) -> Option<ValueTypes> {
+    match self.pop()? {
+      Inst::RuntimeValue(ty) => Some(ty),
+      _ => None,
+    }
+  }
+
+  pub fn pop_ref(&mut self) -> Option<&Inst> {
+    let head = self.expressions.get(self.ptr as usize);
+    self.ptr += 1;
+    head
+  }
+
+  pub fn is_next_end(&self) -> bool {
+    match self.peek() {
+      Some(Inst::End) | None => true,
+      _ => false,
+    }
+  }
+
+  pub fn is_next_else(&self) -> bool {
+    match self.peek() {
+      Some(Inst::Else) => true,
+      _ => false,
+    }
+  }
+
+  pub fn is_next_end_or_else(&self) -> bool {
+    self.is_next_end() || self.is_next_else()
+  }
+
+  pub fn jump_to(&mut self, ptr_of_label: u32) {
+    self.ptr = ptr_of_label;
+  }
+
+  pub fn jump_to_last(&mut self) {
+    let last = self.expressions.len();
+    self.jump_to(last as u32);
+  }
+
+  pub fn get_table_address(&self) -> u32 {
+    *self
+      .table_addresses
+      .get(0)
+      .expect("Table address [0] not found")
   }
 }
 

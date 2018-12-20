@@ -41,9 +41,12 @@ impl FunctionType {
   pub fn get_return_count(&self) -> u32 {
     self.returns.len() as u32
   }
+
+  #[allow(dead_code)]
   pub fn get_parameter_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
     &self.parameters
   }
+
   pub fn get_return_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
     &self.returns
   }
