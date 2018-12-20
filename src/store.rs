@@ -45,7 +45,7 @@ impl Store {
     self.function_types.get(idx as usize)
   }
 
-  pub fn get_function_type_by_instance(&self, idx: u32) -> Option<&FunctionType> {
+  pub fn get_function_type_by_instance(&self, idx: u32) -> Option<FunctionType> {
     let function_type = self
       .get_function_instance(idx as usize)
       .map(|x| x.get_function_type());

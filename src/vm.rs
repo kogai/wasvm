@@ -282,7 +282,7 @@ impl Vm {
                     let mut arguments = {
                         let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
                         let expect_fn_ty = self.store.get_function_type(idx)?;
-                        if actual_fn_ty != expect_fn_ty {
+                        if &actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
                         }
                         let mut arg = vec![];
@@ -512,7 +512,7 @@ impl Vm {
                     }
                     let mut insts =
                         Instructions::new(frame.expressions, frame.table_addresses.to_owned());
-                    self.evaluate_frame(&mut insts, &frame.own_type?)?;
+                    self.evaluate_frame(&mut insts, &frame.own_type)?;
                 }
                 StackEntry::Empty | StackEntry::Pointer(_) => {
                     unreachable!("Invalid popping stack.")

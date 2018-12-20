@@ -106,9 +106,11 @@ impl FunctionInstance {
       _ => 0,
     }
   }
-  pub fn get_function_type<'a>(&'a self) -> &'a Result<FunctionType> {
-    &self.function_type
+
+  pub fn get_function_type(&self) -> Result<FunctionType> {
+    self.function_type.to_owned()
   }
+
   pub fn find(&self, key: &str) -> bool {
     // FIXME: When using function_index, we might get exported function by O(1).
     match &self.export_name {
