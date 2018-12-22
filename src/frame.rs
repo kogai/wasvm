@@ -15,6 +15,7 @@ pub struct Frame {
   pub table_addresses: Vec<u32>,
   pub own_type: FunctionType,
   pub ptr: u32,
+  last_ptr: u32,
 }
 
 impl Frame {
@@ -32,12 +33,21 @@ impl Frame {
     }
     Ok(Frame {
       locals: locals.to_owned(),
+      last_ptr: expressions.len() as u32,
       expressions,
       return_ptr,
       table_addresses: vec![0],
       own_type,
       ptr: 0,
     })
+  }
+
+  pub fn is_completed(&self) -> bool {
+    self.ptr >= self.last_ptr
+  }
+
+  pub fn is_fresh(&self) -> bool {
+    self.ptr == 0
   }
 
   pub fn get_locals(&self) -> Vec<Values> {
@@ -54,6 +64,12 @@ impl Frame {
     head
   }
 
+  pub fn pop_ref(&mut self) -> Option<&Inst> {
+    let head = self.expressions.get(self.ptr as usize);
+    self.ptr += 1;
+    head
+  }
+
   pub fn pop_runtime_type(&mut self) -> Option<ValueTypes> {
     match self.pop()? {
       Inst::RuntimeValue(ty) => Some(ty),
@@ -61,10 +77,11 @@ impl Frame {
     }
   }
 
-  pub fn pop_ref(&mut self) -> Option<&Inst> {
-    let head = self.expressions.get(self.ptr as usize);
-    self.ptr += 1;
-    head
+  pub fn is_next_empty(&self) -> bool {
+    match self.peek() {
+      None => true,
+      _ => false,
+    }
   }
 
   pub fn is_next_end(&self) -> bool {
@@ -90,8 +107,8 @@ impl Frame {
   }
 
   pub fn jump_to_last(&mut self) {
-    let last = self.expressions.len();
-    self.jump_to(last as u32);
+    let last_ptr = self.last_ptr;
+    self.jump_to(last_ptr);
   }
 
   pub fn get_table_address(&self) -> u32 {
@@ -99,6 +116,10 @@ impl Frame {
       .table_addresses
       .get(0)
       .expect("Table address [0] not found")
+  }
+
+  pub fn increment_return_ptr(&mut self) {
+    self.return_ptr += 1;
   }
 }
 
@@ -113,8 +134,8 @@ impl fmt::Debug for Frame {
       .join(", ");
     write!(
       f,
-      "locals:({}) return:{} table{:?}",
-      locals, self.return_ptr, self.table_addresses
+      "{:?} locals: ({}) ptr: {} return:{} table{:?}",
+      self.own_type, locals, self.ptr, self.return_ptr, self.table_addresses
     )
   }
 }

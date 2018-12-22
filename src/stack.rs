@@ -6,10 +6,19 @@ use value::Values;
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum LabelKind {
+  If,
+  LoopEnd,
+  LoopContinuation,
+  Block,
+  // Nop,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub struct Label {
-  source_instruction: String,
+  pub source_instruction: LabelKind,
   return_type: ValueTypes,
-  continuation: u32,
+  pub continuation: u32,
 }
 
 #[derive(PartialEq, Clone)]
@@ -55,11 +64,15 @@ impl StackEntry {
   pub fn new_value(value: Values) -> Self {
     StackEntry::Value(value)
   }
-  pub fn new_label(continuation: u32, return_type: ValueTypes, source_instruction: &str) -> Self {
+  pub fn new_label(
+    continuation: u32,
+    return_type: ValueTypes,
+    source_instruction: LabelKind,
+  ) -> Self {
     StackEntry::Label(Label {
       continuation,
       return_type,
-      source_instruction: source_instruction.to_owned(),
+      source_instruction: source_instruction,
     })
   }
   pub fn new_frame(frame: Frame) -> Self {
@@ -112,17 +125,20 @@ macro_rules! impl_pop_value_ext {
 
 /// Layout of Stack
 ///
-/// | ..      |
-/// | Empty   | < Stack pointer
-/// | Local.. |
-/// | Local 2 |
-/// | Local 1 |
-/// | Args .. |
-/// | Args  2 |
-/// | Args  1 |
+/// | ..            |
+/// | Empty         | < Stack pointer
+/// | Locals..      |
+/// | Local 1       |
+/// | Local 0       |
+/// | Args..        |
+/// | Args  1       |
+/// | Args  0       | Indices are starts by zero.
+/// | ReturnPointer |
+/// | ...           | < Frame pointer
 pub struct Stack {
   stack_size: usize,
   entries: Vec<StackEntry>,
+  pushed_frame: usize,
   pub stack_ptr: usize,
   pub frame_ptr: usize,
 }
@@ -133,6 +149,7 @@ impl Stack {
     Stack {
       stack_size,
       entries,
+      pushed_frame: 0,
       stack_ptr: 0,
       frame_ptr: 0,
     }
@@ -178,7 +195,16 @@ impl Stack {
   ) -> Result<()> {
     let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
     self.push(StackEntry::new_frame(frame))?;
+    self.pushed_frame += 1;
     Ok(())
+  }
+
+  pub fn decrease_pushed_frame(&mut self) {
+    self.pushed_frame -= 1;
+  }
+
+  pub fn is_frame_ramained(&self) -> bool {
+    self.pushed_frame > 0
   }
 
   pub fn peek(&self) -> Option<&StackEntry> {
@@ -204,6 +230,7 @@ impl Stack {
 
   impl_pop!(pop_value, pop_value_ext, StackEntry::Value, Values, "Value");
   impl_pop!(pop_label, pop_label_ext, StackEntry::Label, Label, "Label");
+  impl_pop!(pop_frame, pop_frame_ext, StackEntry::Frame, Frame, "Frame");
 
   pub fn pop_until(&mut self, kind: &StackEntryKind) -> Result<Vec<StackEntry>> {
     let mut entry_buffer = vec![];
@@ -271,16 +298,14 @@ impl fmt::Debug for Stack {
     let (entries, _) = self.entries.split_at(self.stack_ptr);
     let entries = entries
       .iter()
-      .map(|x| format!("{:?}", x))
-      .collect::<Vec<String>>()
-      .join(", ");
-    write!(
-      f,
-      "{}, frame_ptr={:?}, stack_ptr={}",
-      format!("[{}]", entries),
-      self.frame_ptr,
-      self.stack_ptr,
-    )
+      .enumerate()
+      .map(|(i, entry)| match i + 1 {
+        x if x == self.frame_ptr => format!("F-> {:?}", entry),
+        x if x == self.stack_ptr => format!("S-> {:?}", entry),
+        _ => format!("    {:?}", entry),
+      })
+      .rev();
+    f.debug_list().entries(entries).finish()
   }
 }
 
@@ -301,16 +326,5 @@ mod tests {
     let value = StackEntry::new_value(Values::I32(2));
     stack.set(2, value).unwrap();
     assert_eq!(stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
-  }
-  #[test]
-  fn stack_print() {
-    let mut stack = Stack::new(8);
-    for i in 0..3 {
-      stack.push(StackEntry::new_value(Values::I32(i))).unwrap();
-    }
-    assert_eq!(
-      format!("{:?}", stack),
-      "[i32:0, i32:1, i32:2], frame_ptr=0, stack_ptr=3".to_owned()
-    );
   }
 }
