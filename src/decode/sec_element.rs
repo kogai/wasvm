@@ -1,17 +1,17 @@
 use super::decodable::Decodable;
-use inst::Instructions;
+use inst::Inst;
 use std::{f32, f64};
 use trap::{Result, Trap};
 
 #[derive(Debug)]
 pub struct Element {
   table_idx: u32,
-  offset: Instructions,
+  offset: u32,
   init: Vec<u32>, // vec of funcidx
 }
 
 impl Element {
-  pub fn new(table_idx: u32, offset: Instructions, init: Vec<u32>) -> Self {
+  pub fn new(table_idx: u32, offset: u32, init: Vec<u32>) -> Self {
     Element {
       table_idx,
       offset,
@@ -61,13 +61,12 @@ impl Decodable for Section {
     (0..count_of_section)
       .map(|_| {
         let table_idx = self.decode_leb128_u32()?;
-        let offset = self.decode_instructions()?;
+        let offset = match self.decode_instructions()?.first()? {
+          Inst::I32Const(v) => *v as u32,
+          x => unreachable!("Expected I32Const, got {:?}", x),
+        };
         let init = self.decode_function_idx()?;
-        Ok(Element::new(
-          table_idx,
-          Instructions::new(offset, vec![]),
-          init,
-        ))
+        Ok(Element::new(table_idx, offset, init))
       })
       .collect::<Result<Vec<_>>>()
   }

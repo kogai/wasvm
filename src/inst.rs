@@ -1,5 +1,4 @@
 use std::convert::Into;
-use std::fmt;
 use value::Values;
 use value_type::ValueTypes;
 
@@ -390,96 +389,5 @@ impl Inst {
       F64Const(n) => Values::F64(*n),
       _ => unreachable!("{:?}", self),
     }
-  }
-}
-
-#[derive(PartialEq, Clone)]
-pub struct Instructions {
-  pub ptr: u32,
-  expressions: Vec<Inst>,
-  // FIXME: May not need to store tables here, use instead of Store.
-  table_addresses: Vec<u32>,
-}
-
-impl fmt::Debug for Instructions {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(
-      f,
-      "[{}][{}]",
-      self
-        .expressions
-        .iter()
-        .map(|p| format!("{:?}", p))
-        .collect::<Vec<String>>()
-        .join(", "),
-      self.ptr,
-    )
-  }
-}
-
-impl Instructions {
-  pub fn new(expressions: Vec<Inst>, table_addresses: Vec<u32>) -> Self {
-    Instructions {
-      ptr: 0,
-      expressions,
-      table_addresses,
-    }
-  }
-
-  pub fn peek(&self) -> Option<&Inst> {
-    self.expressions.get(self.ptr as usize)
-  }
-
-  pub fn pop(&mut self) -> Option<Inst> {
-    let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
-    self.ptr += 1;
-    head
-  }
-
-  pub fn pop_runtime_type(&mut self) -> Option<ValueTypes> {
-    match self.pop()? {
-      Inst::RuntimeValue(ty) => Some(ty),
-      _ => None,
-    }
-  }
-
-  pub fn pop_ref(&mut self) -> Option<&Inst> {
-    let head = self.expressions.get(self.ptr as usize);
-    self.ptr += 1;
-    head
-  }
-
-  pub fn is_next_end(&self) -> bool {
-    match self.peek() {
-      Some(Inst::End) | None => true,
-      _ => false,
-    }
-  }
-
-  pub fn is_next_else(&self) -> bool {
-    match self.peek() {
-      Some(Inst::Else) => true,
-      _ => false,
-    }
-  }
-
-  pub fn is_next_end_or_else(&self) -> bool {
-    self.is_next_end() || self.is_next_else()
-  }
-
-  pub fn jump_to(&mut self, ptr_of_label: u32) {
-    self.ptr = ptr_of_label;
-  }
-
-  pub fn jump_to_last(&mut self) {
-    let last = self.expressions.len();
-    self.jump_to(last as u32);
-  }
-
-  pub fn get_table_address(&self) -> u32 {
-    *self
-      .table_addresses
-      .get(0)
-      .expect("Table address [0] not found")
   }
 }

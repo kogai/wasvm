@@ -1,6 +1,6 @@
-use function::FunctionType;
-use inst::Inst;
+use frame::Frame;
 use std::fmt;
+use store::Store;
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
@@ -13,35 +13,9 @@ pub struct Label {
 }
 
 #[derive(PartialEq, Clone)]
-pub struct Frame {
-  pub locals: Vec<Values>,
-  pub expressions: Vec<Inst>,
-  pub function_idx: usize,
-  pub return_ptr: usize,
-  pub table_addresses: Vec<u32>,
-  pub own_type: Option<FunctionType>,
-}
-
-impl fmt::Debug for Frame {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    // NOTE: Omit to present expressions and types would be worth :thinking: .
-    let locals = self
-      .locals
-      .iter()
-      .map(|x| format!("{:?}", x))
-      .collect::<Vec<String>>()
-      .join(", ");
-    write!(
-      f,
-      "[{}] locals:({}) return:{} table{:?}",
-      self.function_idx, locals, self.return_ptr, self.table_addresses
-    )
-  }
-}
-
-#[derive(PartialEq, Clone)]
 pub enum StackEntry {
   Empty,
+  Pointer(usize),
   Value(Values),
   Label(Label),
   Frame(Frame),
@@ -52,6 +26,7 @@ impl fmt::Debug for StackEntry {
     use self::StackEntry::*;
     let label = match self {
       Empty => "_".to_owned(),
+      Pointer(v) => format!("P(*{:?})", v),
       Value(v) => format!("{:?}", v),
       Label(v) => format!("{:?}", v),
       Frame(v) => format!("Frame({:?})", v),
@@ -87,7 +62,7 @@ impl StackEntry {
       source_instruction: source_instruction.to_owned(),
     })
   }
-  pub fn new_fram(frame: Frame) -> Self {
+  pub fn new_frame(frame: Frame) -> Self {
     StackEntry::Frame(frame)
   }
 
@@ -149,7 +124,7 @@ pub struct Stack {
   stack_size: usize,
   entries: Vec<StackEntry>,
   pub stack_ptr: usize,
-  pub frame_ptr: Vec<usize>,
+  pub frame_ptr: usize,
 }
 
 impl Stack {
@@ -159,7 +134,7 @@ impl Stack {
       stack_size,
       entries,
       stack_ptr: 0,
-      frame_ptr: vec![],
+      frame_ptr: 0,
     }
   }
 
@@ -168,7 +143,7 @@ impl Stack {
   }
 
   pub fn get(&self, ptr: usize) -> Option<StackEntry> {
-    self.entries.get(ptr).map(|rc| rc.to_owned())
+    self.entries.get(ptr).map(|x| x.to_owned())
   }
 
   pub fn set(&mut self, ptr: usize, entry: StackEntry) -> Result<()> {
@@ -192,6 +167,17 @@ impl Stack {
     while let Some(entry) = entries.pop() {
       self.push(entry)?;
     }
+    Ok(())
+  }
+
+  pub fn push_frame(
+    &mut self,
+    store: &mut Store,
+    function_idx: usize,
+    arguments: &mut Vec<Values>,
+  ) -> Result<()> {
+    let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
+    self.push(StackEntry::new_frame(frame))?;
     Ok(())
   }
 
@@ -266,18 +252,17 @@ impl Stack {
   // impl_pop_value_ext!(pop_value_ext_f64, Values::F64, f64);
 
   pub fn get_frame_ptr(&mut self) -> usize {
-    match self.frame_ptr.last() {
-      Some(p) => *p,
-      None => unreachable!("Frame pointer not found."),
-    }
+    self.frame_ptr
   }
+
   pub fn update_frame_ptr(&mut self) {
-    match self.frame_ptr.pop() {
-      Some(p) => {
-        self.stack_ptr = p;
+    match self.get(self.frame_ptr) {
+      Some(StackEntry::Pointer(p)) => {
+        self.stack_ptr = self.frame_ptr;
+        self.frame_ptr = p;
       }
-      None => unreachable!("Frame pointer not found."),
-    }
+      x => unreachable!("Expected Frame pointer, got {:?}", x),
+    };
   }
 }
 
@@ -291,10 +276,9 @@ impl fmt::Debug for Stack {
       .join(", ");
     write!(
       f,
-      "{}, frame={:?}, stack_size={}, stack_ptr={}",
+      "{}, frame_ptr={:?}, stack_ptr={}",
       format!("[{}]", entries),
       self.frame_ptr,
-      self.stack_size,
       self.stack_ptr,
     )
   }
@@ -326,7 +310,7 @@ mod tests {
     }
     assert_eq!(
       format!("{:?}", stack),
-      "[i32:0, i32:1, i32:2], frame=[], stack_size=8, stack_ptr=3".to_owned()
+      "[i32:0, i32:1, i32:2], frame_ptr=0, stack_ptr=3".to_owned()
     );
   }
 }

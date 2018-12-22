@@ -32,16 +32,23 @@ impl Store {
     }
   }
 
-  pub fn call(&self, fn_idx: usize) -> Option<&FunctionInstance> {
+  pub fn get_function_instance(&self, fn_idx: usize) -> Option<&FunctionInstance> {
     self.function_instances.get(fn_idx)
+  }
+
+  #[cfg(test)]
+  pub fn get_function_instances(&self) -> Vec<FunctionInstance> {
+    self.function_instances.to_owned()
   }
 
   pub fn get_function_type(&self, idx: u32) -> Option<&FunctionType> {
     self.function_types.get(idx as usize)
   }
 
-  pub fn get_function_type_by_instance(&self, idx: u32) -> Option<&FunctionType> {
-    let function_type = self.call(idx as usize).map(|x| x.get_function_type());
+  pub fn get_function_type_by_instance(&self, idx: u32) -> Option<FunctionType> {
+    let function_type = self
+      .get_function_instance(idx as usize)
+      .map(|x| x.get_function_type());
     match function_type {
       Some(Ok(x)) => Some(x),
       _ => None,
@@ -75,10 +82,6 @@ impl Store {
     self.table_instances.get(idx as usize)
   }
 
-  #[cfg(test)]
-  pub fn get_function_instance(&self) -> Vec<FunctionInstance> {
-    self.function_instances.to_owned()
-  }
   fn get_memory_instance(&self) -> &MemoryInstance {
     self
       .memory_instances

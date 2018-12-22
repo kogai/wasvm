@@ -1,7 +1,6 @@
 use decode::Byte;
-use function::FunctionType;
-use inst::{Inst, Instructions};
-use stack::Frame;
+use frame::Frame;
+use inst::Inst;
 use stack::{Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
@@ -109,7 +108,7 @@ impl Vm {
 
     fn get_local(&mut self, idx: u32) -> Result<()> {
         let frame_ptr = self.stack.get_frame_ptr();
-        let value = self.stack.get((idx as usize) + frame_ptr)?;
+        let value = self.stack.get((idx as usize) + frame_ptr + 1)?;
         self.stack.push(value)?;
         Ok(())
     }
@@ -117,7 +116,7 @@ impl Vm {
     fn set_local(&mut self, idx: u32) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        self.stack.set((idx as usize) + frame_ptr + 1, value)?;
         Ok(())
     }
 
@@ -125,7 +124,7 @@ impl Vm {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         self.stack.push(value.clone())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        self.stack.set((idx as usize) + frame_ptr + 1, value)?;
         Ok(())
     }
 
@@ -143,7 +142,7 @@ impl Vm {
 
     fn evaluate_instructions(
         &mut self,
-        instructions: &mut Instructions, /* TODO: Consider to use RefCell type. */
+        instructions: &mut Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
         use self::Inst::*;
         while !instructions.is_next_end_or_else() {
@@ -263,12 +262,13 @@ impl Vm {
                     instructions.jump_to(continuation);
                 }
                 Call(idx) => {
-                    let count_of_arguments = self.store.call(idx)?.get_arity();
+                    let count_of_arguments = self.store.get_function_instance(idx)?.get_arity();
                     let mut arguments = vec![];
                     for _ in 0..count_of_arguments {
                         arguments.push(self.stack.pop_value_ext());
                     }
-                    self.expand_frame(idx, arguments)?;
+                    self.stack
+                        .push_frame(&mut self.store, idx, &mut arguments)?;
                     self.evaluate()?;
                 }
                 CallIndirect(idx) => {
@@ -279,10 +279,10 @@ impl Vm {
                         return Err(Trap::UndefinedElement);
                     }
                     let address = table.get_function_address(i as u32)?;
-                    let arguments = {
+                    let mut arguments = {
                         let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
                         let expect_fn_ty = self.store.get_function_type(idx)?;
-                        if actual_fn_ty != expect_fn_ty {
+                        if &actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
                         }
                         let mut arg = vec![];
@@ -293,7 +293,8 @@ impl Vm {
                         arg
                     };
 
-                    self.expand_frame(address as usize, arguments)?;
+                    self.stack
+                        .push_frame(&mut self.store, address as usize, &mut arguments)?;
                     self.evaluate()?;
                 }
                 GetLocal(idx) => self.get_local(idx)?,
@@ -465,53 +466,6 @@ impl Vm {
         Ok(())
     }
 
-    fn evaluate_frame(
-        &mut self,
-        instructions: &mut Instructions,
-        function_type: FunctionType,
-    ) -> Result<()> {
-        self.evaluate_instructions(instructions)?;
-        let mut returns = vec![];
-        for _ in 0..function_type.get_return_count() {
-            returns.push(self.stack.pop_value()?);
-        }
-        self.stack.update_frame_ptr();
-        for v in returns.iter() {
-            self.stack.push(StackEntry::new_value(v.clone()))?;
-        }
-        Ok(())
-    }
-
-    fn expand_frame(&mut self, function_idx: usize, arguments: Vec<Values>) -> Result<()> {
-        let function_instance = self.store.call(function_idx)?;
-        let own_type = match function_instance.get_function_type() {
-            Ok(ref t) => Some(t.to_owned()),
-            _ => None,
-        };
-        let (expressions, local_types) = function_instance.call();
-        let mut locals = arguments;
-        for local in local_types {
-            let v = match local {
-                ValueTypes::I32 => Values::I32(0),
-                ValueTypes::I64 => Values::I64(0),
-                ValueTypes::F32 => Values::F32(0.0),
-                ValueTypes::F64 => Values::F64(0.0),
-                _ => unreachable!(),
-            };
-            locals.push(v);
-        }
-        let frame = StackEntry::new_fram(Frame {
-            locals,
-            expressions,
-            return_ptr: self.stack.stack_ptr,
-            function_idx,
-            table_addresses: vec![0],
-            own_type,
-        });
-        self.stack.push(frame)?;
-        Ok(())
-    }
-
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty() {
@@ -531,17 +485,28 @@ impl Vm {
                     return Ok(());
                 }
                 StackEntry::Frame(ref frame) => {
-                    self.stack.frame_ptr.push(frame.return_ptr);
-                    let frame = frame.clone();
-                    let own_type = frame.own_type;
-                    for local in frame.locals {
+                    let prev_frame_ptr = self.stack.frame_ptr;
+                    let count_of_returns = frame.own_type.get_return_count();
+                    self.stack.frame_ptr = frame.return_ptr;
+                    self.stack.push(StackEntry::Pointer(prev_frame_ptr))?;
+                    // TODO: May can drop cloning.
+                    let mut frame = frame.clone();
+                    for local in frame.get_locals().into_iter() {
                         self.stack.push(StackEntry::new_value(local))?;
                     }
-                    let mut insts =
-                        Instructions::new(frame.expressions, frame.table_addresses.to_owned());
-                    self.evaluate_frame(&mut insts, own_type?)?;
+                    self.evaluate_instructions(&mut frame)?;
+                    let mut returns = vec![];
+                    for _ in 0..count_of_returns {
+                        returns.push(self.stack.pop_value()?);
+                    }
+                    self.stack.update_frame_ptr();
+                    for v in returns.iter() {
+                        self.stack.push(StackEntry::new_value(v.clone()))?;
+                    }
                 }
-                StackEntry::Empty => unreachable!("Invalid popping stack."),
+                StackEntry::Empty | StackEntry::Pointer(_) => {
+                    unreachable!("Invalid popping stack.")
+                }
             }
         }
         if let Some(v) = result {
@@ -552,7 +517,10 @@ impl Vm {
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
-        let _ = self.expand_frame(start_idx, arguments);
+        let mut arguments = arguments;
+        let _ = self
+            .stack
+            .push_frame(&mut self.store, start_idx, &mut arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),
