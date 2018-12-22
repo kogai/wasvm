@@ -6,8 +6,17 @@ use value::Values;
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Debug, Clone)]
+pub enum LabelKind {
+  If,
+  LoopEnd,
+  LoopContinuation,
+  Block,
+  // Nop,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub struct Label {
-  source_instruction: String,
+  pub source_instruction: LabelKind,
   return_type: ValueTypes,
   pub continuation: u32,
 }
@@ -55,11 +64,15 @@ impl StackEntry {
   pub fn new_value(value: Values) -> Self {
     StackEntry::Value(value)
   }
-  pub fn new_label(continuation: u32, return_type: ValueTypes, source_instruction: &str) -> Self {
+  pub fn new_label(
+    continuation: u32,
+    return_type: ValueTypes,
+    source_instruction: LabelKind,
+  ) -> Self {
     StackEntry::Label(Label {
       continuation,
       return_type,
-      source_instruction: source_instruction.to_owned(),
+      source_instruction: source_instruction,
     })
   }
   pub fn new_frame(frame: Frame) -> Self {
