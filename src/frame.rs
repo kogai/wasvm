@@ -134,8 +134,8 @@ impl fmt::Debug for Frame {
       .join(", ");
     write!(
       f,
-      "locals:({}) ptr: {} return:{} table{:?}",
-      locals, self.ptr, self.return_ptr, self.table_addresses
+      "{:?} locals: ({}) ptr: {} return:{} table{:?}",
+      self.own_type, locals, self.ptr, self.return_ptr, self.table_addresses
     )
   }
 }

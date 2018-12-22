@@ -108,7 +108,8 @@ impl Vm {
 
     fn get_local(&mut self, idx: u32) -> Result<()> {
         let frame_ptr = self.stack.get_frame_ptr();
-        let value = self.stack.get((idx as usize) + frame_ptr + 1)?;
+        let index = (idx as usize) + frame_ptr + 1;
+        let value = self.stack.get(index)?;
         self.stack.push(value)?;
         Ok(())
     }
@@ -154,7 +155,17 @@ impl Vm {
                     let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
                     self.stack.push_entries(&mut buf_values)?;
                     frame.jump_to_last();
-                    return Ok(());
+                    break;
+                }
+                Else | End => {
+                    if frame.is_next_empty() {
+                        break;
+                    } else {
+                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        let label = self.stack.pop_label_ext();
+                        self.stack.push_entries(&mut buf_values)?;
+                        frame.jump_to(label.continuation);
+                    }
                 }
                 Nop => {}
                 Block(size) => {
@@ -172,17 +183,6 @@ impl Vm {
                     let block_type = frame.pop_runtime_type()?;
                     let label = StackEntry::new_label(continuation, block_type, "Block");
                     self.stack.push(label)?;
-                }
-                Else => unreachable!(),
-                End => {
-                    if frame.is_next_empty() {
-                        break;
-                    } else {
-                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
-                        let label = self.stack.pop_label_ext();
-                        self.stack.push_entries(&mut buf_values)?;
-                        frame.jump_to(label.continuation);
-                    }
                 }
                 Loop(size) => {
                     // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
@@ -218,22 +218,14 @@ impl Vm {
                     let cond = &self.stack.pop_value_ext();
                     let start_of_if = frame.ptr - 1;
                     let continuation = start_of_if + if_size + else_size;
-                    let start_of_else = start_of_if + if_size;
                     let block_type = frame.pop_runtime_type()?;
                     let label = StackEntry::new_label(continuation, block_type, "If");
                     self.stack.push(label)?;
                     if cond.is_truthy() {
-                        self.evaluate_instructions(frame)?;
                     } else {
+                        let start_of_else = start_of_if + if_size;
                         frame.jump_to(start_of_else);
-                        if else_size > 0 {
-                            self.evaluate_instructions(frame)?;
-                        }
                     }
-                    let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
-                    let _ = self.stack.pop_label(); // Drop if label.
-                    self.stack.push_entries(&mut buf_values)?;
-                    frame.jump_to(continuation);
                 }
                 Br(l) => {
                     let continuation = self.stack.jump_to_label(l)?;
@@ -266,6 +258,7 @@ impl Vm {
                     for _ in 0..arity {
                         arguments.push(self.stack.pop_value_ext());
                     }
+                    arguments.reverse();
                     self.stack
                         .push_frame(&mut self.store, idx, &mut arguments)?;
                     break;
@@ -294,7 +287,7 @@ impl Vm {
 
                     self.stack
                         .push_frame(&mut self.store, address as usize, &mut arguments)?;
-                    self.evaluate()?;
+                    break;
                 }
                 GetLocal(idx) => self.get_local(idx)?,
                 SetLocal(idx) => self.set_local(idx)?,
@@ -475,18 +468,24 @@ impl Vm {
                 }
             };
             match popped {
-                StackEntry::Value(ref v) => {
-                    result = Some(StackEntry::new_value(v.to_owned()));
-                    break;
+                StackEntry::Value(v) => {
+                    if self.stack.is_frame_ramained() {
+                        let mut values = vec![StackEntry::new_value(v)];
+                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
+                        values.append(&mut buf_values);
+                        let frame = self.stack.pop()?;
+                        self.stack.push_entries(&mut values)?;
+                        self.stack.push(frame)?;
+                    } else {
+                        result = Some(StackEntry::new_value(v.to_owned()));
+                        break;
+                    }
                 }
                 StackEntry::Label(_) => {
                     self.stack.push(popped)?;
                     return Ok(());
                 }
-                StackEntry::Frame(ref frame) => {
-                    // FIXME: May can drop cloning.
-                    let mut frame = frame.clone();
-
+                StackEntry::Frame(mut frame) => {
                     // NOTE: Only fresh frame should be initialization.
                     if frame.is_fresh() {
                         let prev_frame_ptr = self.stack.frame_ptr;
@@ -496,7 +495,6 @@ impl Vm {
                             self.stack.push(StackEntry::new_value(local))?;
                         }
                     }
-
                     self.evaluate_instructions(&mut frame)?;
 
                     let is_completed = frame.is_completed();
@@ -507,6 +505,7 @@ impl Vm {
                         self.stack.push(StackEntry::new_frame(next_frame))?;
                         continue;
                     }
+                    self.stack.decrease_pushed_frame();
                     let count_of_returns = frame.own_type.get_return_count();
                     let mut returns = vec![];
                     for _ in 0..count_of_returns {

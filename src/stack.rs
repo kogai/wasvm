@@ -112,17 +112,20 @@ macro_rules! impl_pop_value_ext {
 
 /// Layout of Stack
 ///
-/// | ..      |
-/// | Empty   | < Stack pointer
-/// | Local.. |
-/// | Local 2 |
-/// | Local 1 |
-/// | Args .. |
-/// | Args  2 |
-/// | Args  1 |
+/// | ..            |
+/// | Empty         | < Stack pointer
+/// | Locals..      |
+/// | Local 1       |
+/// | Local 0       |
+/// | Args..        |
+/// | Args  1       |
+/// | Args  0       | Indices are starts by zero.
+/// | ReturnPointer |
+/// | ...           | < Frame pointer
 pub struct Stack {
   stack_size: usize,
   entries: Vec<StackEntry>,
+  pushed_frame: usize,
   pub stack_ptr: usize,
   pub frame_ptr: usize,
 }
@@ -133,6 +136,7 @@ impl Stack {
     Stack {
       stack_size,
       entries,
+      pushed_frame: 0,
       stack_ptr: 0,
       frame_ptr: 0,
     }
@@ -178,7 +182,16 @@ impl Stack {
   ) -> Result<()> {
     let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
     self.push(StackEntry::new_frame(frame))?;
+    self.pushed_frame += 1;
     Ok(())
+  }
+
+  pub fn decrease_pushed_frame(&mut self) {
+    self.pushed_frame -= 1;
+  }
+
+  pub fn is_frame_ramained(&self) -> bool {
+    self.pushed_frame > 0
   }
 
   pub fn peek(&self) -> Option<&StackEntry> {
@@ -300,16 +313,5 @@ mod tests {
     let value = StackEntry::new_value(Values::I32(2));
     stack.set(2, value).unwrap();
     assert_eq!(stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
-  }
-  #[test]
-  fn stack_print() {
-    let mut stack = Stack::new(8);
-    for i in 0..3 {
-      stack.push(StackEntry::new_value(Values::I32(i))).unwrap();
-    }
-    assert_eq!(
-      format!("{:?}", stack),
-      "[i32:0, i32:1, i32:2], frame_ptr=0, stack_ptr=3".to_owned()
-    );
   }
 }
