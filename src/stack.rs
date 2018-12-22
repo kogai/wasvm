@@ -9,7 +9,7 @@ use value_type::ValueTypes;
 pub struct Label {
   source_instruction: String,
   return_type: ValueTypes,
-  continuation: u32,
+  pub continuation: u32,
 }
 
 #[derive(PartialEq, Clone)]
@@ -204,6 +204,7 @@ impl Stack {
 
   impl_pop!(pop_value, pop_value_ext, StackEntry::Value, Values, "Value");
   impl_pop!(pop_label, pop_label_ext, StackEntry::Label, Label, "Label");
+  impl_pop!(pop_frame, pop_frame_ext, StackEntry::Frame, Frame, "Frame");
 
   pub fn pop_until(&mut self, kind: &StackEntryKind) -> Result<Vec<StackEntry>> {
     let mut entry_buffer = vec![];
@@ -271,16 +272,14 @@ impl fmt::Debug for Stack {
     let (entries, _) = self.entries.split_at(self.stack_ptr);
     let entries = entries
       .iter()
-      .map(|x| format!("{:?}", x))
-      .collect::<Vec<String>>()
-      .join(", ");
-    write!(
-      f,
-      "{}, frame_ptr={:?}, stack_ptr={}",
-      format!("[{}]", entries),
-      self.frame_ptr,
-      self.stack_ptr,
-    )
+      .enumerate()
+      .map(|(i, entry)| match i + 1 {
+        x if x == self.frame_ptr => format!("F-> {:?}", entry),
+        x if x == self.stack_ptr => format!("S-> {:?}", entry),
+        _ => format!("    {:?}", entry),
+      })
+      .rev();
+    f.debug_list().entries(entries).finish()
   }
 }
 
