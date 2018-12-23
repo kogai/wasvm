@@ -461,16 +461,11 @@ impl Vm {
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty() {
-            let popped = match self.stack.pop() {
-                Ok(p) => p,
-                Err(_) => {
-                    break;
-                }
-            };
-            match popped {
-                StackEntry::Value(v) => {
+            let popped = self.stack.pop()?; //.map(|entry| *entry)?;
+            match *popped {
+                StackEntry::Value(ref v) => {
                     if self.stack.is_frame_ramained() {
-                        let mut values = vec![StackEntry::new_value(v)];
+                        let mut values = vec![popped.clone()];
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
                         values.append(&mut buf_values);
                         let frame = self.stack.pop()?;
@@ -482,7 +477,7 @@ impl Vm {
                     }
                 }
                 StackEntry::Label(_) => {
-                    self.stack.push(popped)?;
+                    self.stack.push(popped.clone())?;
                     return Ok(());
                 }
                 StackEntry::Frame(mut frame) => {

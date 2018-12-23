@@ -8,8 +8,8 @@ use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
 pub struct Frame {
-  locals: &'a Vec<Values>,
-  expressions: &'a Vec<Inst>,
+  locals: Vec<Values>,
+  expressions: Vec<Inst>,
   pub return_ptr: usize,
   // FIXME: May not need to store tables here, use instead of Store.
   pub table_addresses: Vec<u32>,
