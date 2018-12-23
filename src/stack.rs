@@ -218,12 +218,16 @@ impl Stack {
   }
 
   pub fn pop(&mut self) -> Result<StackEntry> {
+    self.pop_ref().map(|x| x.clone())
+  }
+
+  pub fn pop_ref(&mut self) -> Result<&StackEntry> {
     if self.stack_ptr <= 0 {
       return Err(Trap::StackUnderflow);
     }
     self.stack_ptr -= 1;
     match self.entries.get(self.stack_ptr) {
-      Some(entry) => Ok(entry.clone()),
+      Some(entry) => Ok(entry),
       None => Err(Trap::Unknown),
     }
   }
