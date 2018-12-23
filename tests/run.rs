@@ -186,18 +186,20 @@ impl_e2e!(test_br_only, "br");
 impl_e2e!(test_break_drop, "break-drop");
 impl_e2e!(test_call_indirect, "call_indirect");
 impl_e2e!(test_call, "call");
-impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
+impl_e2e!(test_comments, "comments");
 // impl_e2e!(test_conversions, "conversions");
+impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
 impl_e2e!(test_f32, "f32");
 impl_e2e!(test_f32_cmp, "f32_cmp");
 impl_e2e!(test_f32_bitwise, "f32_bitwise");
 impl_e2e!(test_f64, "f64");
+impl_e2e!(test_fac, "fac");
 impl_e2e!(test_f64_cmp, "f64_cmp");
 impl_e2e!(test_f64_bitwise, "f64_bitwise");
 impl_e2e!(test_float_exprs, "float_exprs");
 impl_e2e!(test_get_local, "get_local");
 impl_e2e!(test_set_local, "set_local");
-// impl_e2e!(test_tee_local, "tee_local");
+impl_e2e!(test_tee_local, "tee_local");
 // impl_e2e!(test_nop, "nop");
 // impl_e2e!(test_globals, "globals");
 impl_e2e!(test_i32, "i32");
