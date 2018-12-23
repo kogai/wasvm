@@ -66,11 +66,6 @@ impl Frame {
     self.expressions.get(*ptr as usize)
   }
 
-  // FIXME:
-  pub fn pop(&self) -> Option<Inst> {
-    self.pop_ref().map(|x| x.clone())
-  }
-
   pub fn pop_ref(&self) -> Option<&Inst> {
     let head = self.peek();
     self.ptr.borrow_mut().add_assign(1);
@@ -78,8 +73,8 @@ impl Frame {
   }
 
   pub fn pop_runtime_type(&self) -> Option<ValueTypes> {
-    match self.pop()? {
-      Inst::RuntimeValue(ty) => Some(ty),
+    match self.pop_ref()? {
+      Inst::RuntimeValue(ty) => Some(ty.to_owned()),
       _ => None,
     }
   }

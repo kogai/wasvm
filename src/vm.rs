@@ -11,7 +11,7 @@ macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let width = $load_data_width / 8;
         let i = $self.stack.pop_value_ext_i32() as u32;
-        let (effective_address, overflowed) = i.overflowing_add($offset);
+        let (effective_address, overflowed) = i.overflowing_add(*$offset);
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
@@ -29,7 +29,7 @@ macro_rules! impl_store_inst {
         let c = $self.stack.pop_value_ext();
         let width = $data_width / 8;
         let i = $self.stack.pop_value_ext_i32() as u32;
-        let (effective_address, overflowed) = i.overflowing_add($offset);
+        let (effective_address, overflowed) = i.overflowing_add(*$offset);
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
@@ -146,7 +146,7 @@ impl Vm {
         frame: &Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
         use self::Inst::*;
-        while let Some(expression) = frame.pop() {
+        while let Some(expression) = frame.pop_ref() {
             match expression {
                 Unreachable => {
                     unimplemented!("{:?}", expression);
@@ -249,18 +249,18 @@ impl Vm {
                     } else {
                         idx
                     };
-                    let continuation = self.stack.jump_to_label(*l)?;
+                    let continuation = self.stack.jump_to_label(l)?;
                     frame.jump_to(continuation);
                 }
                 Call(idx) => {
-                    let arity = self.store.get_function_instance(idx)?.get_arity();
+                    let arity = self.store.get_function_instance(*idx)?.get_arity();
                     let mut arguments = vec![];
                     for _ in 0..arity {
                         arguments.push(self.stack.pop_value_ext());
                     }
                     arguments.reverse();
                     self.stack
-                        .push_frame(&mut self.store, idx, &mut arguments)?;
+                        .push_frame(&mut self.store, *idx, &mut arguments)?;
                     break;
                 }
                 CallIndirect(idx) => {
@@ -273,7 +273,7 @@ impl Vm {
                     let address = table.get_function_address(i as u32)?;
                     let mut arguments = {
                         let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
-                        let expect_fn_ty = self.store.get_function_type(idx)?;
+                        let expect_fn_ty = self.store.get_function_type(*idx)?;
                         if &actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
                         }
@@ -289,15 +289,15 @@ impl Vm {
                         .push_frame(&mut self.store, address as usize, &mut arguments)?;
                     break;
                 }
-                GetLocal(idx) => self.get_local(idx)?,
-                SetLocal(idx) => self.set_local(idx)?,
-                TeeLocal(idx) => self.tee_local(idx)?,
-                GetGlobal(idx) => self.get_global(idx)?,
-                SetGlobal(idx) => self.set_global(idx)?,
-                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n)))?,
-                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n)))?,
-                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(n)))?,
-                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(n)))?,
+                GetLocal(idx) => self.get_local(*idx)?,
+                SetLocal(idx) => self.set_local(*idx)?,
+                TeeLocal(idx) => self.tee_local(*idx)?,
+                GetGlobal(idx) => self.get_global(*idx)?,
+                SetGlobal(idx) => self.set_global(*idx)?,
+                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
+                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
+                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,
+                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n)))?,
                 I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
                 I32Mul | I64Mul | F32Mul | F64Mul => impl_binary_inst!(self, mul),

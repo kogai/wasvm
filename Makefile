@@ -1,4 +1,4 @@
-SRC := $(wildcard ./*.rs)
+SRC := $(wildcard ./src/*.rs)
 TRIPLE := wasm32-unknown-unknown
 CSRCS=$(wildcard ./fixtures/*.c)
 WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
@@ -38,7 +38,6 @@ report.txt: target/release/main Makefile
 
 .PHONY: out.perf
 out.perf: target/release/main Makefile
-	# perf record --call-graph=lbr ./target/release/main dist/fib 30
 	perf record --call-graph=lbr ./target/release/main dist/fib 35
 	# perf record -g -- node run-wasm.js dist/fib subject 35
 	perf script > out.perf
