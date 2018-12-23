@@ -29,8 +29,8 @@ new_dist: $(TEST_CASES)
 $(TEST_CASES): $(WASTS)
 	wast2json testsuite/i32.wast -o dist/i32.json
 
-target/release/main: $(SRC)
-	cargo build --release
+target/release/main: $(SRC) Makefile
+	RUSTFLAGS='-g' cargo build --release
 
 .PHONY: report.txt
 report.txt: target/release/main Makefile
@@ -38,7 +38,8 @@ report.txt: target/release/main Makefile
 
 .PHONY: out.perf
 out.perf: target/release/main Makefile
-	perf record -g -- ./target/release/main dist/fib 35
+	# perf record --call-graph=lbr ./target/release/main dist/fib 30
+	perf record --call-graph=lbr ./target/release/main dist/fib 35
 	# perf record -g -- node run-wasm.js dist/fib subject 35
 	perf script > out.perf
 	# perf report -g fractal --sort dso,comm
