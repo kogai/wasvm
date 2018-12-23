@@ -13,12 +13,10 @@ use value_type::ValueTypes;
 pub struct Frame {
   locals: Vec<Values>,
   expressions: Rc<Vec<Inst>>,
-  pub return_ptr: usize,
-  // FIXME: May not need to store tables here, use instead of Store.
-  pub table_addresses: Vec<u32>,
   pub own_type: FunctionType,
   ptr: RefCell<u32>,
   last_ptr: u32,
+  pub return_ptr: usize,
 }
 
 impl Frame {
@@ -39,7 +37,6 @@ impl Frame {
       last_ptr: expressions.len() as u32,
       expressions,
       return_ptr,
-      table_addresses: vec![0],
       own_type,
       ptr: RefCell::new(0),
     })
@@ -115,10 +112,7 @@ impl Frame {
   }
 
   pub fn get_table_address(&self) -> u32 {
-    *self
-      .table_addresses
-      .get(0)
-      .expect("Table address [0] not found")
+    0
   }
 
   pub fn increment_return_ptr(&mut self) {
@@ -137,12 +131,11 @@ impl fmt::Debug for Frame {
       .join(", ");
     write!(
       f,
-      "{:?} locals: ({}) ptr: {} return:{} table{:?}",
+      "{:?} locals: ({}) ptr: {} return:{}",
       self.own_type,
       locals,
       self.ptr.borrow(),
       self.return_ptr,
-      self.table_addresses
     )
   }
 }
