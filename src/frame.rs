@@ -1,6 +1,8 @@
 use function::FunctionType;
 use inst::Inst;
+use std::cell::RefCell;
 use std::fmt;
+use std::ops::{AddAssign, Sub};
 use store::Store;
 use trap::Result;
 use value::Values;
@@ -14,7 +16,7 @@ pub struct Frame {
   // FIXME: May not need to store tables here, use instead of Store.
   pub table_addresses: Vec<u32>,
   pub own_type: FunctionType,
-  ptr: u32,
+  ptr: RefCell<u32>,
   last_ptr: u32,
 }
 
@@ -38,43 +40,44 @@ impl Frame {
       return_ptr,
       table_addresses: vec![0],
       own_type,
-      ptr: 0,
+      ptr: RefCell::new(0),
     })
   }
 
   pub fn is_completed(&self) -> bool {
-    self.ptr >= self.last_ptr
+    self.ptr.borrow().ge(&self.last_ptr)
   }
 
   pub fn is_fresh(&self) -> bool {
-    self.ptr == 0
+    self.ptr.borrow().eq(&0)
   }
 
+  // TODO: Consider to necessity of ownership.
   pub fn get_locals(&self) -> Vec<Values> {
     self.locals.to_owned()
   }
 
   pub fn get_start_of_label(&self) -> u32 {
-    self.ptr - 1
+    self.ptr.borrow().sub(1)
   }
 
   pub fn peek(&self) -> Option<&Inst> {
-    self.expressions.get(self.ptr as usize)
+    let ptr = self.ptr.borrow();
+    self.expressions.get(*ptr as usize)
   }
 
-  pub fn pop(&mut self) -> Option<Inst> {
-    let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
-    self.ptr += 1;
+  // FIXME:
+  pub fn pop(&self) -> Option<Inst> {
+    self.pop_ref().map(|x| x.clone())
+  }
+
+  pub fn pop_ref(&self) -> Option<&Inst> {
+    let head = self.peek();
+    self.ptr.borrow_mut().add_assign(1);
     head
   }
 
-  pub fn pop_ref(&mut self) -> Option<&Inst> {
-    let head = self.expressions.get(self.ptr as usize);
-    self.ptr += 1;
-    head
-  }
-
-  pub fn pop_runtime_type(&mut self) -> Option<ValueTypes> {
+  pub fn pop_runtime_type(&self) -> Option<ValueTypes> {
     match self.pop()? {
       Inst::RuntimeValue(ty) => Some(ty),
       _ => None,
@@ -106,11 +109,11 @@ impl Frame {
     self.is_next_end() || self.is_next_else()
   }
 
-  pub fn jump_to(&mut self, ptr_of_label: u32) {
-    self.ptr = ptr_of_label;
+  pub fn jump_to(&self, ptr_of_label: u32) {
+    self.ptr.replace(ptr_of_label);
   }
 
-  pub fn jump_to_last(&mut self) {
+  pub fn jump_to_last(&self) {
     let last_ptr = self.last_ptr;
     self.jump_to(last_ptr);
   }
@@ -139,7 +142,11 @@ impl fmt::Debug for Frame {
     write!(
       f,
       "{:?} locals: ({}) ptr: {} return:{} table{:?}",
-      self.own_type, locals, self.ptr, self.return_ptr, self.table_addresses
+      self.own_type,
+      locals,
+      self.ptr.borrow(),
+      self.return_ptr,
+      self.table_addresses
     )
   }
 }

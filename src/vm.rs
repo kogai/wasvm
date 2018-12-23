@@ -143,7 +143,7 @@ impl Vm {
 
     fn evaluate_instructions(
         &mut self,
-        frame: &mut Frame, /* TODO: Consider to use RefCell type. */
+        frame: &Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
         use self::Inst::*;
         while let Some(expression) = frame.pop() {
@@ -480,23 +480,23 @@ impl Vm {
                     self.stack.push(popped.clone())?;
                     return Ok(());
                 }
-                StackEntry::Frame(mut frame) => {
+                StackEntry::Frame(ref frame) => {
                     // NOTE: Only fresh frame should be initialization.
                     if frame.is_fresh() {
                         let prev_frame_ptr = self.stack.frame_ptr;
                         self.stack.frame_ptr = frame.return_ptr;
-                        self.stack.push(StackEntry::Pointer(prev_frame_ptr))?;
+                        self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
                         for local in frame.get_locals().into_iter() {
                             self.stack.push(StackEntry::new_value(local))?;
                         }
                     }
-                    self.evaluate_instructions(&mut frame)?;
+                    self.evaluate_instructions(frame)?;
 
                     let is_completed = frame.is_completed();
                     if !is_completed {
                         let mut next_frame = self.stack.pop_frame_ext();
                         next_frame.increment_return_ptr();
-                        self.stack.push(StackEntry::new_frame(frame))?;
+                        self.stack.push(popped.clone())?;
                         self.stack.push(StackEntry::new_frame(next_frame))?;
                         continue;
                     }
