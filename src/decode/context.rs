@@ -4,12 +4,13 @@ use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::TypeKind;
 use memory::MemoryInstance;
+use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 pub struct Context {
-  function_instances: Vec<FunctionInstance>,
+  function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
@@ -19,7 +20,7 @@ pub struct Context {
 
 impl Context {
   pub fn new(
-    function_instances: Vec<FunctionInstance>,
+    function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,

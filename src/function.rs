@@ -1,5 +1,6 @@
 use inst::Inst;
 use std::fmt;
+use std::rc::Rc;
 use trap::Result;
 use value_type::ValueTypes;
 
@@ -64,7 +65,7 @@ pub struct FunctionInstance {
   function_type: Result<FunctionType>,
   pub locals: Vec<ValueTypes>,
   type_idex: u32,
-  body: Vec<Inst>,
+  body: Rc<Vec<Inst>>,
 }
 
 impl fmt::Debug for FunctionInstance {
@@ -89,18 +90,18 @@ impl FunctionInstance {
     locals: Vec<ValueTypes>,
     type_idex: u32,
     body: Vec<Inst>,
-  ) -> Self {
-    FunctionInstance {
+  ) -> Rc<Self> {
+    Rc::new(FunctionInstance {
       export_name,
       function_type,
       locals,
       type_idex,
-      body,
-    }
+      body: Rc::new(body),
+    })
   }
 
-  pub fn call(&self) -> (Vec<Inst>, Vec<ValueTypes>) {
-    (self.body.to_owned(), self.locals.to_owned())
+  pub fn call(&self) -> (Rc<Vec<Inst>>, Vec<ValueTypes>) {
+    (self.body.clone(), self.locals.to_owned())
   }
 
   pub fn get_arity(&self) -> u32 {

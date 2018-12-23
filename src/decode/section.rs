@@ -8,6 +8,7 @@ use inst::Inst;
 use memory::{Limit, MemoryInstance};
 use std::convert::From;
 use std::default::Default;
+use std::rc::Rc;
 use store::Store;
 use trap::Result;
 use value_type::ValueTypes;
@@ -145,7 +146,7 @@ impl Section {
     functions: Vec<u32>,
     exports: Option<Vec<(String, usize)>>,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  ) -> Vec<FunctionInstance> {
+  ) -> Vec<Rc<FunctionInstance>> {
     codes
       .into_iter()
       .enumerate()

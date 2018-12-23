@@ -67,7 +67,10 @@ mod tests {
         let mut buffer = vec![];
         let _ = file.read_to_end(&mut buffer);
         let mut bc = Byte::new_with_drop(buffer);
-        assert_eq!(bc.decode().unwrap().get_function_instances(), $fn_insts);
+        assert_eq!(
+          bc.decode().unwrap().get_function_instance(0).unwrap(),
+          $fn_insts
+        );
       }
     };
   }
@@ -75,40 +78,40 @@ mod tests {
   test_decode!(
     decode_cons8,
     "dist/cons8",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
       vec![],
       0,
       vec![I32Const(42), End],
-    )]
+    )
   );
   test_decode!(
     decode_cons16,
     "dist/cons16",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
       vec![],
       0,
       vec![I32Const(255), End],
-    )]
+    )
   );
   test_decode!(
     decode_signed,
     "dist/signed",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
       vec![],
       0,
       vec![I32Const(-129), End],
-    )]
+    )
   );
   test_decode!(
     decode_add,
     "dist/add",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(
         vec![ValueTypes::I32, ValueTypes::I32],
@@ -117,12 +120,12 @@ mod tests {
       vec![],
       0,
       vec![GetLocal(1), GetLocal(0), I32Add, End],
-    )]
+    )
   );
   test_decode!(
     decode_sub,
     "dist/sub",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(
         vec![ValueTypes::I32],
@@ -131,12 +134,12 @@ mod tests {
       vec![],
       0,
       vec![I32Const(100), GetLocal(0), I32Sub, End],
-    )]
+    )
   );
   test_decode!(
     decode_add_five,
     "dist/add_five",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(
         vec![ValueTypes::I32, ValueTypes::I32],
@@ -145,13 +148,13 @@ mod tests {
       vec![],
       0,
       vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add, End],
-    )]
+    )
   );
 
   test_decode!(
     decode_if_lt,
     "dist/if_lt",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(
         vec![ValueTypes::I32],
@@ -185,12 +188,12 @@ mod tests {
         End,
         End,
       ],
-    )]
+    )
   );
   test_decode!(
     decode_if_gt,
     "dist/if_gt",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(
         vec![ValueTypes::I32],
@@ -224,12 +227,12 @@ mod tests {
         End,
         End,
       ],
-    )]
+    )
   );
   test_decode!(
     decode_if_eq,
     "dist/if_eq",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(
         vec![ValueTypes::I32],
@@ -251,12 +254,12 @@ mod tests {
         I32Add,
         End,
       ],
-    )]
+    )
   );
   test_decode!(
     decode_count,
     "dist/count",
-    vec![FunctionInstance::new(
+    FunctionInstance::new(
       Some("_subject".to_owned()),
       Ok(FunctionType::new(
         vec![ValueTypes::I32],
@@ -298,6 +301,6 @@ mod tests {
         I32Add,
         End,
       ],
-    )]
+    )
   );
 }

@@ -3,6 +3,7 @@ use inst::Inst;
 use std::cell::RefCell;
 use std::fmt;
 use std::ops::{AddAssign, Sub};
+use std::rc::Rc;
 use store::Store;
 use trap::Result;
 use value::Values;
@@ -11,7 +12,7 @@ use value_type::ValueTypes;
 #[derive(PartialEq, Clone)]
 pub struct Frame {
   locals: Vec<Values>,
-  expressions: Vec<Inst>,
+  expressions: Rc<Vec<Inst>>,
   pub return_ptr: usize,
   // FIXME: May not need to store tables here, use instead of Store.
   pub table_addresses: Vec<u32>,
