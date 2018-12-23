@@ -4,3 +4,6 @@
 [submodule "FlameGraph"]
 	path = FlameGraph
 	url = git@github.com:brendangregg/FlameGraph.git
+[submodule "life"]
+	path = life
+	url = git@github.com:perlin-network/life.git
