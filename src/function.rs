@@ -119,6 +119,14 @@ impl FunctionInstance {
     self.function_type.to_owned()
   }
 
+  pub fn get_return_count(&self) -> u32 {
+    self
+      .function_type
+      .to_owned()
+      .map(|ty| ty.get_return_count())
+      .unwrap_or(0)
+  }
+
   pub fn find(&self, key: &str) -> bool {
     // FIXME: When using function_index, we might get exported function by O(1).
     match &self.export_name {

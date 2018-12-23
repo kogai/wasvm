@@ -53,11 +53,7 @@ impl Frame {
   }
 
   pub fn get_return_count(&self) -> u32 {
-    self
-      .function_instance
-      .get_function_type()
-      .unwrap()
-      .get_return_count()
+    self.function_instance.get_return_count()
   }
 
   pub fn get_start_of_label(&self) -> u32 {
