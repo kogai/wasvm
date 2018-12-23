@@ -63,6 +63,7 @@ macro_rules! impl_e2e {
             if (field == "as-load-operand" && $file_name == "block")
               || (field == "as-load-operand" && $file_name == "call_indirect" && line == 581)
               || (field == "as-convert-operand" && $file_name == "call_indirect" && line == 589)
+              || (field == "as-load-operand" && $file_name == "call" && line == 301)
             {
               println!("Skip {}:{}, it seems not reasonable...", field, line);
               continue;
@@ -184,7 +185,7 @@ impl_e2e!(test_br_table, "br_table");
 impl_e2e!(test_br_only, "br");
 impl_e2e!(test_break_drop, "break-drop");
 impl_e2e!(test_call_indirect, "call_indirect");
-// impl_e2e!(test_call, "call");
+impl_e2e!(test_call, "call");
 impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
 // impl_e2e!(test_conversions, "conversions");
 impl_e2e!(test_f32, "f32");

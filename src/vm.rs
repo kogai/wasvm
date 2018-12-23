@@ -426,7 +426,7 @@ impl Vm {
                 }
 
                 I64ExtendUnsignI32 => impl_unary_inst!(self, extend_to_i64),
-
+                I64ExtendSignI32 => impl_unary_inst!(self, extend_to_i64),
                 F32ConvertSignI32 => impl_unary_inst!(self, convert_sign_i32_to_f32),
                 F32ConvertUnsignI32 => impl_unary_inst!(self, convert_unsign_i32_to_f32),
                 F64ConvertSignI64 => impl_unary_inst!(self, convert_sign_i64_to_f64),
@@ -448,8 +448,7 @@ impl Vm {
                 F64PromoteF32 => impl_unary_inst!(self, promote_f32_to_f64),
                 F32DemoteF64 => impl_unary_inst!(self, demote_f64_to_f32),
 
-                I64ExtendSignI32 | I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32
-                | F64ReinterpretI64 => {
+                I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
                     unimplemented!("{:?}", expression);
                 }
                 RuntimeValue(t) => unreachable!("{:?}", t),
