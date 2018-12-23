@@ -36,6 +36,18 @@ target/release/main: $(SRC)
 report.txt: target/release/main Makefile
 	perf stat -o report.txt ./target/release/main dist/fib 35
 
+.PHONY: out.perf
+out.perf: target/release/main Makefile
+	perf record -g -- ./target/release/main dist/fib 35
+	# perf record -g -- node run-wasm.js dist/fib subject 35
+	perf script > out.perf
+	# perf report -g fractal --sort dso,comm
+	# perf report -n --stdio
+
+out.svg: out.perf
+	./FlameGraph/stackcollapse-perf.pl out.perf > out.perf_folded
+	./FlameGraph/flamegraph.pl out.perf_folded > out.svg
+
 report.node.txt: Makefile
 	perf stat -o report.txt node run-wasm dist/fib 35
 

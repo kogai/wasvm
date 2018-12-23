@@ -1,3 +1,5 @@
 target/
 perf.*
-*.perf
+out.perf
+out.perf_folded
+out.svg
