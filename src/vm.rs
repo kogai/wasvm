@@ -185,8 +185,8 @@ impl Vm {
                     // [13]   Last Instruction      |
                     // [14] End                     |
                     // [15] NextInstruction         |  <- continuation
-                    let start_of_control = frame.ptr - 1;
-                    let continuation = start_of_control + size;
+                    let start_of_label = frame.get_start_of_label();
+                    let continuation = start_of_label + size;
                     let block_type = frame.pop_runtime_type()?;
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::Block);
                     self.stack.push(label)?;
@@ -201,13 +201,13 @@ impl Vm {
                     // [13]   Last Instruction      |
                     // [14] End                     | <- frame.ptr when evaluation of frame completed
                     //                              |    without any label instruction.
-                    let continuation = frame.ptr - 1;
-                    let ptr_of_end = size + continuation;
+                    let start_of_label = frame.get_start_of_label();
+                    let ptr_of_end = size + start_of_label;
                     let block_type = frame.pop_runtime_type()?;
                     let label_end =
                         StackEntry::new_label(ptr_of_end, block_type.clone(), LabelKind::LoopEnd);
                     let label_continue = StackEntry::new_label(
-                        continuation,
+                        start_of_label,
                         block_type,
                         LabelKind::LoopContinuation,
                     );
@@ -216,14 +216,14 @@ impl Vm {
                 }
                 If(if_size, else_size) => {
                     let cond = &self.stack.pop_value_ext();
-                    let start_of_if = frame.ptr - 1;
-                    let continuation = start_of_if + if_size + else_size;
+                    let start_of_label = frame.get_start_of_label();
+                    let continuation = start_of_label + if_size + else_size;
                     let block_type = frame.pop_runtime_type()?;
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::If);
                     self.stack.push(label)?;
                     if cond.is_truthy() {
                     } else {
-                        let start_of_else = start_of_if + if_size;
+                        let start_of_else = start_of_label + if_size;
                         frame.jump_to(start_of_else);
                     }
                 }

@@ -14,7 +14,7 @@ pub struct Frame {
   // FIXME: May not need to store tables here, use instead of Store.
   pub table_addresses: Vec<u32>,
   pub own_type: FunctionType,
-  pub ptr: u32,
+  ptr: u32,
   last_ptr: u32,
 }
 
@@ -52,6 +52,10 @@ impl Frame {
 
   pub fn get_locals(&self) -> Vec<Values> {
     self.locals.to_owned()
+  }
+
+  pub fn get_start_of_label(&self) -> u32 {
+    self.ptr - 1
   }
 
   pub fn peek(&self) -> Option<&Inst> {
