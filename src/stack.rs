@@ -98,7 +98,7 @@ impl StackEntry {
 }
 
 macro_rules! impl_pop {
-  ($name: ident, $name_ext: ident, $path: path, $ret: ty, $kind: expr) => {
+  ($name: ident, $name_ext: ident, $path: path, $ret: ty, $error_decription: expr) => {
     pub fn $name(&mut self) -> Result<$ret> {
       let value = self.pop()?;
       match *value {
@@ -113,7 +113,7 @@ macro_rules! impl_pop {
     pub fn $name_ext(&mut self) -> $ret {
       self
         .$name()
-        .expect(&format!("Expect to pop up {}, but got None", $kind))
+        .expect($error_decription)
     }
   };
 }
@@ -234,9 +234,27 @@ impl Stack {
     }
   }
 
-  impl_pop!(pop_value, pop_value_ext, StackEntry::Value, Values, "Value");
-  impl_pop!(pop_label, pop_label_ext, StackEntry::Label, Label, "Label");
-  impl_pop!(pop_frame, pop_frame_ext, StackEntry::Frame, Frame, "Frame");
+  impl_pop!(
+    pop_value,
+    pop_value_ext,
+    StackEntry::Value,
+    Values,
+    "Expect to pop up Value, but got None"
+  );
+  impl_pop!(
+    pop_label,
+    pop_label_ext,
+    StackEntry::Label,
+    Label,
+    "Expect to pop up Label, but got None"
+  );
+  impl_pop!(
+    pop_frame,
+    pop_frame_ext,
+    StackEntry::Frame,
+    Frame,
+    "Expect to pop up Frame, but got None"
+  );
 
   pub fn pop_until(&mut self, kind: &StackEntryKind) -> Result<Vec<Rc<StackEntry>>> {
     let mut entry_buffer = vec![];
