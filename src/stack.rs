@@ -197,7 +197,7 @@ impl Stack {
     &mut self,
     store: &mut Store,
     function_idx: usize,
-    arguments: &mut Vec<Values>,
+    arguments: Vec<Values>,
   ) -> Result<()> {
     let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
     self.push(StackEntry::new_frame(frame))?;

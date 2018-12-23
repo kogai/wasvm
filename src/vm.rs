@@ -255,8 +255,7 @@ impl Vm {
                         arguments.push(self.stack.pop_value_ext());
                     }
                     arguments.reverse();
-                    self.stack
-                        .push_frame(&mut self.store, *idx, &mut arguments)?;
+                    self.stack.push_frame(&mut self.store, *idx, arguments)?;
                     break;
                 }
                 CallIndirect(idx) => {
@@ -282,7 +281,7 @@ impl Vm {
                     };
 
                     self.stack
-                        .push_frame(&mut self.store, address as usize, &mut arguments)?;
+                        .push_frame(&mut self.store, address as usize, arguments)?;
                     break;
                 }
                 GetLocal(idx) => self.get_local(*idx)?,
@@ -481,6 +480,7 @@ impl Vm {
                         let prev_frame_ptr = self.stack.frame_ptr;
                         self.stack.frame_ptr = frame.return_ptr;
                         self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
+                        // TODO: Replace locals into push_entties().
                         for local in frame.get_locals().into_iter() {
                             self.stack.push(StackEntry::new_value(local))?;
                         }
@@ -496,7 +496,7 @@ impl Vm {
                         continue;
                     }
                     self.stack.decrease_pushed_frame();
-                    let count_of_returns = frame.own_type.get_return_count();
+                    let count_of_returns = frame.get_return_count();
                     let mut returns = vec![];
                     for _ in 0..count_of_returns {
                         returns.push(self.stack.pop_value()?);
@@ -519,10 +519,7 @@ impl Vm {
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         let start_idx = self.store.get_function_idx(invoke);
-        let mut arguments = arguments;
-        let _ = self
-            .stack
-            .push_frame(&mut self.store, start_idx, &mut arguments);
+        let _ = self.stack.push_frame(&mut self.store, start_idx, arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),

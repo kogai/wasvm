@@ -1,4 +1,4 @@
-use function::FunctionType;
+use function::FunctionInstance;
 use inst::Inst;
 use std::cell::RefCell;
 use std::fmt;
@@ -11,9 +11,8 @@ use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
 pub struct Frame {
-  locals: Vec<Values>,
-  expressions: Rc<Vec<Inst>>,
-  pub own_type: FunctionType,
+  arguments: Vec<Values>,
+  function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,
   last_ptr: u32,
   pub return_ptr: usize,
@@ -24,20 +23,15 @@ impl Frame {
     store: &mut Store,
     return_ptr: usize,
     function_idx: usize,
-    locals: &mut Vec<Values>,
+    arguments: Vec<Values>,
   ) -> Result<Self> {
     let function_instance = store.get_function_instance(function_idx)?;
-    let own_type = function_instance.get_function_type()?;
-    let (expressions, local_types) = function_instance.call();
-    for local in local_types {
-      locals.push(Values::from(local));
-    }
+    let last_ptr = function_instance.get_expressions_count() as u32;
     Ok(Frame {
-      locals: locals.to_owned(),
-      last_ptr: expressions.len() as u32,
-      expressions,
+      function_instance,
+      arguments,
+      last_ptr,
       return_ptr,
-      own_type,
       ptr: RefCell::new(0),
     })
   }
@@ -50,9 +44,20 @@ impl Frame {
     self.ptr.borrow().eq(&0)
   }
 
-  // TODO: Consider to necessity of ownership.
   pub fn get_locals(&self) -> Vec<Values> {
-    self.locals.to_owned()
+    let mut arguments = self.arguments.to_owned();
+    for local in &self.function_instance.locals {
+      arguments.push(Values::from(local));
+    }
+    arguments
+  }
+
+  pub fn get_return_count(&self) -> u32 {
+    self
+      .function_instance
+      .get_function_type()
+      .unwrap()
+      .get_return_count()
   }
 
   pub fn get_start_of_label(&self) -> u32 {
@@ -61,7 +66,7 @@ impl Frame {
 
   pub fn peek(&self) -> Option<&Inst> {
     let ptr = self.ptr.borrow();
-    self.expressions.get(*ptr as usize)
+    self.function_instance.get(*ptr as usize)
   }
 
   pub fn pop_ref(&self) -> Option<&Inst> {
@@ -102,6 +107,7 @@ impl Frame {
     self.is_next_end() || self.is_next_else()
   }
 
+  // TODO: Prefert to define as private function
   pub fn jump_to(&self, ptr_of_label: u32) {
     self.ptr.replace(ptr_of_label);
   }
@@ -124,7 +130,7 @@ impl fmt::Debug for Frame {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     // NOTE: Omit to present expressions and types would be worth :thinking: .
     let locals = self
-      .locals
+      .get_locals()
       .iter()
       .map(|x| format!("{:?}", x))
       .collect::<Vec<String>>()
@@ -132,7 +138,7 @@ impl fmt::Debug for Frame {
     write!(
       f,
       "{:?} locals: ({}) ptr: {} return:{}",
-      self.own_type,
+      self.function_instance.get_function_type(),
       locals,
       self.ptr.borrow(),
       self.return_ptr,

@@ -818,8 +818,8 @@ impl From<Values> for String {
   }
 }
 
-impl From<ValueTypes> for Values {
-  fn from(x: ValueTypes) -> Self {
+impl From<&ValueTypes> for Values {
+  fn from(x: &ValueTypes) -> Self {
     match x {
       ValueTypes::I32 => Values::I32(0),
       ValueTypes::I64 => Values::I64(0),

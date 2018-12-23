@@ -100,8 +100,12 @@ impl FunctionInstance {
     })
   }
 
-  pub fn call(&self) -> (Rc<Vec<Inst>>, Vec<ValueTypes>) {
-    (self.body.clone(), self.locals.to_owned())
+  pub fn get(&self, idx: usize) -> Option<&Inst> {
+    self.body.get(idx)
+  }
+
+  pub fn get_expressions_count(&self) -> usize {
+    self.body.len()
   }
 
   pub fn get_arity(&self) -> u32 {
