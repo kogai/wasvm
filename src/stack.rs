@@ -22,7 +22,7 @@ pub struct Label {
   pub continuation: u32,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq)]
 pub enum StackEntry {
   Empty,
   Pointer(usize),

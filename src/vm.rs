@@ -239,11 +239,7 @@ impl Vm {
                     };
                 }
                 BrTable(ref tables, ref idx) => {
-                    let i = if let Values::I32(i) = self.stack.pop_value_ext() {
-                        i as usize
-                    } else {
-                        unreachable!();
-                    };
+                    let i = self.stack.pop_value_ext_i32() as usize;
                     let l = if i < tables.len() {
                         tables.get(i)?
                     } else {
