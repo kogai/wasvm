@@ -144,7 +144,7 @@ pub struct Stack {
   stack_size: usize,
   entries: Vec<Rc<StackEntry>>,
   pushed_frame: usize,
-  pub stack_ptr: usize,
+  stack_ptr: usize,
   pub frame_ptr: usize,
 }
 
