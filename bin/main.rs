@@ -1,3 +1,5 @@
+#![feature(test)]
+extern crate test;
 extern crate wasvm;
 
 use std::env::args;
@@ -29,4 +31,26 @@ fn main() -> io::Result<()> {
     _ => unreachable!("Should specify file-name"),
   };
   Ok(())
+}
+
+pub fn add_two(x: usize) -> usize {
+  x + 2
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use test::Bencher;
+
+  #[bench]
+  fn bench_fib(b: &mut Bencher) {
+    b.iter(|| {
+      let mut file = fs::File::open("./dist/fib.wasm").unwrap();
+      let mut buffer = vec![];
+      file.read_to_end(&mut buffer).unwrap();
+      let mut vm = Vm::new(buffer).unwrap();
+      // assert_eq!(vm.run("_subject", vec![Values::I32(35)]), "i32:9227465");
+      assert_eq!(vm.run("_subject", vec![Values::I32(10)]), "i32:55");
+    });
+  }
 }
