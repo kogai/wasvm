@@ -6,7 +6,9 @@ use value_type::ValueTypes;
 #[derive(PartialEq, Clone)]
 pub struct FunctionType {
   parameters: Vec<ValueTypes>,
+  parameters_count: usize,
   returns: Vec<ValueTypes>,
+  returns_count: usize,
 }
 
 impl fmt::Debug for FunctionType {
@@ -33,13 +35,11 @@ impl fmt::Debug for FunctionType {
 impl FunctionType {
   pub fn new(parameters: Vec<ValueTypes>, returns: Vec<ValueTypes>) -> Self {
     FunctionType {
+      parameters_count: parameters.len(),
+      returns_count: returns.len(),
       parameters,
       returns,
     }
-  }
-
-  pub fn get_return_count(&self) -> u32 {
-    self.returns.len() as u32
   }
 
   #[allow(dead_code)]
@@ -50,11 +50,9 @@ impl FunctionType {
   pub fn get_return_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
     &self.returns
   }
-}
 
-impl FunctionType {
   pub fn get_arity(&self) -> u32 {
-    self.parameters.len() as u32
+    self.parameters_count as u32
   }
 }
 
@@ -110,7 +108,7 @@ impl FunctionInstance {
   }
 
   pub fn get_arity(&self) -> u32 {
-    self.function_type.get_arity()
+    self.function_type.parameters_count as u32
   }
 
   pub fn get_function_type(&self) -> FunctionType {
@@ -118,7 +116,7 @@ impl FunctionInstance {
   }
 
   pub fn get_return_count(&self) -> u32 {
-    self.function_type.get_return_count()
+    self.function_type.returns_count as u32
   }
 
   pub fn find(&self, key: &str) -> bool {
