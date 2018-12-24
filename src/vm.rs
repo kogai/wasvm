@@ -459,20 +459,15 @@ impl Vm {
             match *popped {
                 StackEntry::Value(ref v) => {
                     if self.stack.is_frame_ramained() {
-                        let mut values = vec![popped.clone()];
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
-                        values.append(&mut buf_values);
                         let frame = self.stack.pop()?;
-                        self.stack.push_entries(&mut values)?;
+                        self.stack.push(popped.clone())?;
+                        self.stack.push_entries(&mut buf_values)?;
                         self.stack.push(frame)?;
                     } else {
                         result = Some(StackEntry::new_value(v.to_owned()));
                         break;
                     }
-                }
-                StackEntry::Label(_) => {
-                    self.stack.push(popped.clone())?;
-                    return Ok(());
                 }
                 StackEntry::Frame(ref frame) => {
                     // NOTE: Only fresh frame should be initialization.
@@ -506,7 +501,7 @@ impl Vm {
                         self.stack.push(StackEntry::new_value(v.clone()))?;
                     }
                 }
-                StackEntry::Empty | StackEntry::Pointer(_) => {
+                StackEntry::Empty | StackEntry::Label(_) | StackEntry::Pointer(_) => {
                     unreachable!("Invalid popping stack.")
                 }
             }
