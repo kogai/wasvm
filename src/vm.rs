@@ -254,7 +254,6 @@ impl Vm {
                     for _ in 0..arity {
                         arguments.push(self.stack.pop_value_ext());
                     }
-                    arguments.reverse();
                     self.stack.push_frame(&mut self.store, *idx, arguments)?;
                     break;
                 }
@@ -276,7 +275,6 @@ impl Vm {
                         for _ in 0..actual_fn_ty.get_arity() {
                             arg.push(self.stack.pop_value_ext());
                         }
-                        arg.reverse();
                         arg
                     };
 
@@ -475,10 +473,7 @@ impl Vm {
                         let prev_frame_ptr = self.stack.frame_ptr;
                         self.stack.frame_ptr = frame.return_ptr;
                         self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
-                        // TODO: Replace locals into push_entties().
-                        for local in frame.get_locals().into_iter() {
-                            self.stack.push(StackEntry::new_value(local))?;
-                        }
+                        self.stack.push_entries(&mut frame.get_local_variables())?;
                     }
                     self.evaluate_instructions(frame)?;
 
@@ -513,6 +508,8 @@ impl Vm {
     }
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+        let mut arguments = arguments.to_owned();
+        arguments.reverse();
         let start_idx = self.store.get_function_idx(invoke);
         let _ = self.stack.push_frame(&mut self.store, start_idx, arguments);
         match self.evaluate() {

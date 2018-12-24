@@ -130,16 +130,27 @@ macro_rules! impl_pop_value_ext {
 
 /// Layout of Stack
 ///
+/// +---------------+
 /// | ..            |
-/// | Empty         | < Stack pointer
-/// | Locals..      |
+/// +---------------+
+/// | Empty*        | < Stack pointer
+/// +---------------+
+/// | Locals*       |
+/// +---------------+
 /// | Local 1       |
+/// +---------------+
 /// | Local 0       |
-/// | Args..        |
+/// +---------------+
+/// | Args*         |
+/// +---------------+
 /// | Args  1       |
+/// +---------------+
 /// | Args  0       | Indices are starts by zero.
+/// +---------------+
 /// | ReturnPointer |
+/// +---------------+
 /// | ...           | < Frame pointer
+/// +---------------+
 pub struct Stack {
   stack_size: usize,
   entries: Vec<Rc<StackEntry>>,
@@ -185,6 +196,17 @@ impl Stack {
     Ok(())
   }
 
+  /// From entries [2,1,0,..];
+  /// To stack below.
+  /// +---------+
+  /// | Val*    |
+  /// +---------+
+  /// | Val2    |
+  /// +---------+
+  /// | Val1    |
+  /// +---------+
+  /// | Val0    |
+  /// +---------+
   pub fn push_entries(&mut self, entries: &mut Vec<Rc<StackEntry>>) -> Result<()> {
     while let Some(entry) = entries.pop() {
       self.push(entry)?;

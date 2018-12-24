@@ -1,6 +1,7 @@
 use function::FunctionInstance;
 use inst::Inst;
-use std::cell::RefCell;
+use stack::StackEntry;
+use std::cell::{RefCell, RefMut};
 use std::fmt;
 use std::ops::{AddAssign, Sub};
 use std::rc::Rc;
@@ -11,7 +12,7 @@ use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
 pub struct Frame {
-  arguments: Vec<Values>,
+  local_variables: RefCell<Vec<Rc<StackEntry>>>,
   function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,
   last_ptr: u32,
@@ -28,8 +29,8 @@ impl Frame {
     let function_instance = store.get_function_instance(function_idx)?;
     let last_ptr = function_instance.get_expressions_count() as u32;
     Ok(Frame {
+      local_variables: Frame::derive_local_variables(arguments, function_instance.clone()),
       function_instance,
-      arguments,
       last_ptr,
       return_ptr,
       ptr: RefCell::new(0),
@@ -44,12 +45,25 @@ impl Frame {
     self.ptr.borrow().eq(&0)
   }
 
-  pub fn get_locals(&self) -> Vec<Values> {
-    let mut arguments = self.arguments.to_owned();
-    for local in &self.function_instance.locals {
-      arguments.push(Values::from(local));
+  pub fn get_local_variables(&self) -> RefMut<Vec<Rc<StackEntry>>> {
+    self.local_variables.borrow_mut()
+  }
+
+  // From: args[2,1]; locals[3,4]
+  // TO: [4,3,2,1]
+  fn derive_local_variables(
+    arguments: Vec<Values>,
+    function_instance: Rc<FunctionInstance>,
+  ) -> RefCell<Vec<Rc<StackEntry>>> {
+    let mut local_variables: Vec<Rc<StackEntry>> = vec![];
+    let mut locals = function_instance.locals.clone();
+    while let Some(local) = locals.pop() {
+      local_variables.push(StackEntry::new_value(Values::from(local)));
     }
-    arguments
+    for arg in arguments.into_iter() {
+      local_variables.push(StackEntry::new_value(arg));
+    }
+    RefCell::new(local_variables)
   }
 
   pub fn get_return_count(&self) -> u32 {
@@ -126,7 +140,8 @@ impl fmt::Debug for Frame {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     // NOTE: Omit to present expressions and types would be worth :thinking: .
     let locals = self
-      .get_locals()
+      .local_variables
+      .borrow()
       .iter()
       .map(|x| format!("{:?}", x))
       .collect::<Vec<String>>()
