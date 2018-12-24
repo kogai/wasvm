@@ -1,6 +1,10 @@
-use function::FunctionType;
+use function::FunctionInstance;
 use inst::Inst;
+use stack::StackEntry;
+use std::cell::{RefCell, RefMut};
 use std::fmt;
+use std::ops::{AddAssign, Sub};
+use std::rc::Rc;
 use store::Store;
 use trap::Result;
 use value::Values;
@@ -8,14 +12,11 @@ use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
 pub struct Frame {
-  pub locals: Vec<Values>,
-  pub expressions: Vec<Inst>,
-  pub return_ptr: usize,
-  // FIXME: May not need to store tables here, use instead of Store.
-  pub table_addresses: Vec<u32>,
-  pub own_type: FunctionType,
-  pub ptr: u32,
+  local_variables: RefCell<Vec<Rc<StackEntry>>>,
+  function_instance: Rc<FunctionInstance>,
+  ptr: RefCell<u32>,
   last_ptr: u32,
+  pub return_ptr: usize,
 }
 
 impl Frame {
@@ -23,56 +24,70 @@ impl Frame {
     store: &mut Store,
     return_ptr: usize,
     function_idx: usize,
-    locals: &mut Vec<Values>,
+    arguments: Vec<Values>,
   ) -> Result<Self> {
     let function_instance = store.get_function_instance(function_idx)?;
-    let own_type = function_instance.get_function_type()?;
-    let (expressions, local_types) = function_instance.call();
-    for local in local_types {
-      locals.push(Values::from(local));
-    }
+    let last_ptr = function_instance.get_expressions_count() as u32;
     Ok(Frame {
-      locals: locals.to_owned(),
-      last_ptr: expressions.len() as u32,
-      expressions,
+      local_variables: Frame::derive_local_variables(arguments, function_instance.clone()),
+      function_instance,
+      last_ptr,
       return_ptr,
-      table_addresses: vec![0],
-      own_type,
-      ptr: 0,
+      ptr: RefCell::new(0),
     })
   }
 
   pub fn is_completed(&self) -> bool {
-    self.ptr >= self.last_ptr
+    self.ptr.borrow().ge(&self.last_ptr)
   }
 
   pub fn is_fresh(&self) -> bool {
-    self.ptr == 0
+    self.ptr.borrow().eq(&0)
   }
 
-  pub fn get_locals(&self) -> Vec<Values> {
-    self.locals.to_owned()
+  pub fn get_local_variables(&self) -> RefMut<Vec<Rc<StackEntry>>> {
+    self.local_variables.borrow_mut()
+  }
+
+  // From: args[2,1]; locals[3,4]
+  // TO: [4,3,2,1]
+  fn derive_local_variables(
+    arguments: Vec<Values>,
+    function_instance: Rc<FunctionInstance>,
+  ) -> RefCell<Vec<Rc<StackEntry>>> {
+    let mut local_variables: Vec<Rc<StackEntry>> = vec![];
+    let mut locals = function_instance.locals.clone();
+    while let Some(local) = locals.pop() {
+      local_variables.push(StackEntry::new_value(Values::from(local)));
+    }
+    for arg in arguments.into_iter() {
+      local_variables.push(StackEntry::new_value(arg));
+    }
+    RefCell::new(local_variables)
+  }
+
+  pub fn get_return_count(&self) -> u32 {
+    self.function_instance.get_return_count()
+  }
+
+  pub fn get_start_of_label(&self) -> u32 {
+    self.ptr.borrow().sub(1)
   }
 
   pub fn peek(&self) -> Option<&Inst> {
-    self.expressions.get(self.ptr as usize)
+    let ptr = self.ptr.borrow();
+    self.function_instance.get(*ptr as usize)
   }
 
-  pub fn pop(&mut self) -> Option<Inst> {
-    let head = self.expressions.get(self.ptr as usize).map(|x| x.clone());
-    self.ptr += 1;
+  pub fn pop_ref(&self) -> Option<&Inst> {
+    let head = self.peek();
+    self.ptr.borrow_mut().add_assign(1);
     head
   }
 
-  pub fn pop_ref(&mut self) -> Option<&Inst> {
-    let head = self.expressions.get(self.ptr as usize);
-    self.ptr += 1;
-    head
-  }
-
-  pub fn pop_runtime_type(&mut self) -> Option<ValueTypes> {
-    match self.pop()? {
-      Inst::RuntimeValue(ty) => Some(ty),
+  pub fn pop_runtime_type(&self) -> Option<ValueTypes> {
+    match self.pop_ref()? {
+      Inst::RuntimeValue(ty) => Some(ty.to_owned()),
       _ => None,
     }
   }
@@ -102,20 +117,18 @@ impl Frame {
     self.is_next_end() || self.is_next_else()
   }
 
-  pub fn jump_to(&mut self, ptr_of_label: u32) {
-    self.ptr = ptr_of_label;
+  // TODO: Prefert to define as private function
+  pub fn jump_to(&self, ptr_of_label: u32) {
+    self.ptr.replace(ptr_of_label);
   }
 
-  pub fn jump_to_last(&mut self) {
+  pub fn jump_to_last(&self) {
     let last_ptr = self.last_ptr;
     self.jump_to(last_ptr);
   }
 
   pub fn get_table_address(&self) -> u32 {
-    *self
-      .table_addresses
-      .get(0)
-      .expect("Table address [0] not found")
+    0
   }
 
   pub fn increment_return_ptr(&mut self) {
@@ -127,15 +140,19 @@ impl fmt::Debug for Frame {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     // NOTE: Omit to present expressions and types would be worth :thinking: .
     let locals = self
-      .locals
+      .local_variables
+      .borrow()
       .iter()
       .map(|x| format!("{:?}", x))
       .collect::<Vec<String>>()
       .join(", ");
     write!(
       f,
-      "{:?} locals: ({}) ptr: {} return:{} table{:?}",
-      self.own_type, locals, self.ptr, self.return_ptr, self.table_addresses
+      "{:?} locals: ({}) ptr: {} return:{}",
+      self.function_instance.get_function_type(),
+      locals,
+      self.ptr.borrow(),
+      self.return_ptr,
     )
   }
 }

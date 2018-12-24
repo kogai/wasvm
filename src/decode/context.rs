@@ -4,12 +4,13 @@ use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::TypeKind;
 use memory::MemoryInstance;
+use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 pub struct Context {
-  function_instances: Vec<FunctionInstance>,
+  function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
@@ -19,7 +20,7 @@ pub struct Context {
 
 impl Context {
   pub fn new(
-    function_instances: Vec<FunctionInstance>,
+    function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,
@@ -52,7 +53,7 @@ impl Context {
       .function_instances
       .iter()
       .map(|function_instance| {
-        let function_type = function_instance.get_function_type()?;
+        let function_type = function_instance.get_function_type();
         let expect_return_type = function_type.get_return_types();
         let actual_return_type = self.reduction_instructions(function_instance, &function_type)?;
         if expect_return_type != &actual_return_type {

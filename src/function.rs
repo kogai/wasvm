@@ -1,12 +1,14 @@
 use inst::Inst;
 use std::fmt;
-use trap::Result;
+use std::rc::Rc;
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
 pub struct FunctionType {
   parameters: Vec<ValueTypes>,
+  parameters_count: usize,
   returns: Vec<ValueTypes>,
+  returns_count: usize,
 }
 
 impl fmt::Debug for FunctionType {
@@ -33,13 +35,11 @@ impl fmt::Debug for FunctionType {
 impl FunctionType {
   pub fn new(parameters: Vec<ValueTypes>, returns: Vec<ValueTypes>) -> Self {
     FunctionType {
+      parameters_count: parameters.len(),
+      returns_count: returns.len(),
       parameters,
       returns,
     }
-  }
-
-  pub fn get_return_count(&self) -> u32 {
-    self.returns.len() as u32
   }
 
   #[allow(dead_code)]
@@ -50,21 +50,19 @@ impl FunctionType {
   pub fn get_return_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
     &self.returns
   }
-}
 
-impl FunctionType {
   pub fn get_arity(&self) -> u32 {
-    self.parameters.len() as u32
+    self.parameters_count as u32
   }
 }
 
 #[derive(PartialEq, Clone)]
 pub struct FunctionInstance {
   export_name: Option<String>,
-  function_type: Result<FunctionType>,
+  function_type: FunctionType,
   pub locals: Vec<ValueTypes>,
   type_idex: u32,
-  body: Vec<Inst>,
+  body: Rc<Vec<Inst>>,
 }
 
 impl fmt::Debug for FunctionInstance {
@@ -74,44 +72,51 @@ impl fmt::Debug for FunctionInstance {
       Some(ref n) => n,
       _ => "_",
     };
-    let function_type = match self.function_type {
-      Ok(ref f) => format!("{:?}", f),
-      Err(ref err) => format!("{:?}", err),
-    };
-    write!(f, "[{}] {}: {}", self.type_idex, name, function_type)
+    write!(
+      f,
+      "[{}] {}: {}",
+      self.type_idex,
+      name,
+      format!("{:?}", self.function_type)
+    )
   }
 }
 
 impl FunctionInstance {
   pub fn new(
     export_name: Option<String>,
-    function_type: Result<FunctionType>,
+    function_type: FunctionType,
     locals: Vec<ValueTypes>,
     type_idex: u32,
     body: Vec<Inst>,
-  ) -> Self {
-    FunctionInstance {
+  ) -> Rc<Self> {
+    Rc::new(FunctionInstance {
       export_name,
       function_type,
       locals,
       type_idex,
-      body,
-    }
+      body: Rc::new(body),
+    })
   }
 
-  pub fn call(&self) -> (Vec<Inst>, Vec<ValueTypes>) {
-    (self.body.to_owned(), self.locals.to_owned())
+  pub fn get(&self, idx: usize) -> Option<&Inst> {
+    self.body.get(idx)
+  }
+
+  pub fn get_expressions_count(&self) -> usize {
+    self.body.len()
   }
 
   pub fn get_arity(&self) -> u32 {
-    match self.function_type {
-      Ok(ref f) => f.get_arity(),
-      _ => 0,
-    }
+    self.function_type.parameters_count as u32
   }
 
-  pub fn get_function_type(&self) -> Result<FunctionType> {
+  pub fn get_function_type(&self) -> FunctionType {
     self.function_type.to_owned()
+  }
+
+  pub fn get_return_count(&self) -> u32 {
+    self.function_type.returns_count as u32
   }
 
   pub fn find(&self, key: &str) -> bool {

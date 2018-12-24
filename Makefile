@@ -1,4 +1,4 @@
-SRC := $(wildcard ./*.rs)
+SRC := $(wildcard ./src/*.rs)
 TRIPLE := wasm32-unknown-unknown
 CSRCS=$(wildcard ./fixtures/*.c)
 WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
@@ -29,12 +29,24 @@ new_dist: $(TEST_CASES)
 $(TEST_CASES): $(WASTS)
 	wast2json testsuite/i32.wast -o dist/i32.json
 
-target/release/main: $(SRC)
-	cargo build --release
+target/release/main: $(SRC) Makefile
+	RUSTFLAGS='-g' cargo build --release
 
 .PHONY: report.txt
 report.txt: target/release/main Makefile
 	perf stat -o report.txt ./target/release/main dist/fib 35
+
+.PHONY: out.perf
+out.perf: target/release/main Makefile
+	perf record --call-graph=lbr ./target/release/main dist/fib 35
+	# perf record -g -- node run-wasm.js dist/fib subject 35
+	perf script > out.perf
+	# perf report -g fractal --sort dso,comm
+	# perf report -n --stdio
+
+out.svg: out.perf
+	./FlameGraph/stackcollapse-perf.pl out.perf > out.perf_folded
+	./FlameGraph/flamegraph.pl out.perf_folded > out.svg
 
 report.node.txt: Makefile
 	perf stat -o report.txt node run-wasm dist/fib 35

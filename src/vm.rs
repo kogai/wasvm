@@ -11,7 +11,7 @@ macro_rules! impl_load_inst {
     ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
         let width = $load_data_width / 8;
         let i = $self.stack.pop_value_ext_i32() as u32;
-        let (effective_address, overflowed) = i.overflowing_add($offset);
+        let (effective_address, overflowed) = i.overflowing_add(*$offset);
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
@@ -29,7 +29,7 @@ macro_rules! impl_store_inst {
         let c = $self.stack.pop_value_ext();
         let width = $data_width / 8;
         let i = $self.stack.pop_value_ext_i32() as u32;
-        let (effective_address, overflowed) = i.overflowing_add($offset);
+        let (effective_address, overflowed) = i.overflowing_add(*$offset);
         if overflowed {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
@@ -143,10 +143,10 @@ impl Vm {
 
     fn evaluate_instructions(
         &mut self,
-        frame: &mut Frame, /* TODO: Consider to use RefCell type. */
+        frame: &Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
         use self::Inst::*;
-        while let Some(expression) = frame.pop() {
+        while let Some(expression) = frame.pop_ref() {
             match expression {
                 Unreachable => {
                     unimplemented!("{:?}", expression);
@@ -185,8 +185,8 @@ impl Vm {
                     // [13]   Last Instruction      |
                     // [14] End                     |
                     // [15] NextInstruction         |  <- continuation
-                    let start_of_control = frame.ptr - 1;
-                    let continuation = start_of_control + size;
+                    let start_of_label = frame.get_start_of_label();
+                    let continuation = start_of_label + size;
                     let block_type = frame.pop_runtime_type()?;
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::Block);
                     self.stack.push(label)?;
@@ -201,13 +201,13 @@ impl Vm {
                     // [13]   Last Instruction      |
                     // [14] End                     | <- frame.ptr when evaluation of frame completed
                     //                              |    without any label instruction.
-                    let continuation = frame.ptr - 1;
-                    let ptr_of_end = size + continuation;
+                    let start_of_label = frame.get_start_of_label();
+                    let ptr_of_end = size + start_of_label;
                     let block_type = frame.pop_runtime_type()?;
                     let label_end =
                         StackEntry::new_label(ptr_of_end, block_type.clone(), LabelKind::LoopEnd);
                     let label_continue = StackEntry::new_label(
-                        continuation,
+                        start_of_label,
                         block_type,
                         LabelKind::LoopContinuation,
                     );
@@ -216,14 +216,14 @@ impl Vm {
                 }
                 If(if_size, else_size) => {
                     let cond = &self.stack.pop_value_ext();
-                    let start_of_if = frame.ptr - 1;
-                    let continuation = start_of_if + if_size + else_size;
+                    let start_of_label = frame.get_start_of_label();
+                    let continuation = start_of_label + if_size + else_size;
                     let block_type = frame.pop_runtime_type()?;
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::If);
                     self.stack.push(label)?;
                     if cond.is_truthy() {
                     } else {
-                        let start_of_else = start_of_if + if_size;
+                        let start_of_else = start_of_label + if_size;
                         frame.jump_to(start_of_else);
                     }
                 }
@@ -239,28 +239,22 @@ impl Vm {
                     };
                 }
                 BrTable(ref tables, ref idx) => {
-                    let i = if let Values::I32(i) = self.stack.pop_value_ext() {
-                        i as usize
-                    } else {
-                        unreachable!();
-                    };
+                    let i = self.stack.pop_value_ext_i32() as usize;
                     let l = if i < tables.len() {
                         tables.get(i)?
                     } else {
                         idx
                     };
-                    let continuation = self.stack.jump_to_label(*l)?;
+                    let continuation = self.stack.jump_to_label(l)?;
                     frame.jump_to(continuation);
                 }
                 Call(idx) => {
-                    let arity = self.store.get_function_instance(idx)?.get_arity();
+                    let arity = self.store.get_function_instance(*idx)?.get_arity();
                     let mut arguments = vec![];
                     for _ in 0..arity {
                         arguments.push(self.stack.pop_value_ext());
                     }
-                    arguments.reverse();
-                    self.stack
-                        .push_frame(&mut self.store, idx, &mut arguments)?;
+                    self.stack.push_frame(&mut self.store, *idx, arguments)?;
                     break;
                 }
                 CallIndirect(idx) => {
@@ -273,7 +267,7 @@ impl Vm {
                     let address = table.get_function_address(i as u32)?;
                     let mut arguments = {
                         let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
-                        let expect_fn_ty = self.store.get_function_type(idx)?;
+                        let expect_fn_ty = self.store.get_function_type(*idx)?;
                         if &actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
                         }
@@ -281,23 +275,22 @@ impl Vm {
                         for _ in 0..actual_fn_ty.get_arity() {
                             arg.push(self.stack.pop_value_ext());
                         }
-                        arg.reverse();
                         arg
                     };
 
                     self.stack
-                        .push_frame(&mut self.store, address as usize, &mut arguments)?;
+                        .push_frame(&mut self.store, address as usize, arguments)?;
                     break;
                 }
-                GetLocal(idx) => self.get_local(idx)?,
-                SetLocal(idx) => self.set_local(idx)?,
-                TeeLocal(idx) => self.tee_local(idx)?,
-                GetGlobal(idx) => self.get_global(idx)?,
-                SetGlobal(idx) => self.set_global(idx)?,
-                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(n)))?,
-                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(n)))?,
-                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(n)))?,
-                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(n)))?,
+                GetLocal(idx) => self.get_local(*idx)?,
+                SetLocal(idx) => self.set_local(*idx)?,
+                TeeLocal(idx) => self.tee_local(*idx)?,
+                GetGlobal(idx) => self.get_global(*idx)?,
+                SetGlobal(idx) => self.set_global(*idx)?,
+                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
+                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
+                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,
+                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n)))?,
                 I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
                 I32Mul | I64Mul | F32Mul | F64Mul => impl_binary_inst!(self, mul),
@@ -460,52 +453,40 @@ impl Vm {
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty() {
-            let popped = match self.stack.pop() {
-                Ok(p) => p,
-                Err(_) => {
-                    break;
-                }
-            };
-            match popped {
-                StackEntry::Value(v) => {
+            let popped = self.stack.pop()?; //.map(|entry| *entry)?;
+            match *popped {
+                StackEntry::Value(ref v) => {
                     if self.stack.is_frame_ramained() {
-                        let mut values = vec![StackEntry::new_value(v)];
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
-                        values.append(&mut buf_values);
                         let frame = self.stack.pop()?;
-                        self.stack.push_entries(&mut values)?;
+                        self.stack.push(popped.clone())?;
+                        self.stack.push_entries(&mut buf_values)?;
                         self.stack.push(frame)?;
                     } else {
                         result = Some(StackEntry::new_value(v.to_owned()));
                         break;
                     }
                 }
-                StackEntry::Label(_) => {
-                    self.stack.push(popped)?;
-                    return Ok(());
-                }
-                StackEntry::Frame(mut frame) => {
+                StackEntry::Frame(ref frame) => {
                     // NOTE: Only fresh frame should be initialization.
                     if frame.is_fresh() {
                         let prev_frame_ptr = self.stack.frame_ptr;
                         self.stack.frame_ptr = frame.return_ptr;
-                        self.stack.push(StackEntry::Pointer(prev_frame_ptr))?;
-                        for local in frame.get_locals().into_iter() {
-                            self.stack.push(StackEntry::new_value(local))?;
-                        }
+                        self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
+                        self.stack.push_entries(&mut frame.get_local_variables())?;
                     }
-                    self.evaluate_instructions(&mut frame)?;
+                    self.evaluate_instructions(frame)?;
 
                     let is_completed = frame.is_completed();
                     if !is_completed {
                         let mut next_frame = self.stack.pop_frame_ext();
                         next_frame.increment_return_ptr();
-                        self.stack.push(StackEntry::new_frame(frame))?;
+                        self.stack.push(popped.clone())?;
                         self.stack.push(StackEntry::new_frame(next_frame))?;
                         continue;
                     }
                     self.stack.decrease_pushed_frame();
-                    let count_of_returns = frame.own_type.get_return_count();
+                    let count_of_returns = frame.get_return_count();
                     let mut returns = vec![];
                     for _ in 0..count_of_returns {
                         returns.push(self.stack.pop_value()?);
@@ -515,7 +496,7 @@ impl Vm {
                         self.stack.push(StackEntry::new_value(v.clone()))?;
                     }
                 }
-                StackEntry::Empty | StackEntry::Pointer(_) => {
+                StackEntry::Empty | StackEntry::Label(_) | StackEntry::Pointer(_) => {
                     unreachable!("Invalid popping stack.")
                 }
             }
@@ -527,11 +508,10 @@ impl Vm {
     }
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+        let mut arguments = arguments.to_owned();
+        arguments.reverse();
         let start_idx = self.store.get_function_idx(invoke);
-        let mut arguments = arguments;
-        let _ = self
-            .stack
-            .push_frame(&mut self.store, start_idx, &mut arguments);
+        let _ = self.stack.push_frame(&mut self.store, start_idx, arguments);
         match self.evaluate() {
             Ok(_) => match self.stack.pop_value() {
                 Ok(v) => String::from(v),

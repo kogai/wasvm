@@ -8,6 +8,7 @@ use inst::Inst;
 use memory::{Limit, MemoryInstance};
 use std::convert::From;
 use std::default::Default;
+use std::rc::Rc;
 use store::Store;
 use trap::Result;
 use value_type::ValueTypes;
@@ -145,7 +146,7 @@ impl Section {
     functions: Vec<u32>,
     exports: Option<Vec<(String, usize)>>,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  ) -> Vec<FunctionInstance> {
+  ) -> Result<Vec<Rc<FunctionInstance>>> {
     codes
       .into_iter()
       .enumerate()
@@ -153,18 +154,16 @@ impl Section {
         let export_name = Section::export_name(idx, &exports);
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
         let function_type = Section::function_type(index_of_type as usize, function_types);
-        match code {
-          Ok((expression, locals)) => FunctionInstance::new(
-            export_name,
-            Ok(function_type),
-            locals,
-            index_of_type,
-            expression,
-          ),
-          Err(err) => FunctionInstance::new(export_name, Err(err), vec![], index_of_type, vec![]),
-        }
+        let (expressions, locals) = code?;
+        Ok(FunctionInstance::new(
+          export_name,
+          function_type,
+          locals,
+          index_of_type,
+          expressions,
+        ))
       })
-      .collect::<Vec<_>>()
+      .collect::<Result<Vec<_>>>()
   }
 
   fn global_instances(globals: Option<Vec<GlobalInstance>>) -> Vec<GlobalInstance> {
@@ -190,7 +189,7 @@ impl Section {
         let memory_instances = Section::memory_instances(datas, limits);
         let table_instances = Section::table_instances(elements, tables);
         let function_instances =
-          Section::function_instances(&function_types, functions, exports, codes);
+          Section::function_instances(&function_types, functions, exports, codes)?;
         let global_instances = Section::global_instances(globals);
         Ok(
           Context::new(

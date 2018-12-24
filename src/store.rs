@@ -2,13 +2,14 @@ use decode::TableInstance;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use memory::MemoryInstance;
+use std::rc::Rc;
 use trap::Result;
 use value::Values;
 use value_type::ValueTypes;
 
 #[derive(Debug)]
 pub struct Store {
-  function_instances: Vec<FunctionInstance>,
+  function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
@@ -17,7 +18,7 @@ pub struct Store {
 
 impl Store {
   pub fn new(
-    function_instances: Vec<FunctionInstance>,
+    function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,
@@ -32,13 +33,8 @@ impl Store {
     }
   }
 
-  pub fn get_function_instance(&self, fn_idx: usize) -> Option<&FunctionInstance> {
-    self.function_instances.get(fn_idx)
-  }
-
-  #[cfg(test)]
-  pub fn get_function_instances(&self) -> Vec<FunctionInstance> {
-    self.function_instances.to_owned()
+  pub fn get_function_instance(&self, fn_idx: usize) -> Option<Rc<FunctionInstance>> {
+    self.function_instances.get(fn_idx).map(|x| x.clone())
   }
 
   pub fn get_function_type(&self, idx: u32) -> Option<&FunctionType> {
@@ -46,13 +42,9 @@ impl Store {
   }
 
   pub fn get_function_type_by_instance(&self, idx: u32) -> Option<FunctionType> {
-    let function_type = self
+    self
       .get_function_instance(idx as usize)
-      .map(|x| x.get_function_type());
-    match function_type {
-      Some(Ok(x)) => Some(x),
-      _ => None,
-    }
+      .map(|x| x.get_function_type())
   }
 
   pub fn get_function_idx(&self, invoke: &str) -> usize {
