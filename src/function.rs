@@ -1,7 +1,6 @@
 use inst::Inst;
 use std::fmt;
 use std::rc::Rc;
-use trap::Result;
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
@@ -62,7 +61,7 @@ impl FunctionType {
 #[derive(PartialEq, Clone)]
 pub struct FunctionInstance {
   export_name: Option<String>,
-  function_type: Result<FunctionType>,
+  function_type: FunctionType,
   pub locals: Vec<ValueTypes>,
   type_idex: u32,
   body: Rc<Vec<Inst>>,
@@ -75,18 +74,20 @@ impl fmt::Debug for FunctionInstance {
       Some(ref n) => n,
       _ => "_",
     };
-    let function_type = match self.function_type {
-      Ok(ref f) => format!("{:?}", f),
-      Err(ref err) => format!("{:?}", err),
-    };
-    write!(f, "[{}] {}: {}", self.type_idex, name, function_type)
+    write!(
+      f,
+      "[{}] {}: {}",
+      self.type_idex,
+      name,
+      format!("{:?}", self.function_type)
+    )
   }
 }
 
 impl FunctionInstance {
   pub fn new(
     export_name: Option<String>,
-    function_type: Result<FunctionType>,
+    function_type: FunctionType,
     locals: Vec<ValueTypes>,
     type_idex: u32,
     body: Vec<Inst>,
@@ -109,22 +110,15 @@ impl FunctionInstance {
   }
 
   pub fn get_arity(&self) -> u32 {
-    match self.function_type {
-      Ok(ref f) => f.get_arity(),
-      _ => 0,
-    }
+    self.function_type.get_arity()
   }
 
-  pub fn get_function_type(&self) -> Result<FunctionType> {
+  pub fn get_function_type(&self) -> FunctionType {
     self.function_type.to_owned()
   }
 
   pub fn get_return_count(&self) -> u32 {
-    self
-      .function_type
-      .to_owned()
-      .map(|ty| ty.get_return_count())
-      .unwrap_or(0)
+    self.function_type.get_return_count()
   }
 
   pub fn find(&self, key: &str) -> bool {

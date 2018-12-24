@@ -12,7 +12,6 @@ pub enum LabelKind {
   LoopEnd,
   LoopContinuation,
   Block,
-  // Nop,
 }
 
 #[derive(PartialEq, Debug, Clone)]

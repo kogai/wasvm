@@ -42,13 +42,9 @@ impl Store {
   }
 
   pub fn get_function_type_by_instance(&self, idx: u32) -> Option<FunctionType> {
-    let function_type = self
+    self
       .get_function_instance(idx as usize)
-      .map(|x| x.get_function_type());
-    match function_type {
-      Some(Ok(x)) => Some(x),
-      _ => None,
-    }
+      .map(|x| x.get_function_type())
   }
 
   pub fn get_function_idx(&self, invoke: &str) -> usize {

@@ -80,7 +80,7 @@ mod tests {
     "dist/cons8",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
+      FunctionType::new(vec![], vec![ValueTypes::I32]),
       vec![],
       0,
       vec![I32Const(42), End],
@@ -91,7 +91,7 @@ mod tests {
     "dist/cons16",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
+      FunctionType::new(vec![], vec![ValueTypes::I32]),
       vec![],
       0,
       vec![I32Const(255), End],
@@ -102,7 +102,7 @@ mod tests {
     "dist/signed",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(vec![], vec![ValueTypes::I32],)),
+      FunctionType::new(vec![], vec![ValueTypes::I32]),
       vec![],
       0,
       vec![I32Const(-129), End],
@@ -113,10 +113,10 @@ mod tests {
     "dist/add",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(
+      FunctionType::new(
         vec![ValueTypes::I32, ValueTypes::I32],
         vec![ValueTypes::I32],
-      )),
+      ),
       vec![],
       0,
       vec![GetLocal(1), GetLocal(0), I32Add, End],
@@ -127,10 +127,7 @@ mod tests {
     "dist/sub",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(
-        vec![ValueTypes::I32],
-        vec![ValueTypes::I32],
-      )),
+      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![],
       0,
       vec![I32Const(100), GetLocal(0), I32Sub, End],
@@ -141,10 +138,10 @@ mod tests {
     "dist/add_five",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(
+      FunctionType::new(
         vec![ValueTypes::I32, ValueTypes::I32],
         vec![ValueTypes::I32],
-      )),
+      ),
       vec![],
       0,
       vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add, End],
@@ -156,10 +153,7 @@ mod tests {
     "dist/if_lt",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(
-        vec![ValueTypes::I32],
-        vec![ValueTypes::I32],
-      )),
+      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![ValueTypes::I32],
       0,
       vec![
@@ -195,10 +189,7 @@ mod tests {
     "dist/if_gt",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(
-        vec![ValueTypes::I32],
-        vec![ValueTypes::I32],
-      )),
+      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![ValueTypes::I32],
       0,
       vec![
@@ -234,10 +225,7 @@ mod tests {
     "dist/if_eq",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(
-        vec![ValueTypes::I32],
-        vec![ValueTypes::I32],
-      )),
+      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![],
       0,
       vec![
@@ -261,10 +249,7 @@ mod tests {
     "dist/count",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      Ok(FunctionType::new(
-        vec![ValueTypes::I32],
-        vec![ValueTypes::I32],
-      )),
+      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![ValueTypes::I32],
       0,
       vec![
