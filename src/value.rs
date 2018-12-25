@@ -2,7 +2,7 @@ use std::f32;
 use std::f64;
 use std::fmt;
 use std::ops::{BitAnd, BitOr, BitXor, Neg};
-use trap::Trap;
+use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
@@ -69,7 +69,7 @@ macro_rules! bynary_logical_inst {
 
 macro_rules! bynary_try_inst {
   ($fn_name: ident,$op: ident) => {
-    pub fn $fn_name(&self, other: &Self) -> Result<Self, Trap> {
+    pub fn $fn_name(&self, other: &Self) -> Result<Self> {
       match (self, other) {
         (Values::I32(l), Values::I32(r)) =>  l.$op(*r).map(|n| Values::I32(n)) ,
         (Values::I64(l), Values::I64(r)) =>  l.$op(*r).map(|n| Values::I64(n)) ,
@@ -113,22 +113,22 @@ trait ArithmeticInteger {
   fn wasm_rotate_left(&self, other: Self) -> Self;
   fn wasm_rotate_right(&self, other: Self) -> Self;
 
-  fn rem_s(&self, other: Self) -> Result<Self, Trap>
+  fn rem_s(&self, other: Self) -> Result<Self>
   where
     Self: Sized;
-  fn rem_u(&self, other: Self) -> Result<Self, Trap>
+  fn rem_u(&self, other: Self) -> Result<Self>
   where
     Self: Sized;
-  fn div_s(&self, other: Self) -> Result<Self, Trap>
+  fn div_s(&self, other: Self) -> Result<Self>
   where
     Self: Sized;
-  fn div_u(&self, other: Self) -> Result<Self, Trap>
+  fn div_u(&self, other: Self) -> Result<Self>
   where
     Self: Sized;
   fn copy_sign(&self, other: Self) -> Self;
 }
 
-macro_rules! impl_intger_traits {
+macro_rules! impl_integer_traits {
   ($ty: ty, $unsign: ty) => {
     impl ArithmeticInteger for $ty {
       fn equal_zero(&self) -> Self {
@@ -251,7 +251,7 @@ macro_rules! impl_intger_traits {
         self.rotate_right(other as u32)
       }
 
-      fn rem_s(&self, other: Self) -> Result<Self, Trap> {
+      fn rem_s(&self, other: Self) -> Result<Self> {
         if other == 0 {
           return Err(Trap::DivisionByZero);
         }
@@ -259,7 +259,7 @@ macro_rules! impl_intger_traits {
         Ok(divined)
       }
 
-      fn rem_u(&self, other: Self) -> Result<Self, Trap> {
+      fn rem_u(&self, other: Self) -> Result<Self> {
         if other == 0 {
           return Err(Trap::DivisionByZero);
         }
@@ -270,7 +270,7 @@ macro_rules! impl_intger_traits {
           Ok(divined as $ty)
         }
       }
-      fn div_u(&self, other: Self) -> Result<Self, Trap> {
+      fn div_u(&self, other: Self) -> Result<Self> {
         if other == 0 {
           return Err(Trap::DivisionByZero);
         }
@@ -281,7 +281,7 @@ macro_rules! impl_intger_traits {
           Ok(divined as $ty)
         }
       }
-      fn div_s(&self, other: Self) -> Result<Self, Trap> {
+      fn div_s(&self, other: Self) -> Result<Self> {
         if other == 0 {
           return Err(Trap::DivisionByZero);
         }
@@ -475,8 +475,8 @@ impl_traits!(i64);
 impl_traits!(f32);
 impl_traits!(f64);
 
-impl_intger_traits!(i32, u32);
-impl_intger_traits!(i64, u64);
+impl_integer_traits!(i32, u32);
+impl_integer_traits!(i64, u64);
 impl_float_traits!(f32);
 impl_float_traits!(f64);
 
