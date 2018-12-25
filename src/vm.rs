@@ -1,4 +1,4 @@
-use decode::Byte;
+use decode::{Byte, Export};
 use frame::Frame;
 use inst::Inst;
 use internal_module::InternalModule;
@@ -511,19 +511,24 @@ impl Vm {
     }
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
-        let mut arguments = arguments.to_owned();
-        arguments.reverse();
-        let start_idx = self
-            .internal_module
-            .get_function_idx(invoke)
-            .expect(&format!("Expect to call {} but not found.", invoke));
-        let _ = self.stack.push_frame(&mut self.store, start_idx, arguments);
-        match self.evaluate() {
-            Ok(_) => match self.stack.pop_value() {
-                Ok(v) => String::from(v),
-                Err(_) => "".to_owned(),
+        match self.internal_module.get_export_by_key(invoke) {
+            Some((Export::Function, idx)) => {
+                let mut arguments = arguments.to_owned();
+                arguments.reverse();
+                let _ = self.stack.push_frame(&mut self.store, idx, arguments);
+                match self.evaluate() {
+                    Ok(_) => match self.stack.pop_value() {
+                        Ok(v) => String::from(v),
+                        Err(_) => "".to_owned(),
+                    },
+                    Err(err) => String::from(err),
+                }
+            }
+            Some((Export::Global, idx)) => match self.store.get_global_instance(idx) {
+                Some(global) => String::from(global.get_value()),
+                None => "".to_owned(),
             },
-            Err(err) => String::from(err),
+            x => unimplemented!("{:?}", x),
         }
     }
 }

@@ -1,6 +1,6 @@
 use super::context::Context;
 use super::sec_element::Element;
-use super::sec_export::{Export, Exports};
+use super::sec_export::Exports;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
 use function::{FunctionInstance, FunctionType};
@@ -131,11 +131,10 @@ impl Section {
       .collect::<Vec<_>>()
   }
 
-  fn export_name(idx: usize, kind: Export, exports: &Exports) -> Option<String> {
+  fn export_name(idx: usize, exports: &Exports) -> Option<String> {
     exports
-      .get(&kind)?
       .iter()
-      .find(|(_, i)| **i == idx)
+      .find(|(_key, (_kind, i))| *i == idx)
       .map(|(key, _)| key.to_owned())
   }
 
@@ -156,7 +155,7 @@ impl Section {
       .into_iter()
       .enumerate()
       .map(|(idx, code)| {
-        let export_name = Section::export_name(idx, Export::Function, &exports);
+        let export_name = Section::export_name(idx, &exports);
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
         let function_type = Section::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;

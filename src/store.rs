@@ -37,6 +37,10 @@ impl Store {
     self.function_instances.get(fn_idx).map(|x| x.clone())
   }
 
+  pub fn get_global_instance(&self, idx: usize) -> Option<&GlobalInstance> {
+    self.global_instances.get(idx)
+  }
+
   pub fn get_function_type(&self, idx: u32) -> Option<&FunctionType> {
     self.function_types.get(idx as usize)
   }

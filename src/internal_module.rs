@@ -1,5 +1,4 @@
 use decode::{Export, Exports};
-use trap::Result;
 
 pub struct InternalModule {
   exports: Exports,
@@ -10,7 +9,7 @@ impl InternalModule {
     InternalModule { exports }
   }
 
-  pub fn get_function_idx(&self, invoke: &str) -> Result<usize> {
-    Ok(*self.exports.get(&Export::Function)?.get(invoke)?)
+  pub fn get_export_by_key(&self, invoke: &str) -> Option<(Export, usize)> {
+    self.exports.get(invoke).map(|x| x.clone())
   }
 }

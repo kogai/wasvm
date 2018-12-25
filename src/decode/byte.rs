@@ -32,6 +32,7 @@ impl Byte {
     while self.has_next() {
       let code = SectionCode::from(self.next());
       let bytes = self.decode_section()?;
+      // TODO: May can conccurrent.
       match code {
         Type => section.function_types(&mut sec_type::Section::new(bytes).decode()?),
         Function => section.functions(&mut sec_function::Section::new(bytes).decode()?),
