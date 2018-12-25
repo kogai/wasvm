@@ -123,5 +123,5 @@ macro_rules! impl_decode_limit {
 
 pub trait Decodable {
   type Item;
-  fn decode(&mut self) -> Result<Vec<Self::Item>>;
+  fn decode(&mut self) -> Result<Self::Item>;
 }

@@ -9,8 +9,8 @@ impl_decodable!(Section);
 impl_decode_code!(Section);
 
 impl Decodable for Section {
-  type Item = Result<(Vec<Inst>, Vec<ValueTypes>)>;
-  fn decode(&mut self) -> Result<Vec<Self::Item>> {
+  type Item = Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>;
+  fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
     (0..count_of_section)
       .map(|_| {
