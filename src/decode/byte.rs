@@ -2,9 +2,10 @@ use super::decodable::Decodable;
 use super::section::{Section, SectionCode};
 use super::*;
 use internal_module::InternalModule;
+use std::convert::TryFrom;
 use std::default::Default;
 use store::Store;
-use trap::Result;
+use trap::{Result, Trap};
 
 impl_decodable!(Byte);
 
@@ -22,6 +23,9 @@ impl Byte {
     let bin_size_of_section = self.decode_leb128_u32()?;
     let start = self.byte_ptr;
     let end = start + bin_size_of_section as usize;
+    if end > self.bytes.len() {
+      return Err(Trap::UnexpectedEnd);
+    }
     let bytes = self.bytes.drain(start..end).collect::<Vec<_>>();
     Ok(bytes)
   }
@@ -30,7 +34,7 @@ impl Byte {
     use self::SectionCode::*;
     let mut section: Section = Default::default();
     while self.has_next() {
-      let code = SectionCode::from(self.next());
+      let code = SectionCode::try_from(self.next())?;
       let bytes = self.decode_section()?;
       // TODO: May can conccurrent.
       match code {
@@ -43,7 +47,8 @@ impl Byte {
         Table => section.tables(&mut sec_table::Section::new(bytes).decode()?),
         Global => section.globals(&mut sec_global::Section::new(bytes).decode()?),
         Element => section.elements(&mut sec_element::Section::new(bytes).decode()?),
-        Custom | Import | Start => {
+        Custom => section.customs(&mut sec_custom::Section::new(bytes).decode()?),
+        Import | Start => {
           unimplemented!("{:?}", code);
         }
       };

@@ -6,6 +6,7 @@ mod byte;
 mod code;
 mod context;
 mod sec_code;
+mod sec_custom;
 mod sec_data;
 mod sec_element;
 mod sec_export;
