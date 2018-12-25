@@ -1,6 +1,7 @@
 use super::context::Context;
 use super::sec_element::Element;
 use super::sec_table::{TableInstance, TableType};
+use super::sec_export::{Exports};
 use super::Data;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
@@ -54,7 +55,7 @@ impl From<Option<u8>> for SectionCode {
 pub struct Section {
   function_types: Option<Vec<FunctionType>>,
   functions: Option<Vec<u32>>,
-  exports: Option<Vec<(String, usize)>>, // Pair of (name, index)
+  exports: Option<Exports>,
   codes: Option<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>>,
   datas: Option<Vec<Data>>,
   limits: Option<Vec<Limit>>,
@@ -91,13 +92,17 @@ macro_rules! impl_builder {
 impl Section {
   impl_builder!(function_types, function_types, FunctionType);
   impl_builder!(functions, functions, u32);
-  impl_builder!(exports, exports, (String, usize));
   impl_builder!(codes, codes, Result<(Vec<Inst>, Vec<ValueTypes>)>);
   impl_builder!(datas, datas, Data);
   impl_builder!(limits, limits, Limit);
   impl_builder!(tables, tables, TableType);
   impl_builder!(globals, globals, GlobalInstance);
   impl_builder!(elements, elements, Element);
+
+    pub fn exports<'a>(&'a mut self, xs: Exports) -> &'a mut Self {
+      self.exports = Some(xs);
+      self
+    }
 
   fn memory_instances(datas: Option<Vec<Data>>, limits: Option<Vec<Limit>>) -> Vec<MemoryInstance> {
     match (datas, limits) {

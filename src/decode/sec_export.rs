@@ -14,8 +14,10 @@ pub enum Export {
   Table,
 }
 
+pub type Exports = HashMap<Export, HashMap<String, usize>>;
+
 impl Decodable for Section {
-  type Item = HashMap<Export, HashMap<String, usize>>;
+  type Item = Exports;
 
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
@@ -23,7 +25,7 @@ impl Decodable for Section {
     let mut global_map: HashMap<String, usize> = HashMap::new();
     let mut memory_map: HashMap<String, usize> = HashMap::new();
     let mut table_map: HashMap<String, usize> = HashMap::new();
-    let mut exports: HashMap<Export, HashMap<String, usize>> = HashMap::new();
+    let mut exports: Exports = HashMap::new();
     for _ in 0..count_of_section {
       let size_of_name = self.decode_leb128_u32()?;
       let mut buf = vec![];
