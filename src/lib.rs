@@ -6,6 +6,7 @@ mod frame;
 mod function;
 mod global;
 mod inst;
+mod internal_module;
 mod memory;
 mod stack;
 mod store;

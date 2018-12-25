@@ -47,14 +47,6 @@ impl Store {
       .map(|x| x.get_function_type())
   }
 
-  pub fn get_function_idx(&self, invoke: &str) -> usize {
-    self
-      .function_instances
-      .iter()
-      .position(|f| f.find(invoke))
-      .expect(&format!("Function [{}] did not found.", invoke))
-  }
-
   pub fn get_global(&mut self, idx: u32) -> Result<&Values> {
     let result = self
       .global_instances

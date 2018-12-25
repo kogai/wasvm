@@ -6,7 +6,7 @@ use trap::Result;
 
 impl_decodable!(Section);
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Debug)]
 pub enum Export {
   Function,
   Global,
@@ -38,22 +38,22 @@ impl Decodable for Section {
       match description_code {
         ExportDescriptionCode::ExportDescFunctionIdx => {
           function_map.insert(key, index);
-          exports.insert(Export::Function, function_map);
         }
         ExportDescriptionCode::ExportDescGlobalIdx => {
           global_map.insert(key, index);
-          exports.insert(Export::Global, global_map);
         }
         ExportDescriptionCode::ExportDescMemIdx => {
           memory_map.insert(key, index);
-          exports.insert(Export::Memory, memory_map);
         }
         ExportDescriptionCode::ExportDescTableIdx => {
           table_map.insert(key, index);
-          exports.insert(Export::Table, table_map);
         }
       };
     }
+    exports.insert(Export::Function, function_map);
+    exports.insert(Export::Global, global_map);
+    exports.insert(Export::Memory, memory_map);
+    exports.insert(Export::Table, table_map);
     Ok(exports)
   }
 }
