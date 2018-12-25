@@ -2,6 +2,7 @@ SRC := $(wildcard ./src/*.rs)
 TRIPLE := wasm32-unknown-unknown
 CSRCS=$(wildcard ./fixtures/*.c)
 WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
+BENCH_DIR := life/bench/cases
 C_WASMS=$(CSRCS:.c=.wasm)
 WASMS=$(WASTS:.wast=.wasm)
 TEST_CASES=$(WASTS:.wast=.json)
@@ -54,6 +55,13 @@ report.node.txt: Makefile
 .PHONY: run
 run:
 	cargo run --bin main
+
+.PHONY: benches, tmp/fib_recursive.wasm
+benches: tmp/fib_recursive.wasm
+
+tmp/fib_recursive.wasm:
+	cargo build --target=$(TRIPLE) --manifest-path=$(BENCH_DIR)/fib_recursive/Cargo.toml
+	mv $(BENCH_DIR)/fib_recursive/target/$(TRIPLE)/release/fib_recursive.wasm tmp/
 
 # Prefer to replace Docker container
 install:
