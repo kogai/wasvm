@@ -1,11 +1,14 @@
 use super::context::Context;
 use super::sec_element::Element;
+use super::sec_export::Exports;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::Inst;
+use internal_module::InternalModule;
 use memory::{Limit, MemoryInstance};
+use std::collections::HashMap;
 use std::convert::From;
 use std::default::Default;
 use std::rc::Rc;
@@ -52,37 +55,37 @@ impl From<Option<u8>> for SectionCode {
 
 #[derive(Debug)]
 pub struct Section {
-  function_types: Option<Vec<FunctionType>>,
-  functions: Option<Vec<u32>>,
-  exports: Option<Vec<(String, usize)>>, // Pair of (name, index)
-  codes: Option<Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>>,
-  datas: Option<Vec<Data>>,
-  limits: Option<Vec<Limit>>,
-  tables: Option<Vec<TableType>>,
-  globals: Option<Vec<GlobalInstance>>,
-  elements: Option<Vec<Element>>,
+  function_types: Vec<FunctionType>,
+  functions: Vec<u32>,
+  exports: Exports,
+  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
+  datas: Vec<Data>,
+  limits: Vec<Limit>,
+  tables: Vec<TableType>,
+  globals: Vec<GlobalInstance>,
+  elements: Vec<Element>,
 }
 
 impl Default for Section {
   fn default() -> Section {
     Section {
-      function_types: None,
-      functions: None,
-      exports: None,
-      codes: None,
-      datas: None,
-      limits: None,
-      tables: None,
-      globals: None,
-      elements: None,
+      function_types: vec![],
+      functions: vec![],
+      exports: HashMap::new(),
+      codes: vec![],
+      datas: vec![],
+      limits: vec![],
+      tables: vec![],
+      globals: vec![],
+      elements: vec![],
     }
   }
 }
 
 macro_rules! impl_builder {
   ($name: ident, $prop: ident, $ty: ty) => {
-    pub fn $name<'a>(&'a mut self, xs: Vec<$ty>) -> &'a mut Self {
-      self.$prop = Some(xs);
+    pub fn $name<'a>(&'a mut self, xs: &mut Vec<$ty>) -> &'a mut Self {
+      self.$prop.append(xs);
       self
     }
   };
@@ -91,7 +94,6 @@ macro_rules! impl_builder {
 impl Section {
   impl_builder!(function_types, function_types, FunctionType);
   impl_builder!(functions, functions, u32);
-  impl_builder!(exports, exports, (String, usize));
   impl_builder!(codes, codes, Result<(Vec<Inst>, Vec<ValueTypes>)>);
   impl_builder!(datas, datas, Data);
   impl_builder!(limits, limits, Limit);
@@ -99,52 +101,54 @@ impl Section {
   impl_builder!(globals, globals, GlobalInstance);
   impl_builder!(elements, elements, Element);
 
-  fn memory_instances(datas: Option<Vec<Data>>, limits: Option<Vec<Limit>>) -> Vec<MemoryInstance> {
-    match (datas, limits) {
-      (Some(datas), Some(limits)) => datas
-        .into_iter()
-        .map(|d| MemoryInstance::new(d, &limits))
-        .collect::<Vec<_>>(),
-      (None, Some(limits)) => vec![MemoryInstance::new(Data::new(0, vec![], vec![]), &limits)],
-      _ => vec![],
-    }
+  pub fn exports<'a>(&'a mut self, xs: Exports) -> &'a mut Self {
+    self.exports = xs;
+    self
   }
-  fn table_instances(
-    elements: Option<Vec<Element>>,
-    tables: Option<Vec<TableType>>,
-  ) -> Vec<TableInstance> {
-    match (elements, tables) {
-      (Some(elements), Some(tables)) => elements
-        .into_iter()
-        .map(|el| {
-          let table_type = tables
-            .get(el.get_table_idx())
-            .expect("Table type not found.");
-          TableInstance::new(&table_type, el)
-        })
-        .collect::<Vec<_>>(),
-      _ => vec![],
-    }
+
+  fn memory_instances(datas: Vec<Data>, limits: Vec<Limit>) -> Vec<MemoryInstance> {
+    if datas.is_empty() && limits.is_empty() {
+      return vec![];
+    };
+    if datas.is_empty() {
+      return vec![MemoryInstance::new(Data::new(0, vec![], vec![]), &limits)];
+    };
+    datas
+      .into_iter()
+      .map(|d| MemoryInstance::new(d, &limits))
+      .collect::<Vec<_>>()
   }
-  fn export_name(idx: usize, exports: &Option<Vec<(String, usize)>>) -> Option<String> {
-    (match exports {
-      Some(ref exports) => exports,
-      None => return None,
-    })
-    .iter()
-    .find(|(_, i)| i == &idx)
-    .map(|(key, _)| key.to_owned())
+
+  fn table_instances(elements: Vec<Element>, tables: Vec<TableType>) -> Vec<TableInstance> {
+    elements
+      .into_iter()
+      .map(|el| {
+        let table_type = tables
+          .get(el.get_table_idx())
+          .expect("Table type not found.");
+        TableInstance::new(&table_type, el)
+      })
+      .collect::<Vec<_>>()
   }
+
+  fn export_name(idx: usize, exports: &Exports) -> Option<String> {
+    exports
+      .iter()
+      .find(|(_key, (_kind, i))| *i == idx)
+      .map(|(key, _)| key.to_owned())
+  }
+
   fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
     function_types
       .get(idx)
       .expect("Function type can't found.")
       .to_owned()
   }
+
   fn function_instances(
     function_types: &Vec<FunctionType>,
     functions: Vec<u32>,
-    exports: Option<Vec<(String, usize)>>,
+    exports: &Exports,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
     codes
@@ -166,20 +170,18 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
-  fn global_instances(globals: Option<Vec<GlobalInstance>>) -> Vec<GlobalInstance> {
-    match globals {
-      Some(gs) => gs,
-      None => vec![],
-    }
+  // NOTE: Might be reasonable some future.
+  fn global_instances(globals: Vec<GlobalInstance>) -> Vec<GlobalInstance> {
+    globals
   }
 
-  pub fn complete(self) -> Result<Store> {
+  pub fn complete(self) -> Result<(Store, InternalModule)> {
     match self {
       Section {
-        function_types: Some(function_types),
-        functions: Some(functions),
+        function_types,
+        functions,
+        codes,
         exports,
-        codes: Some(codes),
         datas,
         limits,
         tables,
@@ -189,7 +191,7 @@ impl Section {
         let memory_instances = Section::memory_instances(datas, limits);
         let table_instances = Section::table_instances(elements, tables);
         let function_instances =
-          Section::function_instances(&function_types, functions, exports, codes)?;
+          Section::function_instances(&function_types, functions, &exports, codes)?;
         let global_instances = Section::global_instances(globals);
         Ok(
           Context::new(
@@ -198,11 +200,11 @@ impl Section {
             memory_instances,
             table_instances,
             global_instances,
+            exports,
           )
           .without_validate()?,
         )
       }
-      x => unreachable!("Sections did not decode properly.\n{:?}", x),
     }
   }
 }

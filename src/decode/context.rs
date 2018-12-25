@@ -1,8 +1,10 @@
+use super::sec_export::Exports;
 use super::sec_table::TableInstance;
 use frame::Frame;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::TypeKind;
+use internal_module::InternalModule;
 use memory::MemoryInstance;
 use std::rc::Rc;
 use store::Store;
@@ -15,6 +17,7 @@ pub struct Context {
   memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
   global_instances: Vec<GlobalInstance>,
+  exports: Exports,
   _type_context: Vec<TypeKind>,
 }
 
@@ -25,6 +28,7 @@ impl Context {
     memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,
     global_instances: Vec<GlobalInstance>,
+    exports: Exports,
   ) -> Self {
     Context {
       function_instances,
@@ -32,18 +36,21 @@ impl Context {
       memory_instances,
       table_instances,
       global_instances,
+      exports,
       _type_context: vec![],
     }
   }
 
-  pub fn without_validate(self) -> Result<Store> {
-    Ok(Store::new(
+  pub fn without_validate(self) -> Result<(Store, InternalModule)> {
+    let store = Store::new(
       self.function_instances,
       self.function_types,
       self.memory_instances,
       self.table_instances,
       self.global_instances,
-    ))
+    );
+    let internal_module = InternalModule::new(self.exports);
+    Ok((store, internal_module))
   }
 
   #[allow(dead_code)]

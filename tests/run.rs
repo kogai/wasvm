@@ -2,6 +2,7 @@ extern crate wabt;
 
 #[cfg(test)]
 extern crate wasvm;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
@@ -44,22 +45,34 @@ macro_rules! impl_e2e {
       let mut json = File::open(&test_filename).unwrap();
       json.read_to_string(&mut buf).unwrap();
       let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
-      let mut current_module = vec![];
+      let mut current_modules: HashMap<Option<String>, Vec<u8>> = HashMap::new();
 
       while let Ok(Some(Command { kind, line, .. })) = parser.next() {
         match kind {
-          CommandKind::Module { ref module, .. } => {
-            current_module = module.clone().into_vec();
+          CommandKind::Module {
+            ref module,
+            ref name,
+          } => {
+            current_modules.insert(None, module.clone().into_vec());
+            current_modules.insert(name.clone(), module.clone().into_vec());
           }
 
           CommandKind::AssertReturn {
-            action: Action::Invoke {
-              ref field,
-              ref args,
-              ..
-            },
+            ref action,
             ref expected,
           } => {
+            let (field, args, module) = match action {
+              Action::Invoke {
+                ref field,
+                ref args,
+                ref module,
+              } => (field, get_args(args), module),
+              Action::Get {
+                ref field,
+                ref module,
+              } => (field, vec![], module),
+            };
+
             if (field == "as-load-operand" && $file_name == "block")
               || (field == "as-load-operand" && $file_name == "call_indirect" && line == 581)
               || (field == "as-convert-operand" && $file_name == "call_indirect" && line == 589)
@@ -69,21 +82,24 @@ macro_rules! impl_e2e {
               continue;
             };
             println!("Assert return at {}:{}.", field, line);
-            let mut vm = Vm::new(current_module.clone()).unwrap();
-            let actual = vm.run(field.as_ref(), get_args(args));
+            let bytes = current_modules.get(module).unwrap().clone();
+            let mut vm = Vm::new(bytes).unwrap();
+            let actual = vm.run(field.as_ref(), args);
             let expectation = get_expectation(expected);
             assert_eq!(actual, expectation);
           }
           CommandKind::AssertTrap {
-            action: Action::Invoke {
-              ref field,
-              ref args,
-              ..
-            },
+            action:
+              Action::Invoke {
+                ref field,
+                ref args,
+                ref module,
+              },
             ref message,
           } => {
             println!("Assert trap at {}:{}.", field, line,);
-            let mut vm = Vm::new(current_module.clone()).unwrap();
+            let bytes = current_modules.get(module).unwrap().clone();
+            let mut vm = Vm::new(bytes).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, message);
           }
@@ -134,26 +150,30 @@ macro_rules! impl_e2e {
             */
           }
           CommandKind::AssertReturnCanonicalNan {
-            action: Action::Invoke {
-              ref field,
-              ref args,
-              ..
-            },
+            action:
+              Action::Invoke {
+                ref field,
+                ref args,
+                ref module,
+              },
           } => {
             println!("Assert canonical NaN at '{}:{}'.", field, line);
-            let mut vm = Vm::new(current_module.clone()).unwrap();
+            let bytes = current_modules.get(module).unwrap().clone();
+            let mut vm = Vm::new(bytes).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
           }
           CommandKind::AssertReturnArithmeticNan {
-            action: Action::Invoke {
-              ref field,
-              ref args,
-              ..
-            },
+            action:
+              Action::Invoke {
+                ref field,
+                ref args,
+                ref module,
+              },
           } => {
             println!("Assert arithmetic NaN at '{}:{}'.", field, line);
-            let mut vm = Vm::new(current_module.clone()).unwrap();
+            let bytes = current_modules.get(module).unwrap().clone();
+            let mut vm = Vm::new(bytes).unwrap();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
           }
@@ -189,6 +209,7 @@ impl_e2e!(test_call, "call");
 impl_e2e!(test_comments, "comments");
 impl_e2e!(test_conversions, "conversions");
 impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
+impl_e2e!(test_exports, "exports");
 impl_e2e!(test_f32, "f32");
 impl_e2e!(test_f32_cmp, "f32_cmp");
 impl_e2e!(test_f32_bitwise, "f32_bitwise");

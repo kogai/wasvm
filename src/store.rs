@@ -37,6 +37,10 @@ impl Store {
     self.function_instances.get(fn_idx).map(|x| x.clone())
   }
 
+  pub fn get_global_instance(&self, idx: usize) -> Option<&GlobalInstance> {
+    self.global_instances.get(idx)
+  }
+
   pub fn get_function_type(&self, idx: u32) -> Option<&FunctionType> {
     self.function_types.get(idx as usize)
   }
@@ -45,14 +49,6 @@ impl Store {
     self
       .get_function_instance(idx as usize)
       .map(|x| x.get_function_type())
-  }
-
-  pub fn get_function_idx(&self, invoke: &str) -> usize {
-    self
-      .function_instances
-      .iter()
-      .position(|f| f.find(invoke))
-      .expect(&format!("Function [{}] did not found.", invoke))
   }
 
   pub fn get_global(&mut self, idx: u32) -> Result<&Values> {

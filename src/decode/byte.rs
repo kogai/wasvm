@@ -1,6 +1,7 @@
 use super::decodable::Decodable;
 use super::section::{Section, SectionCode};
 use super::*;
+use internal_module::InternalModule;
 use std::default::Default;
 use store::Store;
 use trap::Result;
@@ -25,21 +26,23 @@ impl Byte {
     Ok(bytes)
   }
 
-  pub fn decode(&mut self) -> Result<Store> {
+  pub fn decode(&mut self) -> Result<(Store, InternalModule)> {
     use self::SectionCode::*;
     let mut section: Section = Default::default();
     while self.has_next() {
       let code = SectionCode::from(self.next());
+      let bytes = self.decode_section()?;
+      // TODO: May can conccurrent.
       match code {
-        Type => section.function_types(sec_type::Section::new(self.decode_section()?).decode()?),
-        Function => section.functions(sec_function::Section::new(self.decode_section()?).decode()?),
-        Export => section.exports(sec_export::Section::new(self.decode_section()?).decode()?),
-        Code => section.codes(sec_code::Section::new(self.decode_section()?).decode()?),
-        Data => section.datas(sec_data::Section::new(self.decode_section()?).decode()?),
-        Memory => section.limits(sec_memory::Section::new(self.decode_section()?).decode()?),
-        Table => section.tables(sec_table::Section::new(self.decode_section()?).decode()?),
-        Global => section.globals(sec_global::Section::new(self.decode_section()?).decode()?),
-        Element => section.elements(sec_element::Section::new(self.decode_section()?).decode()?),
+        Type => section.function_types(&mut sec_type::Section::new(bytes).decode()?),
+        Function => section.functions(&mut sec_function::Section::new(bytes).decode()?),
+        Export => section.exports(sec_export::Section::new(bytes).decode()?),
+        Code => section.codes(&mut sec_code::Section::new(bytes).decode()?),
+        Data => section.datas(&mut sec_data::Section::new(bytes).decode()?),
+        Memory => section.limits(&mut sec_memory::Section::new(bytes).decode()?),
+        Table => section.tables(&mut sec_table::Section::new(bytes).decode()?),
+        Global => section.globals(&mut sec_global::Section::new(bytes).decode()?),
+        Element => section.elements(&mut sec_element::Section::new(bytes).decode()?),
         Custom | Import | Start => {
           unimplemented!("{:?}", code);
         }
@@ -68,7 +71,7 @@ mod tests {
         let _ = file.read_to_end(&mut buffer);
         let mut bc = Byte::new_with_drop(buffer);
         assert_eq!(
-          bc.decode().unwrap().get_function_instance(0).unwrap(),
+          bc.decode().unwrap().0.get_function_instance(0).unwrap(),
           $fn_insts
         );
       }

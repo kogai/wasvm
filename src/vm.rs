@@ -1,6 +1,7 @@
-use decode::Byte;
+use decode::{Byte, Export};
 use frame::Frame;
 use inst::Inst;
+use internal_module::InternalModule;
 use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
@@ -92,14 +93,16 @@ macro_rules! impl_try_binary_inst {
 pub struct Vm {
     store: Store,
     stack: Stack,
+    internal_module: InternalModule,
 }
 
 impl Vm {
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
         let mut bytes = Byte::new_with_drop(bytes);
         match bytes.decode() {
-            Ok(store) => Ok(Vm {
+            Ok((store, internal_module)) => Ok(Vm {
                 store,
+                internal_module,
                 stack: Stack::new(65536),
             }),
             Err(err) => Err(err),
@@ -508,16 +511,24 @@ impl Vm {
     }
 
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
-        let mut arguments = arguments.to_owned();
-        arguments.reverse();
-        let start_idx = self.store.get_function_idx(invoke);
-        let _ = self.stack.push_frame(&mut self.store, start_idx, arguments);
-        match self.evaluate() {
-            Ok(_) => match self.stack.pop_value() {
-                Ok(v) => String::from(v),
-                Err(_) => "".to_owned(),
+        match self.internal_module.get_export_by_key(invoke) {
+            Some((Export::Function, idx)) => {
+                let mut arguments = arguments.to_owned();
+                arguments.reverse();
+                let _ = self.stack.push_frame(&mut self.store, idx, arguments);
+                match self.evaluate() {
+                    Ok(_) => match self.stack.pop_value() {
+                        Ok(v) => String::from(v),
+                        Err(_) => "".to_owned(),
+                    },
+                    Err(err) => String::from(err),
+                }
+            }
+            Some((Export::Global, idx)) => match self.store.get_global_instance(idx) {
+                Some(global) => String::from(global.get_value()),
+                None => "".to_owned(),
             },
-            Err(err) => String::from(err),
+            x => unimplemented!("{:?}", x),
         }
     }
 }

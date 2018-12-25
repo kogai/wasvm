@@ -1,28 +1,44 @@
 use super::code::ExportDescriptionCode;
 use super::decodable::Decodable;
+use std::collections::HashMap;
 use std::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);
 
+#[derive(Eq, PartialEq, Hash, Debug, Clone)]
+pub enum Export {
+  Function,
+  Global,
+  Memory,
+  Table,
+}
+
+pub type Exports = HashMap<String, (Export, usize)>;
+
 impl Decodable for Section {
-  type Item = (String, usize);
-  fn decode(&mut self) -> Result<Vec<Self::Item>> {
+  type Item = Exports;
+
+  fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
-    (0..count_of_section)
-      .map(|_| {
-        let size_of_name = self.decode_leb128_u32()?;
-        let mut buf = vec![];
-        for _ in 0..size_of_name {
-          buf.push(self.next()?);
-        }
-        let key = String::from_utf8(buf).expect("To encode export name has been failured.");
-        let idx_of_fn = match ExportDescriptionCode::from(self.next()) {
-          ExportDescriptionCode::ExportDescFunctionIdx => self.next()?,
-          x => unimplemented!("{:?}", x),
-        };
-        Ok((key, idx_of_fn as usize))
-      })
-      .collect::<Result<Vec<_>>>()
+    let mut exports: Exports = HashMap::new();
+    for _ in 0..count_of_section {
+      let size_of_name = self.decode_leb128_u32()?;
+      let mut buf = vec![];
+      for _ in 0..size_of_name {
+        buf.push(self.next()?);
+      }
+      let key = String::from_utf8(buf).expect("To encode export name has been failured.");
+      let description_code = ExportDescriptionCode::from(self.next());
+      let index = self.next()? as usize;
+      let kind = match description_code {
+        ExportDescriptionCode::ExportDescFunctionIdx => Export::Function,
+        ExportDescriptionCode::ExportDescGlobalIdx => Export::Global,
+        ExportDescriptionCode::ExportDescMemIdx => Export::Memory,
+        ExportDescriptionCode::ExportDescTableIdx => Export::Table,
+      };
+      exports.insert(key, (kind, index));
+    }
+    Ok(exports)
   }
 }

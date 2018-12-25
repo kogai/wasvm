@@ -778,24 +778,31 @@ impl Values {
   }
 }
 
-impl From<Values> for String {
-  fn from(x: Values) -> Self {
-    use Values::*;
-    match x {
-      I32(n) => format!("i32:{}", n),
-      I64(n) => format!("i64:{}", n),
-      F32(n) => {
-        let prefix = if n.is_nan() { "" } else { "f32:" };
-        format!("{}{}", prefix, n)
-      }
-      F64(n) => {
-        let prefix = if n.is_nan() { "" } else { "f64:" };
-        format!("{}{}", prefix, n)
+macro_rules! impl_from_values {
+  ($ty: ty) => {
+    impl From<$ty> for String {
+      fn from(x: $ty) -> Self {
+        use Values::*;
+        match x {
+          I32(n) => format!("i32:{}", n),
+          I64(n) => format!("i64:{}", n),
+          F32(n) => {
+            let prefix = if n.is_nan() { "" } else { "f32:" };
+            format!("{}{}", prefix, n)
+          }
+          F64(n) => {
+            let prefix = if n.is_nan() { "" } else { "f64:" };
+            format!("{}{}", prefix, n)
+          }
+        }
+        .to_owned()
       }
     }
-    .to_owned()
-  }
+  };
 }
+
+impl_from_values!(Values);
+impl_from_values!(&Values);
 
 impl From<ValueTypes> for Values {
   fn from(x: ValueTypes) -> Self {
