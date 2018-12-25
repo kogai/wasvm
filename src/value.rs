@@ -1,6 +1,7 @@
 use std::f32;
 use std::f64;
 use std::fmt;
+use std::mem::transmute;
 use std::ops::{BitAnd, BitOr, BitXor, Neg};
 use trap::{Result, Trap};
 use value_type::ValueTypes;
@@ -649,6 +650,15 @@ impl Values {
   trunc_inst!(trunc_f32_to_unsign_i64, Values::F32, Values::I64, u64, i64);
   trunc_inst!(trunc_f64_to_sign_i64, Values::F64, Values::I64, i64, i64);
   trunc_inst!(trunc_f64_to_unsign_i64, Values::F64, Values::I64, u64, i64);
+
+  pub fn reinterpret(&self) -> Self {
+    match self {
+      Values::I32(n) => Values::F32(unsafe { transmute(*n) }),
+      Values::I64(n) => Values::F64(unsafe { transmute(*n) }),
+      Values::F32(n) => Values::I32(unsafe { transmute(*n) }),
+      Values::F64(n) => Values::I64(unsafe { transmute(*n) }),
+    }
+  }
 
   pub fn is_truthy(&self) -> bool {
     match &self {

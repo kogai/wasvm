@@ -442,9 +442,9 @@ impl Vm {
                 F32DemoteF64 => impl_unary_inst!(self, demote_f64_to_f32),
 
                 I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
-                    unimplemented!("{:?}", expression);
+                    impl_unary_inst!(self, reinterpret)
                 }
-                RuntimeValue(t) => unreachable!("{:?}", t),
+                RuntimeValue(t) => unreachable!("Expected calculatable operation, got {:?}", t),
             };
         }
         Ok(())
