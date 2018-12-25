@@ -470,6 +470,44 @@ macro_rules! impl_float_traits {
   };
 }
 
+trait TruncFloat<T> {
+  fn try_trunc_to(&self) -> Result<T>;
+}
+
+macro_rules! impl_try_trunc {
+  ($from: ty, $to: ty) => {
+    impl TruncFloat<$to> for $from {
+      fn try_trunc_to(&self) -> Result<$to> {
+        if self.is_nan() {
+          return Err(Trap::InvalidConversionToInt);
+        }
+        if self.is_infinite() {
+          return Err(Trap::IntegerOverflow);
+        }
+        let result = *self as $to;
+        if result as $from != self.trunc() {
+          return Err(Trap::IntegerOverflow);
+        }
+        Ok(result as $to)
+      }
+    }
+  };
+}
+
+macro_rules! trunc_inst {
+  ($name: ident, $kind_from: path, $kind_to: path, $internal: ty, $to: ty) => {
+      pub fn $name(&self) -> Result<Self> {
+        match self {
+          $kind_from(n) => {
+            let result: $internal = n.try_trunc_to()?;
+            Ok($kind_to(result as $to))
+          }
+          x => unreachable!("Got {:?}", x),
+        }
+      }
+  };
+}
+
 impl_traits!(i32);
 impl_traits!(i64);
 impl_traits!(f32);
@@ -479,6 +517,15 @@ impl_integer_traits!(i32, u32);
 impl_integer_traits!(i64, u64);
 impl_float_traits!(f32);
 impl_float_traits!(f64);
+
+impl_try_trunc!(f32, i32);
+impl_try_trunc!(f32, u32);
+impl_try_trunc!(f32, i64);
+impl_try_trunc!(f32, u64);
+impl_try_trunc!(f64, i32);
+impl_try_trunc!(f64, u32);
+impl_try_trunc!(f64, i64);
+impl_try_trunc!(f64, u64);
 
 impl Values {
   bynary_inst!(and, bitand);
@@ -594,99 +641,14 @@ impl Values {
     }
   }
 
-  pub fn trunc_f32_to_sign_i32(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F32(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I32(n.trunc() as i32))
-      }
-      _ => unreachable!(),
-    }
-  }
-  pub fn trunc_f64_to_sign_i32(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F64(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I32(n.trunc() as i32))
-      }
-      _ => unreachable!(),
-    }
-  }
-
-  pub fn trunc_f32_to_unsign_i32(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F32(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I32((n.trunc() as u32) as i32))
-      }
-      _ => unreachable!(),
-    }
-  }
-
-  pub fn trunc_f64_to_unsign_i32(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F64(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I32((n.trunc() as u32) as i32))
-      }
-      _ => unreachable!(),
-    }
-  }
-
-  pub fn trunc_f64_to_sign_i64(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F64(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I64(n.trunc() as i64))
-      }
-      _ => unreachable!(),
-    }
-  }
-
-  pub fn trunc_f64_to_unsign_i64(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F64(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I64((n.trunc() as u64) as i64))
-      }
-      _ => unreachable!(),
-    }
-  }
-  pub fn trunc_f32_to_sign_i64(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F32(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I64(n.trunc() as i64))
-      }
-      _ => unreachable!(),
-    }
-  }
-
-  pub fn trunc_f32_to_unsign_i64(&self) -> Result<Self, Trap> {
-    match self {
-      Values::F32(n) => {
-        if n.is_nan() || n.is_infinite() {
-          return Err(Trap::Undefined);
-        }
-        Ok(Values::I64((n.trunc() as u64) as i64))
-      }
-      _ => unreachable!(),
-    }
-  }
+  trunc_inst!(trunc_f32_to_sign_i32, Values::F32, Values::I32, i32, i32);
+  trunc_inst!(trunc_f32_to_unsign_i32, Values::F32, Values::I32, u32, i32);
+  trunc_inst!(trunc_f64_to_sign_i32, Values::F64, Values::I32, i32, i32);
+  trunc_inst!(trunc_f64_to_unsign_i32, Values::F64, Values::I32, u32, i32);
+  trunc_inst!(trunc_f32_to_sign_i64, Values::F32, Values::I64, i64, i64);
+  trunc_inst!(trunc_f32_to_unsign_i64, Values::F32, Values::I64, u64, i64);
+  trunc_inst!(trunc_f64_to_sign_i64, Values::F64, Values::I64, i64, i64);
+  trunc_inst!(trunc_f64_to_unsign_i64, Values::F64, Values::I64, u64, i64);
 
   pub fn is_truthy(&self) -> bool {
     match &self {
@@ -695,7 +657,14 @@ impl Values {
     }
   }
 
-  pub fn extend_to_i64(&self) -> Self {
+  pub fn extend_u32_to_i64(&self) -> Self {
+    match self {
+      Values::I32(l) => Values::I64(i64::from(*l as u32)),
+      _ => unimplemented!(),
+    }
+  }
+
+  pub fn extend_i32_to_i64(&self) -> Self {
     match self {
       Values::I32(l) => Values::I64(i64::from(*l)),
       _ => unimplemented!(),
