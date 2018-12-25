@@ -8,6 +8,8 @@ pub enum Trap {
   DivisionByZero,
   MemoryAccessOutOfBounds,
   BitshiftOverflow,
+  IntegerOverflow,
+  InvalidConversionToInt,
   Unknown,
   StackOverflow,
   StackUnderflow,
@@ -39,6 +41,7 @@ impl From<Trap> for String {
       DivisionByZero => "integer divide by zero",
       MemoryAccessOutOfBounds => "out of bounds memory access",
       BitshiftOverflow => "bit shift overflow",
+      IntegerOverflow => "integer overflow",
       Unknown => "unknown",
       Undefined => "undefined behavior occurred",
       UndefinedElement => "undefined element",
@@ -48,6 +51,7 @@ impl From<Trap> for String {
       TypeMismatch => "type mismatch",
       IndirectCallTypeMismatch => "indirect call type mismatch",
       FailToGrow => "fail to grow",
+      InvalidConversionToInt => "invalid conversion to integer",
     }
     .to_owned()
   }

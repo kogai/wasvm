@@ -187,7 +187,7 @@ impl_e2e!(test_break_drop, "break-drop");
 impl_e2e!(test_call_indirect, "call_indirect");
 impl_e2e!(test_call, "call");
 impl_e2e!(test_comments, "comments");
-// impl_e2e!(test_conversions, "conversions");
+impl_e2e!(test_conversions, "conversions");
 impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
 impl_e2e!(test_f32, "f32");
 impl_e2e!(test_f32_cmp, "f32_cmp");
