@@ -119,19 +119,26 @@ macro_rules! impl_e2e {
             ref module,
             ref message,
           } => {
-            match String::from_utf8(module.clone().into_vec()) {
-              Ok(_text_format) => {
-                println!("Skip malformed text form at line:{}.", line);
-              }
-              Err(_) => {
-                let mut vm = Vm::new(module.clone().into_vec());
-                match vm {
-                  Ok(_) => unreachable!(),
-                  Err(err) => {
-                    assert_eq!(&String::from(err), message);
-                  }
+            let bytes = module.clone().into_vec();
+            let tmp_bytes = bytes.clone();
+            let (magic_numbers, _) = tmp_bytes.split_at(8);
+            if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
+              if ($file_name == "custom_section" && line == 77)
+                || ($file_name == "custom_section" && line == 94)
+              {
+                println!("Skip {}, it seems not reasonable...", line);
+                continue;
+              };
+              println!("Assert malformed at {}.", line,);
+              let mut vm = Vm::new(bytes);
+              match vm {
+                Ok(_) => unreachable!(),
+                Err(err) => {
+                  assert_eq!(&String::from(err), message);
                 }
               }
+            } else {
+              println!("Skip malformed text form at line:{}.", line);
             };
           }
           CommandKind::AssertInvalid {
@@ -208,6 +215,7 @@ impl_e2e!(test_call_indirect, "call_indirect");
 impl_e2e!(test_call, "call");
 impl_e2e!(test_comments, "comments");
 impl_e2e!(test_conversions, "conversions");
+impl_e2e!(test_custom_section, "custom_section");
 impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
 impl_e2e!(test_exports, "exports");
 impl_e2e!(test_f32, "f32");

@@ -19,6 +19,9 @@ pub enum Trap {
   TypeMismatch,
   IndirectCallTypeMismatch,
   FailToGrow,
+  UnexpectedEnd,
+  InvalidSectionId,
+  LengthOutofBounds,
 }
 
 impl From<Trap> for NoneError {
@@ -29,7 +32,7 @@ impl From<Trap> for NoneError {
 
 impl From<NoneError> for Trap {
   fn from(_: NoneError) -> Self {
-    Trap::Unknown
+    Trap::UnexpectedEnd
   }
 }
 
@@ -52,6 +55,9 @@ impl From<Trap> for String {
       IndirectCallTypeMismatch => "indirect call type mismatch",
       FailToGrow => "fail to grow",
       InvalidConversionToInt => "invalid conversion to integer",
+      UnexpectedEnd => "unexpected end",
+      InvalidSectionId => "invalid section id",
+      LengthOutofBounds => "length out of bounds",
     }
     .to_owned()
   }
