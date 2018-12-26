@@ -23,12 +23,7 @@ impl Decodable for Section {
     let count_of_section = self.decode_leb128_u32()?;
     let mut exports: Exports = HashMap::new();
     for _ in 0..count_of_section {
-      let size_of_name = self.decode_leb128_u32()?;
-      let mut buf = vec![];
-      for _ in 0..size_of_name {
-        buf.push(self.next()?);
-      }
-      let key = String::from_utf8(buf).expect("To encode export name has been failured.");
+      let key = self.decode_name()?;
       let description_code = ExportDescriptionCode::from(self.next());
       let index = self.next()? as usize;
       let kind = match description_code {

@@ -1,4 +1,5 @@
 #![feature(try_trait)]
+#![feature(try_from)]
 #![feature(int_to_from_bytes)]
 #[macro_use]
 mod decode;

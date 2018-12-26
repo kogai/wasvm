@@ -79,6 +79,7 @@ macro_rules! impl_decodable {
         buf = buf ^ (num << shift);
         Ok(buf)
       }
+
       pub fn new(bytes: Vec<u8>) -> Self {
         $name {
           bytes: bytes,
@@ -94,6 +95,16 @@ macro_rules! impl_decodable {
         let el = self.bytes.get(self.byte_ptr);
         self.byte_ptr += 1;
         el.map(|&x| x)
+      }
+
+      #[allow(dead_code)]
+      fn decode_name(&mut self) -> Result<String> {
+        let size_of_name = self.decode_leb128_u32()?;
+        let mut buf = vec![];
+        for _ in 0..size_of_name {
+          buf.push(self.next()?);
+        }
+        Ok(String::from_utf8(buf).expect("To encode export name has been failured."))
       }
     }
   };
