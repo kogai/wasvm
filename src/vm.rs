@@ -456,7 +456,7 @@ impl Vm {
     fn evaluate(&mut self) -> Result<()> {
         let mut result = None;
         while !self.stack.is_empty() {
-            let popped = self.stack.pop()?; //.map(|entry| *entry)?;
+            let popped = self.stack.pop()?;
             match *popped {
                 StackEntry::Value(ref v) => {
                     if self.stack.is_frame_ramained() {
