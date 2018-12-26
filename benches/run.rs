@@ -1,4 +1,5 @@
 #![feature(test)]
+extern crate flame;
 extern crate test;
 extern crate wasvm;
 
@@ -34,13 +35,24 @@ fn bench_push(b: &mut test::Bencher) {
   });
 }
 
-#[bench]
-fn bench_fib_recursive(b: &mut test::Bencher) {
-  b.iter(|| {
-    let mut file = fs::File::open("./tmp/fib_recursive.wasm").unwrap();
-    let mut buffer = vec![];
-    file.read_to_end(&mut buffer).unwrap();
-    let mut vm = Vm::new(buffer).unwrap();
-    assert_eq!(vm.run("app_main", vec![]), "i32:9227465");
-  });
+macro_rules! impl_benches {
+  ($test_name: ident, $bench_name: expr) => {
+    #[bench]
+    fn $test_name(_b: &mut test::Bencher) {
+      let mut file = fs::File::open(format!("./tmp/{}.wasm", $bench_name)).unwrap();
+      let mut buffer = vec![];
+      file.read_to_end(&mut buffer).unwrap();
+      flame::start($bench_name);
+      // b.iter(|| {
+      let mut vm = Vm::new(buffer).unwrap();
+      assert_eq!(vm.run("app_main", vec![]), "i32:9227465");
+      // });
+      flame::end($bench_name);
+      flame::dump_stdout();
+    }
+  };
 }
+
+impl_benches!(bench_fib_recursive, "fib_recursive");
+impl_benches!(bench_pollard_rho_128, "pollard_rho_128");
+impl_benches!(bench_snappy_compress, "snappy_compress");

@@ -56,12 +56,20 @@ report.node.txt: Makefile
 run:
 	cargo run --bin main
 
-.PHONY: benches, tmp/fib_recursive.wasm
-benches: tmp/fib_recursive.wasm
+.PHONY: benches
+benches: tmp/fib_recursive.wasm tmp/pollard_rho_128.wasm tmp/snappy_compress.wasm
 
 tmp/fib_recursive.wasm:
-	cargo build --target=$(TRIPLE) --manifest-path=$(BENCH_DIR)/fib_recursive/Cargo.toml
+	cargo build --release --target=$(TRIPLE) --manifest-path=$(BENCH_DIR)/fib_recursive/Cargo.toml
 	mv $(BENCH_DIR)/fib_recursive/target/$(TRIPLE)/release/fib_recursive.wasm tmp/
+
+tmp/pollard_rho_128.wasm:
+	cargo build --release --target=$(TRIPLE) --manifest-path=$(BENCH_DIR)/pollard_rho_128/Cargo.toml
+	mv $(BENCH_DIR)/pollard_rho_128/target/$(TRIPLE)/release/pollard_rho_128.wasm tmp/
+
+tmp/snappy_compress.wasm:
+	cargo build --release --target=$(TRIPLE) --manifest-path=$(BENCH_DIR)/snappy_compress/Cargo.toml
+	mv $(BENCH_DIR)/snappy_compress/target/$(TRIPLE)/release/snappy_compress.wasm tmp/
 
 # Prefer to replace Docker container
 install:
