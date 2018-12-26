@@ -528,6 +528,7 @@ impl Vm {
                 Some(global) => String::from(global.get_value()),
                 None => "".to_owned(),
             },
+            None => format!("Invoke or Get key [{}] not found.", invoke),
             x => unimplemented!("{:?}", x),
         }
     }
