@@ -10,7 +10,9 @@ const PAGE_SIZE: u32 = 65536;
 
 #[derive(Clone)]
 pub enum Limit {
+  // (min)
   NoUpperLimit(u32),
+  // (min, max)
   HasUpperLimit(u32, u32),
 }
 
@@ -67,9 +69,18 @@ impl MemoryInstance {
       .get(idx as usize)
       .expect("Limitation of Data can't found.")
       .to_owned();
-    let mut data = data.get_init();
-    data.resize(PAGE_SIZE as usize, 0);
-    MemoryInstance { data, limit }
+
+    let mut initial_data = data.get_init();
+    let min_size = match limit {
+      Limit::NoUpperLimit(min) => min,
+      Limit::HasUpperLimit(min, _) => min,
+    };
+    initial_data.resize((PAGE_SIZE * min_size) as usize, 0);
+
+    MemoryInstance {
+      data: initial_data,
+      limit,
+    }
   }
   fn data_size(&self) -> u32 {
     self.data.len() as u32

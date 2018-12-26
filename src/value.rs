@@ -40,7 +40,7 @@ macro_rules! unary_logical_inst {
   };
 }
 
-macro_rules! bynary_inst {
+macro_rules! binary_inst {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Self {
       match (self, other) {
@@ -54,7 +54,7 @@ macro_rules! bynary_inst {
   };
 }
 
-macro_rules! bynary_logical_inst {
+macro_rules! binary_logical_inst {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Self {
       match (self, other) {
@@ -68,7 +68,7 @@ macro_rules! bynary_logical_inst {
   };
 }
 
-macro_rules! bynary_try_inst {
+macro_rules! binary_try_inst {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Result<Self> {
       match (self, other) {
@@ -529,36 +529,36 @@ impl_try_trunc!(f64, i64);
 impl_try_trunc!(f64, u64);
 
 impl Values {
-  bynary_inst!(and, bitand);
-  bynary_inst!(or, bitor);
-  bynary_inst!(xor, bitxor);
-  bynary_inst!(add, wrapping_add);
-  bynary_inst!(sub, wrapping_sub);
-  bynary_inst!(mul, wrapping_mul);
+  binary_inst!(and, bitand);
+  binary_inst!(or, bitor);
+  binary_inst!(xor, bitxor);
+  binary_inst!(add, wrapping_add);
+  binary_inst!(sub, wrapping_sub);
+  binary_inst!(mul, wrapping_mul);
 
-  bynary_logical_inst!(less_than, less_than);
-  bynary_logical_inst!(less_than_equal, less_than_equal);
-  bynary_logical_inst!(less_than_unsign, less_than_unsign);
-  bynary_logical_inst!(less_than_equal_unsign, less_than_equal_unsign);
+  binary_logical_inst!(less_than, less_than);
+  binary_logical_inst!(less_than_equal, less_than_equal);
+  binary_logical_inst!(less_than_unsign, less_than_unsign);
+  binary_logical_inst!(less_than_equal_unsign, less_than_equal_unsign);
 
-  bynary_logical_inst!(greater_than, greater_than);
-  bynary_logical_inst!(greater_than_equal, greater_than_equal);
-  bynary_logical_inst!(greater_than_unsign, greater_than_unsign);
-  bynary_logical_inst!(greater_than_equal_unsign, greater_than_equal_unsign);
-  bynary_logical_inst!(equal, equal);
-  bynary_logical_inst!(not_equal, not_equal);
+  binary_logical_inst!(greater_than, greater_than);
+  binary_logical_inst!(greater_than_equal, greater_than_equal);
+  binary_logical_inst!(greater_than_unsign, greater_than_unsign);
+  binary_logical_inst!(greater_than_equal_unsign, greater_than_equal_unsign);
+  binary_logical_inst!(equal, equal);
+  binary_logical_inst!(not_equal, not_equal);
 
-  bynary_inst!(shift_left, shift_left);
-  bynary_inst!(shift_right_sign, shift_right_sign);
-  bynary_inst!(shift_right_unsign, shift_right_unsign);
-  bynary_inst!(wasm_rotate_left, wasm_rotate_left);
-  bynary_inst!(wasm_rotate_right, wasm_rotate_right);
-  bynary_inst!(copy_sign, copy_sign);
+  binary_inst!(shift_left, shift_left);
+  binary_inst!(shift_right_sign, shift_right_sign);
+  binary_inst!(shift_right_unsign, shift_right_unsign);
+  binary_inst!(wasm_rotate_left, wasm_rotate_left);
+  binary_inst!(wasm_rotate_right, wasm_rotate_right);
+  binary_inst!(copy_sign, copy_sign);
 
-  bynary_try_inst!(rem_s, rem_s);
-  bynary_try_inst!(rem_u, rem_u);
-  bynary_try_inst!(div_s, div_s);
-  bynary_try_inst!(div_u, div_u);
+  binary_try_inst!(rem_s, rem_s);
+  binary_try_inst!(rem_u, rem_u);
+  binary_try_inst!(div_s, div_s);
+  binary_try_inst!(div_u, div_u);
 
   unary_logical_inst!(equal_zero, equal_zero);
   unary_inst!(count_leading_zero, count_leading_zero);

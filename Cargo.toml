@@ -7,6 +7,7 @@ authors = ["Shinichi Kogai <kogai0121@gmail.com>"]
 
 [dev-dependencies]
 wabt = "0.7.1"
+flame = "0.2.2"
 
 [[bin]]
 name = "main"

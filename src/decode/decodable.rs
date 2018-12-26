@@ -5,35 +5,41 @@ macro_rules! impl_decode_leb128 {
   ($t:ty, $buf_size: ty, $fn_name: ident) => {
     #[allow(dead_code)]
     fn $fn_name(&mut self) -> $crate::trap::Result<$t> {
-      let mut buf: $t = 0;
+      let mut buf: $buf_size = 0;
       let mut shift = 0;
 
-      // Check whether leftmost bit is 1 or 0
-      // n     = 0b11111111 = 0b01111111
-      // _     = 0b10000000 = 0b10000000
-      // n & _ = 0b10000000 = 0b00000000
-      while (self.peek()? & 0b10000000) != 0 {
-        let num = (self.next()? ^ (0b10000000)) as $t; // If leftmost bit is 1, we drop it.
-
+      // Check whether leftmost bit is 1 or 0, if most significant bit is zero,
+      // A result of bitwise AND become zero too.
+      //        +------------+------------+
+      // N      | 0b11111111 | 0b01111111 |
+      // &      +      &     +      &     |
+      // B      | 0b10000000 | 0b10000000 |
+      //        +------------+------------+
+      // Result | 0b10000000 | 0b00000000 |
+      //        +------------+------------+
+      loop {
+        let raw_code = self.next()?;
+        let is_msb_zero = raw_code & 0b10000000 == 0;
+        let num = (raw_code & 0b01111111) as $buf_size; // Drop leftmost bit
         // buf =      00000000_00000000_10000000_00000000
         // num =      00000000_00000000_00000000_00000001
         // num << 7 = 00000000_00000000_00000000_10000000
-        // buf ^ num  00000000_00000000_10000000_10000000
-        buf = buf ^ (num << shift);
+        // buf | num  00000000_00000000_10000000_10000000
+        buf |= num << shift;
         shift += 7;
+        if is_msb_zero {
+          break;
+        }
       }
-      let num = (self.next()?) as $t;
-      buf = buf ^ (num << shift);
-
-      let (msb_one, overflowed) = (1 as $buf_size).overflowing_shl(shift + 6);
+      let (signed_bits, overflowed) = (1 as $buf_size).overflowing_shl(shift - 1);
       if overflowed {
-        return Err($crate::trap::Trap::BitshiftOverflow)
+        return Ok(buf as $t)
       }
-      if buf & (msb_one as $t) != 0 {
-        Ok(-((1 << (shift + 7)) - buf))
-      } else {
-        Ok(buf)
-      }
+      let is_buf_signed = buf & signed_bits != 0;
+      if is_buf_signed {
+        buf |= !1 << shift - 1;
+      };
+      Ok(buf as $t)
     }
   };
 }
@@ -135,4 +141,75 @@ macro_rules! impl_decode_limit {
 pub trait Decodable {
   type Item;
   fn decode(&mut self) -> Result<Self::Item>;
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  impl_decodable!(TestDecodable);
+
+  impl TestDecodable {
+    impl_decode_leb128!(i8, u8, decode_leb128_i8);
+  }
+
+  #[test]
+  fn decode_i32_positive() {
+    assert_eq!(
+      // 128
+      TestDecodable::new(vec![0x80, 0x01]).decode_leb128_i32(),
+      Ok(128)
+    );
+  }
+
+  #[test]
+  fn decode_i32_negative() {
+    assert_eq!(
+      // -128
+      TestDecodable::new(vec![0x80, 0x7f]).decode_leb128_i32(),
+      Ok(-128)
+    );
+  }
+
+  #[test]
+  fn decode_i32_min() {
+    assert_eq!(
+      // -2147483648
+      TestDecodable::new(vec![0x80, 0x80, 0x80, 0x80, 0x78]).decode_leb128_i32(),
+      Ok(std::i32::MIN)
+    );
+  }
+
+  #[test]
+  fn decode_i32_max() {
+    assert_eq!(
+      // 2147483647
+      TestDecodable::new(vec![0xff, 0xff, 0xff, 0xff, 0x07]).decode_leb128_i32(),
+      Ok(std::i32::MAX)
+    );
+  }
+
+  #[test]
+  fn decode_i64_min() {
+    assert_eq!(
+      // -9223372036854775808
+      TestDecodable::new(vec![
+        0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
+      ])
+      .decode_leb128_i64(),
+      Ok(std::i64::MIN)
+    );
+  }
+
+  #[test]
+  fn decode_i64_max() {
+    assert_eq!(
+      // 9223372036854775807
+      TestDecodable::new(vec![
+        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
+      ])
+      .decode_leb128_i64(),
+      Ok(std::i64::MAX)
+    );
+  }
 }
