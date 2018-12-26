@@ -24,7 +24,7 @@ impl Byte {
     let start = self.byte_ptr;
     let end = start + bin_size_of_section as usize;
     if end > self.bytes.len() {
-      return Err(Trap::UnexpectedEnd);
+      return Err(Trap::LengthOutofBounds);
     }
     let bytes = self.bytes.drain(start..end).collect::<Vec<_>>();
     Ok(bytes)

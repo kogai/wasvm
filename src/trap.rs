@@ -21,6 +21,7 @@ pub enum Trap {
   FailToGrow,
   UnexpectedEnd,
   InvalidSectionId,
+  LengthOutofBounds,
 }
 
 impl From<Trap> for NoneError {
@@ -56,6 +57,7 @@ impl From<Trap> for String {
       InvalidConversionToInt => "invalid conversion to integer",
       UnexpectedEnd => "unexpected end",
       InvalidSectionId => "invalid section id",
+      LengthOutofBounds => "length out of bounds",
     }
     .to_owned()
   }
