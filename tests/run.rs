@@ -2,9 +2,11 @@ extern crate wabt;
 
 #[cfg(test)]
 extern crate wasvm;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 use wasvm::{Values, Vm};
 
@@ -45,7 +47,7 @@ macro_rules! impl_e2e {
       let mut json = File::open(&test_filename).unwrap();
       json.read_to_string(&mut buf).unwrap();
       let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
-      let mut current_modules: HashMap<Option<String>, Vec<u8>> = HashMap::new();
+      let mut current_modules: HashMap<Option<String>, Rc<RefCell<Vm>>> = HashMap::new();
 
       while let Ok(Some(Command { kind, line, .. })) = parser.next() {
         match kind {
@@ -53,8 +55,9 @@ macro_rules! impl_e2e {
             ref module,
             ref name,
           } => {
-            current_modules.insert(None, module.clone().into_vec());
-            current_modules.insert(name.clone(), module.clone().into_vec());
+            let vm = Rc::new(RefCell::new(Vm::new(module.clone().into_vec()).unwrap()));
+            current_modules.insert(None, vm.clone());
+            current_modules.insert(name.clone(), vm.clone());
           }
 
           CommandKind::AssertReturn {
@@ -82,8 +85,8 @@ macro_rules! impl_e2e {
               continue;
             };
             println!("Assert return at {}:{}.", field, line);
-            let bytes = current_modules.get(module).unwrap().clone();
-            let mut vm = Vm::new(bytes).unwrap();
+            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
+            let mut vm = vm_ref.borrow_mut();
             let actual = vm.run(field.as_ref(), args);
             let expectation = get_expectation(expected);
             assert_eq!(actual, expectation);
@@ -98,8 +101,8 @@ macro_rules! impl_e2e {
             ref message,
           } => {
             println!("Assert trap at {}:{}.", field, line,);
-            let bytes = current_modules.get(module).unwrap().clone();
-            let mut vm = Vm::new(bytes).unwrap();
+            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
+            let mut vm = vm_ref.borrow_mut();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, message);
           }
@@ -165,8 +168,8 @@ macro_rules! impl_e2e {
               },
           } => {
             println!("Assert canonical NaN at '{}:{}'.", field, line);
-            let bytes = current_modules.get(module).unwrap().clone();
-            let mut vm = Vm::new(bytes).unwrap();
+            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
+            let mut vm = vm_ref.borrow_mut();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
           }
@@ -179,8 +182,8 @@ macro_rules! impl_e2e {
               },
           } => {
             println!("Assert arithmetic NaN at '{}:{}'.", field, line);
-            let bytes = current_modules.get(module).unwrap().clone();
-            let mut vm = Vm::new(bytes).unwrap();
+            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
+            let mut vm = vm_ref.borrow_mut();
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
           }

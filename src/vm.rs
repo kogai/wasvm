@@ -510,7 +510,7 @@ impl Vm {
         Ok(())
     }
 
-    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    fn run_internal(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         match self.internal_module.get_export_by_key(invoke) {
             Some((Export::Function, idx)) => {
                 let mut arguments = arguments.to_owned();
@@ -531,5 +531,16 @@ impl Vm {
             None => format!("Invoke or Get key [{}] not found.", invoke),
             x => unimplemented!("{:?}", x),
         }
+    }
+
+    #[cfg(not(debug_assertions))]
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+        self.run_internal(invoke, arguments)
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+        self.stack = Stack::new(65536);
+        self.run_internal(invoke, arguments)
     }
 }
