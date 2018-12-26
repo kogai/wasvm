@@ -36,12 +36,11 @@ impl Decodable for Section {
     let count_of_section = self.decode_leb128_u32()?;
     (0..count_of_section)
       .map(|_| {
-        let memidx = self.decode_leb128_u32()? as u32;
+        let memidx = self.decode_leb128_u32()?;
         let offset = self.decode_instructions()?;
-        let mut size_of_data = self.next()?;
+        let size_of_data = self.decode_leb128_u32()?;
         let mut init = vec![];
-        while size_of_data != 0 {
-          size_of_data -= 1;
+        for _ in 0..size_of_data {
           init.push(self.next()?);
         }
         Ok(Data::new(memidx, offset, init))
