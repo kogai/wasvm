@@ -208,11 +208,8 @@ impl Vm {
                     //                              |    without any label instruction.
                     let start_of_label = frame.get_start_of_label();
                     let block_type = frame.pop_runtime_type()?;
-                    let label_continue = StackEntry::new_label(
-                        start_of_label,
-                        block_type,
-                        LabelKind::LoopContinuation,
-                    );
+                    let label_continue =
+                        StackEntry::new_label(start_of_label, block_type, LabelKind::Loop);
                     self.stack.push(label_continue)?;
                 }
                 If(if_size, else_size) => {

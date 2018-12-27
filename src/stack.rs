@@ -10,7 +10,7 @@ use value_type::ValueTypes;
 pub enum LabelKind {
   If,
   Else,
-  LoopContinuation,
+  Loop,
   Block,
   Frame,
 }
@@ -304,14 +304,22 @@ impl Stack {
       Some(Label {
         return_type: _,
         continuation,
+        source_instruction,
         ..
       }) => {
-        // FIXME: Prefer to pop and push with count of return_types.
-        let return_val = buf_values
-          .first()
-          .expect("At least one return value should exists.")
-          .to_owned();
-        self.push(return_val)?;
+        match source_instruction {
+          LabelKind::Loop => {
+            self.push_entries(&mut buf_values)?;
+          }
+          _ => {
+            // FIXME: Prefer to pop and push with count of return_types.
+            let return_val = buf_values
+              .first()
+              .expect("At least one return value should exists.")
+              .to_owned();
+            self.push(return_val)?;
+          }
+        };
         continuation
       }
       x => unreachable!("At least one label should exists.\n{:?}", x),
