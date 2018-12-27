@@ -165,16 +165,18 @@ impl Vm {
                         break;
                     } else {
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
-                        let buf_label = self.stack.pop_label_ext();
-                        let label = match &buf_label {
+                        let label = self.stack.pop_label_ext();
+                        match &label {
                             Label {
-                                source_instruction: LabelKind::LoopContinuation,
+                                source_instruction: LabelKind::If,
+                                continuation,
                                 ..
-                            } => self.stack.pop_label_ext(),
-                            _ => buf_label,
+                            } => {
+                                frame.jump_to(*continuation);
+                            }
+                            _ => {}
                         };
                         self.stack.push_entries(&mut buf_values)?;
-                        frame.jump_to(label.continuation);
                     }
                 }
                 Nop => {}
@@ -194,7 +196,7 @@ impl Vm {
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::Block);
                     self.stack.push(label)?;
                 }
-                Loop(size) => {
+                Loop(_) => {
                     // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
                     // In case for ptr of frame starts by 5,
                     //
@@ -205,16 +207,12 @@ impl Vm {
                     // [14] End                     | <- frame.ptr when evaluation of frame completed
                     //                              |    without any label instruction.
                     let start_of_label = frame.get_start_of_label();
-                    let ptr_of_end = size + start_of_label;
                     let block_type = frame.pop_runtime_type()?;
-                    let label_end =
-                        StackEntry::new_label(ptr_of_end, block_type.clone(), LabelKind::LoopEnd);
                     let label_continue = StackEntry::new_label(
                         start_of_label,
                         block_type,
                         LabelKind::LoopContinuation,
                     );
-                    self.stack.push(label_end)?;
                     self.stack.push(label_continue)?;
                 }
                 If(if_size, else_size) => {
@@ -222,16 +220,23 @@ impl Vm {
                     let start_of_label = frame.get_start_of_label();
                     let continuation = start_of_label + if_size + else_size;
                     let block_type = frame.pop_runtime_type()?;
-                    let label = StackEntry::new_label(continuation, block_type, LabelKind::If);
-                    self.stack.push(label)?;
                     if cond.is_truthy() {
+                        let label = StackEntry::new_label(continuation, block_type, LabelKind::If);
+                        self.stack.push(label)?;
                     } else {
+                        let label =
+                            StackEntry::new_label(continuation, block_type, LabelKind::Else);
+                        self.stack.push(label)?;
                         let start_of_else = start_of_label + if_size;
-                        frame.jump_to(start_of_else);
+                        if *else_size > 0 {
+                            frame.jump_to(start_of_else);
+                        } else {
+                            frame.jump_to(start_of_else - 1);
+                        }
                     }
                 }
-                Br(l) => {
-                    let continuation = self.stack.jump_to_label(l)?;
+                Br(label) => {
+                    let continuation = self.stack.jump_to_label(label)?;
                     frame.jump_to(continuation);
                 }
                 BrIf(l) => {
@@ -474,9 +479,16 @@ impl Vm {
                     // NOTE: Only fresh frame should be initialization.
                     if frame.is_fresh() {
                         let prev_frame_ptr = self.stack.frame_ptr;
+                        let return_type = frame
+                            .get_return_type()
+                            .first()
+                            .map_or(ValueTypes::Empty, |x| x.to_owned());
+                        let label =
+                            StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
                         self.stack.frame_ptr = frame.return_ptr;
                         self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
                         self.stack.push_entries(&mut frame.get_local_variables())?;
+                        self.stack.push(label)?;
                     }
                     self.evaluate_instructions(frame)?;
 
@@ -510,7 +522,7 @@ impl Vm {
         Ok(())
     }
 
-    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    fn run_internal(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
         match self.internal_module.get_export_by_key(invoke) {
             Some((Export::Function, idx)) => {
                 let mut arguments = arguments.to_owned();
@@ -531,5 +543,16 @@ impl Vm {
             None => format!("Invoke or Get key [{}] not found.", invoke),
             x => unimplemented!("{:?}", x),
         }
+    }
+
+    #[cfg(not(debug_assertions))]
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+        self.run_internal(invoke, arguments)
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+        self.stack = Stack::new(65536);
+        self.run_internal(invoke, arguments)
     }
 }

@@ -15,7 +15,7 @@ pub struct Frame {
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
   function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,
-  last_ptr: u32,
+  pub last_ptr: u32,
   pub return_ptr: usize,
 }
 
@@ -64,6 +64,10 @@ impl Frame {
       local_variables.push(StackEntry::new_value(arg));
     }
     RefCell::new(local_variables)
+  }
+
+  pub fn get_return_type(&self) -> &Vec<ValueTypes> {
+    &self.function_instance.get_return_type()
   }
 
   pub fn get_return_count(&self) -> u32 {

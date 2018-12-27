@@ -662,7 +662,7 @@ impl Values {
 
   pub fn is_truthy(&self) -> bool {
     match &self {
-      Values::I32(n) => *n > 0,
+      Values::I32(n) => *n != 0,
       _ => unimplemented!(),
     }
   }

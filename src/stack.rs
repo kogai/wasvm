@@ -9,14 +9,16 @@ use value_type::ValueTypes;
 #[derive(PartialEq, Debug, Clone)]
 pub enum LabelKind {
   If,
-  LoopEnd,
+  Else,
   LoopContinuation,
   Block,
+  Frame,
 }
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Label {
   pub source_instruction: LabelKind,
+  // FIXME: To Vec type
   return_type: ValueTypes,
   pub continuation: u32,
 }
