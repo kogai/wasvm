@@ -1,7 +1,7 @@
 use super::decodable::Decodable;
 use super::section::{Section, SectionCode};
 use super::*;
-use internal_module::InternalModule;
+use module::InternalModule;
 use std::convert::TryFrom;
 use std::default::Default;
 use store::Store;
@@ -40,7 +40,6 @@ impl Byte {
       match code {
         Type => section.function_types(&mut sec_type::Section::new(bytes).decode()?),
         Function => section.functions(&mut sec_function::Section::new(bytes).decode()?),
-        Export => section.exports(sec_export::Section::new(bytes).decode()?),
         Code => section.codes(&mut sec_code::Section::new(bytes).decode()?),
         Data => section.datas(&mut sec_data::Section::new(bytes).decode()?),
         Memory => section.limits(&mut sec_memory::Section::new(bytes).decode()?),
@@ -48,7 +47,8 @@ impl Byte {
         Global => section.globals(&mut sec_global::Section::new(bytes).decode()?),
         Element => section.elements(&mut sec_element::Section::new(bytes).decode()?),
         Custom => section.customs(&mut sec_custom::Section::new(bytes).decode()?),
-        Import => section.imports(&mut sec_import::Section::new(bytes).decode()?),
+        Export => section.exports(sec_export::Section::new(bytes).decode()?),
+        Import => section.imports(sec_import::Section::new(bytes).decode()?),
         Start => {
           unimplemented!("{:?}", code);
         }

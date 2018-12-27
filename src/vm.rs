@@ -1,8 +1,10 @@
-use decode::{Byte, Export};
+use decode::Byte;
 use frame::Frame;
 use inst::Inst;
-use internal_module::InternalModule;
+use module::{ExternalInterface, InternalModule, ModuleDescriptor};
 use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
+use std::cell::RefCell;
+use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -102,7 +104,7 @@ impl Vm {
         match bytes.decode() {
             Ok((store, internal_module)) => Ok(Vm {
                 store,
-                internal_module,
+                internal_module: internal_module,
                 stack: Stack::new(65536),
             }),
             Err(err) => Err(err),
@@ -520,11 +522,20 @@ impl Vm {
     }
 
     fn run_internal(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
-        match self.internal_module.get_export_by_key(invoke) {
-            Some((Export::Function, idx)) => {
+        match self
+            .internal_module
+            .get_export_by_key(invoke)
+            .map(|x| x.to_owned())
+        {
+            Some(ExternalInterface {
+                descriptor: ModuleDescriptor::Function(idx),
+                ..
+            }) => {
                 let mut arguments = arguments.to_owned();
                 arguments.reverse();
-                let _ = self.stack.push_frame(&mut self.store, idx, arguments);
+                let _ = self
+                    .stack
+                    .push_frame(&mut self.store, idx as usize, arguments);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
                         Ok(v) => String::from(v),
@@ -533,7 +544,10 @@ impl Vm {
                     Err(err) => String::from(err),
                 }
             }
-            Some((Export::Global, idx)) => match self.store.get_global_instance(idx) {
+            Some(ExternalInterface {
+                descriptor: ModuleDescriptor::Global(idx),
+                ..
+            }) => match self.store.get_global_instance(idx as usize) {
                 Some(global) => String::from(global.get_value()),
                 None => "".to_owned(),
             },

@@ -1,15 +1,12 @@
 use super::context::Context;
 use super::sec_element::Element;
-use super::sec_export::Exports;
-use super::sec_import::Import;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::Inst;
-use internal_module::InternalModule;
 use memory::{Limit, MemoryInstance};
-use std::collections::HashMap;
+use module::{ExternalInterfaces, InternalModule};
 use std::convert::TryFrom;
 use std::default::Default;
 use std::rc::Rc;
@@ -59,7 +56,7 @@ impl TryFrom<Option<u8>> for SectionCode {
 pub struct Section {
   function_types: Vec<FunctionType>,
   functions: Vec<u32>,
-  exports: Exports,
+  exports: ExternalInterfaces,
   codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   datas: Vec<Data>,
   limits: Vec<Limit>,
@@ -67,7 +64,7 @@ pub struct Section {
   globals: Vec<GlobalInstance>,
   elements: Vec<Element>,
   customs: Vec<(String, Vec<u8>)>,
-  imports: Vec<Import>,
+  imports: ExternalInterfaces,
 }
 
 impl Default for Section {
@@ -75,7 +72,7 @@ impl Default for Section {
     Section {
       function_types: vec![],
       functions: vec![],
-      exports: HashMap::new(),
+      exports: ExternalInterfaces::new(),
       codes: vec![],
       datas: vec![],
       limits: vec![],
@@ -83,7 +80,7 @@ impl Default for Section {
       globals: vec![],
       elements: vec![],
       customs: vec![],
-      imports: vec![],
+      imports: ExternalInterfaces::new(),
     }
   }
 }
@@ -107,9 +104,13 @@ impl Section {
   impl_builder!(globals, globals, GlobalInstance);
   impl_builder!(elements, elements, Element);
   impl_builder!(customs, customs, (String, Vec<u8>));
-  impl_builder!(imports, imports, Import);
 
-  pub fn exports<'a>(&'a mut self, xs: Exports) -> &'a mut Self {
+  pub fn imports<'a>(&'a mut self, xs: ExternalInterfaces) -> &'a mut Self {
+    self.imports = xs;
+    self
+  }
+
+  pub fn exports<'a>(&'a mut self, xs: ExternalInterfaces) -> &'a mut Self {
     self.exports = xs;
     self
   }
@@ -139,13 +140,6 @@ impl Section {
       .collect::<Vec<_>>()
   }
 
-  fn export_name(idx: usize, exports: &Exports) -> Option<String> {
-    exports
-      .iter()
-      .find(|(_key, (_kind, i))| *i == idx)
-      .map(|(key, _)| key.to_owned())
-  }
-
   fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
     function_types
       .get(idx)
@@ -156,14 +150,14 @@ impl Section {
   fn function_instances(
     function_types: &Vec<FunctionType>,
     functions: Vec<u32>,
-    exports: &Exports,
+    exports: &ExternalInterfaces,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
     codes
       .into_iter()
       .enumerate()
       .map(|(idx, code)| {
-        let export_name = Section::export_name(idx, &exports);
+        let export_name = exports.find_by_idx(idx as u32).map(|x| x.name.to_owned());
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
         let function_type = Section::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;
