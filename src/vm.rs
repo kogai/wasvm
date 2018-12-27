@@ -1,7 +1,7 @@
 use decode::Byte;
 use frame::Frame;
 use inst::Inst;
-use module::{ExternalInterface, InternalModule, ModuleDescriptor};
+use module::{ExternalInterface, ExternalModule, InternalModule, ModuleDescriptor};
 use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -100,15 +100,26 @@ pub struct Vm {
 
 impl Vm {
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
+        Vm::new_with_externals(bytes, ExternalModule::default())
+    }
+
+    pub fn new_with_externals(bytes: Vec<u8>, external_module: ExternalModule) -> Result<Self> {
         let mut bytes = Byte::new_with_drop(bytes);
         match bytes.decode() {
-            Ok((store, internal_module)) => Ok(Vm {
-                store,
-                internal_module: internal_module,
-                stack: Stack::new(65536),
-            }),
+            Ok(section) => {
+                let (store, internal_module) = section.complete(external_module)?;
+                Ok(Vm {
+                    store,
+                    internal_module: internal_module,
+                    stack: Stack::new(65536),
+                })
+            }
             Err(err) => Err(err),
         }
+    }
+
+    pub fn export_module(&self) -> ExternalModule {
+        ExternalModule::from(&self.store)
     }
 
     fn get_local(&mut self, idx: u32) -> Result<()> {

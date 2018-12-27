@@ -1,7 +1,7 @@
 use value::Values;
 use value_type::ValueTypes;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GlobalType {
   Const(ValueTypes),
   Var(ValueTypes),
@@ -17,7 +17,7 @@ impl GlobalType {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GlobalInstance {
   global_type: GlobalType,
   value: Values,

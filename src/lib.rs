@@ -18,6 +18,7 @@ mod vm;
 
 pub use self::value::Values;
 pub use self::vm::Vm;
+pub use self::module::ExternalModule;
 
 #[cfg(test)]
 mod tests {

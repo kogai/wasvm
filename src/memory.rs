@@ -30,6 +30,7 @@ impl fmt::Debug for Limit {
   }
 }
 
+#[derive(Clone)]
 pub struct MemoryInstance {
   data: Vec<u8>, // Do not fixed size.
   limit: Limit,

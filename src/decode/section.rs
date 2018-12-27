@@ -6,7 +6,7 @@ use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::Inst;
 use memory::{Limit, MemoryInstance};
-use module::{ExternalInterfaces, InternalModule};
+use module::{ExternalInterfaces, ExternalModule, InternalModule};
 use std::convert::TryFrom;
 use std::default::Default;
 use std::rc::Rc;
@@ -177,7 +177,7 @@ impl Section {
     globals
   }
 
-  pub fn complete(self) -> Result<(Store, InternalModule)> {
+  pub fn complete(self, external_module: ExternalModule) -> Result<(Store, InternalModule)> {
     match self {
       Section {
         function_types,

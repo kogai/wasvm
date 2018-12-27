@@ -1,4 +1,12 @@
+use decode::TableInstance;
+use function::{FunctionInstance, FunctionType};
+use global::GlobalInstance;
+use memory::MemoryInstance;
 use std::collections::HashMap;
+use std::convert::From;
+use std::default::Default;
+use std::rc::Rc;
+use store::Store;
 
 #[derive(Debug, Clone)]
 pub enum ModuleDescriptor {
@@ -78,5 +86,56 @@ impl InternalModule {
 
   pub fn get_export_by_key(&self, invoke: &str) -> Option<&ExternalInterface> {
     self.exports.0.get(invoke)
+  }
+}
+
+// NOTE: Similar to Store, hmm...
+pub struct ExternalModule {
+  function_instances: Vec<Rc<FunctionInstance>>,
+  function_types: Vec<FunctionType>,
+  memory_instances: Vec<MemoryInstance>,
+  table_instances: Vec<TableInstance>,
+  global_instances: Vec<GlobalInstance>,
+}
+
+impl ExternalModule {
+  pub fn new(
+    function_instances: Vec<Rc<FunctionInstance>>,
+    function_types: Vec<FunctionType>,
+    memory_instances: Vec<MemoryInstance>,
+    table_instances: Vec<TableInstance>,
+    global_instances: Vec<GlobalInstance>,
+  ) -> Self {
+    ExternalModule {
+      function_instances,
+      function_types,
+      memory_instances,
+      table_instances,
+      global_instances,
+    }
+  }
+}
+
+impl Default for ExternalModule {
+  fn default() -> Self {
+    ExternalModule {
+      function_instances: vec![],
+      function_types: vec![],
+      memory_instances: vec![],
+      table_instances: vec![],
+      global_instances: vec![],
+    }
+  }
+}
+
+impl From<&Store> for ExternalModule {
+  fn from(store: &Store) -> Self {
+    ExternalModule {
+      function_instances: store.function_instances.clone(),
+      function_types: store.function_types.clone(),
+      memory_instances: store.memory_instances.clone(),
+      table_instances: store.table_instances.clone(),
+      global_instances: store.global_instances.clone(),
+    }
   }
 }
