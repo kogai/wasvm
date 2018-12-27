@@ -95,7 +95,10 @@ macro_rules! impl_e2e {
             let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
             let mut vm = vm_ref.borrow_mut();
             let actual = vm.run(field.as_ref(), get_args(args));
-            assert_eq!(&actual, message);
+            match message.as_ref() {
+              "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+              _ => assert_eq!(&actual, message),
+            }
           }
           CommandKind::AssertExhaustion {
             action: Action::Invoke {
@@ -251,7 +254,7 @@ impl_e2e!(test_memory_redundancy, "memory_redundancy");
 impl_e2e!(test_nop, "nop");
 // impl_e2e!(test_resizing, "resizing");
 impl_e2e!(test_return, "return");
-// impl_e2e!(test_select, "select");
+impl_e2e!(test_select, "select");
 impl_e2e!(test_set_local, "set_local");
 impl_e2e!(test_skip_stack_guard_page, "skip-stack-guard-page");
 impl_e2e!(test_stack, "stack");
@@ -263,7 +266,7 @@ impl_e2e!(test_token, "token");
 impl_e2e!(test_traps, "traps");
 impl_e2e!(test_type, "type");
 impl_e2e!(test_typecheck, "typecheck");
-// impl_e2e!(test_unreachable, "unreachable");
+impl_e2e!(test_unreachable, "unreachable");
 impl_e2e!(test_unreached_invalid, "unreached-invalid");
 // impl_e2e!(test_unwind, "unwind");
 // impl_e2e!(test_utf8_custom_section_id, "utf8-custom-section-id");

@@ -152,7 +152,7 @@ impl Vm {
         while let Some(expression) = frame.pop_ref() {
             match expression {
                 Unreachable => {
-                    unimplemented!("{:?}", expression);
+                    return Err(Trap::Unreachable)
                 }
                 Return => {
                     let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
