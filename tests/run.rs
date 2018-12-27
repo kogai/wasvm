@@ -184,6 +184,14 @@ macro_rules! impl_e2e {
             println!("Skip perform action at '{}:{}'.", field, line);
             break;
           }
+          CommandKind::Register {
+            ref name,
+            ref as_name,
+            ..
+          } => {
+            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(name).unwrap().clone();
+            current_modules.insert(Some(as_name.clone()), vm_ref);
+          }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",
             x
