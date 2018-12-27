@@ -251,7 +251,7 @@ impl_e2e!(test_memory_redundancy, "memory_redundancy");
 impl_e2e!(test_nop, "nop");
 // impl_e2e!(test_resizing, "resizing");
 impl_e2e!(test_return, "return");
-// impl_e2e!(test_select, "select");
+impl_e2e!(test_select, "select");
 impl_e2e!(test_set_local, "set_local");
 impl_e2e!(test_skip_stack_guard_page, "skip-stack-guard-page");
 impl_e2e!(test_stack, "stack");
