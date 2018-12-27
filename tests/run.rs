@@ -75,15 +75,6 @@ macro_rules! impl_e2e {
                 ref module,
               } => (field, vec![], module),
             };
-
-            if (field == "as-load-operand" && $file_name == "block")
-              || (field == "as-load-operand" && $file_name == "call_indirect" && line == 581)
-              || (field == "as-convert-operand" && $file_name == "call_indirect" && line == 589)
-              || (field == "as-load-operand" && $file_name == "call" && line == 301)
-            {
-              println!("Skip {}:{}, it seems not reasonable...", field, line);
-              continue;
-            };
             println!("Assert return at {}:{}.", field, line);
             let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
             let mut vm = vm_ref.borrow_mut();

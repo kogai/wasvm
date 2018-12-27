@@ -115,6 +115,10 @@ impl FunctionInstance {
     self.function_type.to_owned()
   }
 
+  pub fn get_return_type(&self) -> &Vec<ValueTypes> {
+    &self.function_type.returns
+  }
+
   pub fn get_return_count(&self) -> u32 {
     self.function_type.returns_count as u32
   }
