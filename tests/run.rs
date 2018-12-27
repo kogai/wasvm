@@ -228,5 +228,6 @@ impl_e2e!(test_tee_local, "tee_local");
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
 impl_e2e!(test_if, "if");
+impl_e2e!(test_labels, "labels");
 impl_e2e!(test_loop, "loop");
 impl_e2e!(test_token, "token");
