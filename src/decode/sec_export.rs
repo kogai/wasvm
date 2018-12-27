@@ -1,10 +1,11 @@
 use super::code::ExportDescriptionCode;
-use super::decodable::Decodable;
+use super::decodable::{Decodable, NameDecodable};
 use std::collections::HashMap;
 use std::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);
+impl_name_decodable!(Section);
 
 #[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub enum Export {

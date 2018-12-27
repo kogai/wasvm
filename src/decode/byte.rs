@@ -48,7 +48,8 @@ impl Byte {
         Global => section.globals(&mut sec_global::Section::new(bytes).decode()?),
         Element => section.elements(&mut sec_element::Section::new(bytes).decode()?),
         Custom => section.customs(&mut sec_custom::Section::new(bytes).decode()?),
-        Import | Start => {
+        Import => section.imports(&mut sec_import::Section::new(bytes).decode()?),
+        Start => {
           unimplemented!("{:?}", code);
         }
       };

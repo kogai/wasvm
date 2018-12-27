@@ -102,16 +102,6 @@ macro_rules! impl_decodable {
         self.byte_ptr += 1;
         el.map(|&x| x)
       }
-
-      #[allow(dead_code)]
-      fn decode_name(&mut self) -> Result<String> {
-        let size_of_name = self.decode_leb128_u32()?;
-        let mut buf = vec![];
-        for _ in 0..size_of_name {
-          buf.push(self.next()?);
-        }
-        Ok(String::from_utf8(buf).expect("To encode export name has been failured."))
-      }
     }
   };
 }
@@ -133,6 +123,25 @@ macro_rules! impl_decode_limit {
           }
           x => unreachable!("Expected limit code, got {:?}", x),
         }
+      }
+    }
+  };
+}
+
+pub trait NameDecodable {
+  fn decode_name(&mut self) -> Result<String>;
+}
+
+macro_rules! impl_name_decodable {
+  ($name: ident) => {
+    impl NameDecodable for $name {
+      fn decode_name(&mut self) -> Result<String> {
+        let size_of_name = self.decode_leb128_u32()?;
+        let mut buf = vec![];
+        for _ in 0..size_of_name {
+          buf.push(self.next()?);
+        }
+        Ok(String::from_utf8(buf).expect("To encode export name has been failured."))
       }
     }
   };

@@ -1,5 +1,7 @@
 use super::sec_export::Exports;
+use super::sec_import::Import;
 use super::sec_table::TableInstance;
+
 use frame::Frame;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
@@ -18,6 +20,7 @@ pub struct Context {
   table_instances: Vec<TableInstance>,
   global_instances: Vec<GlobalInstance>,
   exports: Exports,
+  imports: Vec<Import>,
   _type_context: Vec<TypeKind>,
 }
 
@@ -29,6 +32,7 @@ impl Context {
     table_instances: Vec<TableInstance>,
     global_instances: Vec<GlobalInstance>,
     exports: Exports,
+    imports: Vec<Import>,
   ) -> Self {
     Context {
       function_instances,
@@ -37,6 +41,7 @@ impl Context {
       table_instances,
       global_instances,
       exports,
+      imports,
       _type_context: vec![],
     }
   }
@@ -49,7 +54,7 @@ impl Context {
       self.table_instances,
       self.global_instances,
     );
-    let internal_module = InternalModule::new(self.exports);
+    let internal_module = InternalModule::new(self.exports, self.imports);
     Ok((store, internal_module))
   }
 

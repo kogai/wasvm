@@ -1,6 +1,7 @@
 use super::context::Context;
 use super::sec_element::Element;
 use super::sec_export::Exports;
+use super::sec_import::Import;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
 use function::{FunctionInstance, FunctionType};
@@ -66,6 +67,7 @@ pub struct Section {
   globals: Vec<GlobalInstance>,
   elements: Vec<Element>,
   customs: Vec<(String, Vec<u8>)>,
+  imports: Vec<Import>,
 }
 
 impl Default for Section {
@@ -81,6 +83,7 @@ impl Default for Section {
       globals: vec![],
       elements: vec![],
       customs: vec![],
+      imports: vec![],
     }
   }
 }
@@ -104,6 +107,7 @@ impl Section {
   impl_builder!(globals, globals, GlobalInstance);
   impl_builder!(elements, elements, Element);
   impl_builder!(customs, customs, (String, Vec<u8>));
+  impl_builder!(imports, imports, Import);
 
   pub fn exports<'a>(&'a mut self, xs: Exports) -> &'a mut Self {
     self.exports = xs;
@@ -192,6 +196,7 @@ impl Section {
         elements,
         globals,
         customs: _,
+        imports,
       } => {
         let memory_instances = Section::memory_instances(datas, limits);
         let table_instances = Section::table_instances(elements, tables);
@@ -206,6 +211,7 @@ impl Section {
             table_instances,
             global_instances,
             exports,
+            imports,
           )
           .without_validate()?,
         )
