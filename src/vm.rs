@@ -228,7 +228,11 @@ impl Vm {
                             StackEntry::new_label(continuation, block_type, LabelKind::Else);
                         self.stack.push(label)?;
                         let start_of_else = start_of_label + if_size;
-                        frame.jump_to(start_of_else);
+                        if *else_size > 0 {
+                            frame.jump_to(start_of_else);
+                        } else {
+                            frame.jump_to(start_of_else - 1);
+                        }
                     }
                 }
                 Br(label) => {
