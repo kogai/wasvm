@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
-use wasvm::{ExternalModule, ExternalModules, Values, Vm};
+use wasvm::{ExternalModules, Values, Vm};
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -203,7 +203,7 @@ macro_rules! impl_e2e {
             let mut vm_ref: Rc<RefCell<Vm>> = current_modules.get(name).unwrap().clone();
             let vm = vm_ref.borrow();
             let importable_module = vm.export_module();
-            importable_modules.register_module(as_name.clone(), importable_module);
+            importable_modules.register_module(Some(as_name.clone()), importable_module);
           }
           CommandKind::AssertUnlinkable {
             ref module,

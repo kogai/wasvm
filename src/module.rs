@@ -2,9 +2,11 @@ use decode::TableInstance;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use memory::MemoryInstance;
+use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::convert::From;
 use std::default::Default;
+use std::iter::Iterator;
 use std::rc::Rc;
 use store::Store;
 
@@ -29,15 +31,18 @@ impl From<(Option<u8>, u32)> for ModuleDescriptor {
   }
 }
 
+type ModuleName = Option<String>;
+type Name = String;
+
 #[derive(Debug, Clone)]
 pub struct ExternalInterface {
-  module_name: Option<String>,
-  pub name: String,
+  module_name: ModuleName,
+  pub name: Name,
   pub descriptor: ModuleDescriptor,
 }
 
 impl ExternalInterface {
-  pub fn new(module_name: Option<String>, name: String, descriptor: ModuleDescriptor) -> Self {
+  pub fn new(module_name: ModuleName, name: Name, descriptor: ModuleDescriptor) -> Self {
     ExternalInterface {
       module_name,
       name,
@@ -47,15 +52,17 @@ impl ExternalInterface {
 }
 
 #[derive(Debug)]
-pub struct ExternalInterfaces(HashMap<String, ExternalInterface>);
+pub struct ExternalInterfaces(HashMap<(ModuleName, Name), ExternalInterface>);
 
 impl ExternalInterfaces {
   pub fn new() -> Self {
     ExternalInterfaces(HashMap::new())
   }
 
-  pub fn insert(&mut self, key: String, value: ExternalInterface) {
-    self.0.insert(key, value);
+  pub fn insert(&mut self, value: ExternalInterface) {
+    self
+      .0
+      .insert((value.module_name.clone(), value.name.clone()), value);
   }
 
   pub fn find_by_idx(&self, idx: u32) -> Option<&ExternalInterface> {
@@ -72,6 +79,10 @@ impl ExternalInterfaces {
       )
       .map(|(_, x)| x)
   }
+
+  pub fn iter(&self) -> Iter<(ModuleName, Name), ExternalInterface> {
+    self.0.iter()
+  }
 }
 
 pub struct InternalModule {
@@ -85,13 +96,13 @@ impl InternalModule {
   }
 
   pub fn get_export_by_key(&self, invoke: &str) -> Option<&ExternalInterface> {
-    self.exports.0.get(invoke)
+    self.exports.0.get(&(None, invoke.to_owned()))
   }
 }
 
 #[derive(Clone)]
 pub struct ExternalModule {
-  function_instances: Vec<Rc<FunctionInstance>>,
+  pub function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
   table_instances: Vec<TableInstance>,
@@ -112,6 +123,15 @@ impl ExternalModule {
       memory_instances,
       table_instances,
       global_instances,
+    }
+  }
+
+  pub fn find_function_instance(&self, key: &ExternalInterface) -> Option<Rc<FunctionInstance>> {
+    match key.descriptor {
+      ModuleDescriptor::Function(idx) => {
+        self.function_instances.get(idx as usize).map(|x| x.clone())
+      }
+      _ => unimplemented!(),
     }
   }
 }
@@ -141,14 +161,18 @@ impl From<&Store> for ExternalModule {
 }
 
 #[derive(Clone)]
-pub struct ExternalModules(HashMap<String, ExternalModule>);
+pub struct ExternalModules(HashMap<ModuleName, ExternalModule>);
 
 impl ExternalModules {
   pub fn new() -> Self {
     ExternalModules(HashMap::new())
   }
 
-  pub fn register_module(&mut self, key: String, value: ExternalModule) {
+  pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) {
     self.0.insert(key, value);
+  }
+
+  pub fn get(&self, key: &ModuleName) -> Option<&ExternalModule> {
+    self.0.get(key)
   }
 }

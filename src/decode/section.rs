@@ -172,6 +172,24 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
+  fn external_function_instances(
+    imports: &ExternalInterfaces,
+    external_modules: &ExternalModules,
+  ) -> Result<Vec<Rc<FunctionInstance>>> {
+    imports
+      .iter()
+      .map(|((module_name, _name), value)| {
+        let external_module = external_modules
+          .get(module_name)
+          .ok_or(Trap::UnknownImport)?;
+        let result = external_module
+          .find_function_instance(value)
+          .ok_or(Trap::UnknownImport);
+        result
+      })
+      .collect::<Result<Vec<_>>>()
+  }
+
   // NOTE: Might be reasonable some future.
   fn global_instances(globals: Vec<GlobalInstance>) -> Vec<GlobalInstance> {
     globals
@@ -194,8 +212,13 @@ impl Section {
       } => {
         let memory_instances = Section::memory_instances(datas, limits);
         let table_instances = Section::table_instances(elements, tables);
-        let function_instances =
+
+        let mut function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
+        let mut external_function_instances =
+          Section::external_function_instances(&imports, &external_modules)?;
+        function_instances.append(&mut external_function_instances);
+
         let global_instances = Section::global_instances(globals);
         Ok(
           Context::new(

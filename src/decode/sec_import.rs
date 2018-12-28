@@ -15,10 +15,11 @@ impl Decodable for Section {
       let module_name = self.decode_name()?;
       let name = self.decode_name()?;
       let import_descriptor = ModuleDescriptor::from((self.next(), self.decode_leb128_u32()?));
-      imports.insert(
-        name.clone(),
-        ExternalInterface::new(Some(module_name), name, import_descriptor),
-      );
+      imports.insert(ExternalInterface::new(
+        Some(module_name),
+        name,
+        import_descriptor,
+      ));
     }
     Ok(imports)
   }

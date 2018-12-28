@@ -23,6 +23,7 @@ pub enum Trap {
   InvalidSectionId,
   LengthOutofBounds,
   Unreachable,
+  UnknownImport,
 }
 
 impl From<Trap> for NoneError {
@@ -59,7 +60,8 @@ impl From<Trap> for String {
       UnexpectedEnd => "unexpected end",
       InvalidSectionId => "invalid section id",
       LengthOutofBounds => "length out of bounds",
-      Unreachable => "unreachable executed"
+      Unreachable => "unreachable executed",
+      UnknownImport => "unknown import",
     }
     .to_owned()
   }
