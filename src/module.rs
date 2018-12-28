@@ -32,6 +32,14 @@ impl From<(Option<u8>, u32)> for ModuleDescriptor {
   }
 }
 
+#[derive(Eq, PartialEq, Debug, Clone, Hash)]
+pub enum ModuleDescriptorKind {
+  Function,
+  Table,
+  Memory,
+  Global,
+}
+
 type ModuleName = Option<String>;
 type Name = String;
 
@@ -66,14 +74,20 @@ impl ExternalInterfaces {
       .insert((value.module_name.clone(), value.name.clone()), value);
   }
 
-  pub fn find_function_by_idx(&self, idx: u32) -> Option<&ExternalInterface> {
+  pub fn find_kind_by_idx(
+    &self,
+    idx: u32,
+    kind: ModuleDescriptorKind,
+  ) -> Option<&ExternalInterface> {
     self
       .0
       .iter()
       .find(
         |(_key, ExternalInterface { descriptor, .. })| match descriptor {
-          ModuleDescriptor::Function(x) => *x == idx,
-          _ => false,
+          ModuleDescriptor::Function(x) => ModuleDescriptorKind::Function == kind && *x == idx,
+          ModuleDescriptor::Table(x) => ModuleDescriptorKind::Table == kind && *x == idx,
+          ModuleDescriptor::Memory(x) => ModuleDescriptorKind::Memory == kind && *x == idx,
+          ModuleDescriptor::Global(x) => ModuleDescriptorKind::Global == kind && *x == idx,
         },
       )
       .map(|(_, x)| x)
@@ -81,6 +95,28 @@ impl ExternalInterfaces {
 
   pub fn iter(&self) -> Iter<(ModuleName, Name), ExternalInterface> {
     self.0.iter()
+  }
+
+  pub fn group_by_kind(&self) -> HashMap<ModuleDescriptorKind, Self> {
+    let mut buf_function = ExternalInterfaces::new();
+    let mut buf_table = ExternalInterfaces::new();
+    let mut buf_memory = ExternalInterfaces::new();
+    let mut buf_global = ExternalInterfaces::new();
+    let mut buf = HashMap::new();
+
+    for (_module_name, x) in self.iter() {
+      match x.descriptor {
+        ModuleDescriptor::Function(_) => buf_function.insert(x.clone()),
+        ModuleDescriptor::Table(_) => buf_table.insert(x.clone()),
+        ModuleDescriptor::Memory(_) => buf_memory.insert(x.clone()),
+        ModuleDescriptor::Global(_) => buf_global.insert(x.clone()),
+      };
+    }
+    buf.insert(ModuleDescriptorKind::Function, buf_function);
+    buf.insert(ModuleDescriptorKind::Table, buf_table);
+    buf.insert(ModuleDescriptorKind::Memory, buf_memory);
+    buf.insert(ModuleDescriptorKind::Global, buf_global);
+    buf
   }
 }
 
@@ -136,13 +172,35 @@ impl ExternalModule {
         name,
         ..
       } => {
+        let expected_type = function_types.get(*idx as usize)?;
         let instance = self
           .function_instances
           .iter()
           .find(|instance| instance.export_name == Some(name.to_owned()))
-          .map(|x| x.clone())
-          .ok_or(Trap::UnknownImport)?;
-        let expected_type = function_types.get(*idx as usize)?;
+          .ok_or(Trap::UnknownImport)
+          .map_err(|err| {
+            if self
+              .global_instances
+              .iter()
+              .find(|instance| instance.export_name == Some(name.to_owned()))
+              .is_some()
+              || self
+                .memory_instances
+                .iter()
+                .find(|instance| instance.export_name == Some(name.to_owned()))
+                .is_some()
+              || self
+                .table_instances
+                .iter()
+                .find(|instance| instance.export_name == Some(name.to_owned()))
+                .is_some()
+            {
+              return Trap::IncompatibleImportType;
+            };
+            err
+          })
+          .map(|x| x.clone())?;
+
         instance
           .validate_type(expected_type)
           .map_err(|_| Trap::IncompatibleImportType)?;

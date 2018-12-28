@@ -1,4 +1,3 @@
-use decode::Data;
 use std::fmt;
 use std::mem::transmute;
 use trap::{Result, Trap};
@@ -34,6 +33,7 @@ impl fmt::Debug for Limit {
 pub struct MemoryInstance {
   data: Vec<u8>, // Do not fixed size.
   limit: Limit,
+  pub export_name: Option<String>,
 }
 
 macro_rules! impl_load_data {
@@ -64,14 +64,8 @@ macro_rules! impl_store_data {
 }
 
 impl MemoryInstance {
-  pub fn new(data: Data, limits: &Vec<Limit>) -> Self {
-    let idx = data.get_data_idx();
-    let limit = limits
-      .get(idx as usize)
-      .expect("Limitation of Data can't found.")
-      .to_owned();
-
-    let mut initial_data = data.get_init();
+  pub fn new(initial_data: Vec<u8>, limit: Limit, export_name: Option<String>) -> Self {
+    let mut initial_data = initial_data;
     let min_size = match limit {
       Limit::NoUpperLimit(min) => min,
       Limit::HasUpperLimit(min, _) => min,
@@ -79,8 +73,9 @@ impl MemoryInstance {
     initial_data.resize((PAGE_SIZE * min_size) as usize, 0);
 
     MemoryInstance {
-      data: initial_data,
+      data: initial_data.to_vec(),
       limit,
+      export_name,
     }
   }
   fn data_size(&self) -> u32 {
