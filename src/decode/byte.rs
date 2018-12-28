@@ -61,7 +61,7 @@ mod tests {
   use super::*;
   use function::{FunctionInstance, FunctionType};
   use inst::Inst;
-  use module::ExternalModule;
+  use module::ExternalModules;
   use std::fs::File;
   use std::io::Read;
   use value_type::ValueTypes;
@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(
           bc.decode()
             .unwrap()
-            .complete(ExternalModule::default())
+            .complete(ExternalModules::new())
             .unwrap()
             .0
             .get_function_instance(0)

@@ -7,8 +7,8 @@ mod frame;
 mod function;
 mod global;
 mod inst;
-mod module;
 mod memory;
+mod module;
 mod stack;
 mod store;
 mod trap;
@@ -16,9 +16,9 @@ mod value;
 mod value_type;
 mod vm;
 
+pub use self::module::{ExternalModule, ExternalModules};
 pub use self::value::Values;
 pub use self::vm::Vm;
-pub use self::module::ExternalModule;
 
 #[cfg(test)]
 mod tests {

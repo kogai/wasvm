@@ -89,7 +89,7 @@ impl InternalModule {
   }
 }
 
-// NOTE: Similar to Store, hmm...
+#[derive(Clone)]
 pub struct ExternalModule {
   function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
@@ -137,5 +137,18 @@ impl From<&Store> for ExternalModule {
       table_instances: store.table_instances.clone(),
       global_instances: store.global_instances.clone(),
     }
+  }
+}
+
+#[derive(Clone)]
+pub struct ExternalModules(HashMap<String, ExternalModule>);
+
+impl ExternalModules {
+  pub fn new() -> Self {
+    ExternalModules(HashMap::new())
+  }
+
+  pub fn register_module(&mut self, key: String, value: ExternalModule) {
+    self.0.insert(key, value);
   }
 }

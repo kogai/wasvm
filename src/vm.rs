@@ -1,10 +1,10 @@
 use decode::Byte;
 use frame::Frame;
 use inst::Inst;
-use module::{ExternalInterface, ExternalModule, InternalModule, ModuleDescriptor};
+use module::{
+    ExternalInterface, ExternalModule, ExternalModules, InternalModule, ModuleDescriptor,
+};
 use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
-use std::cell::RefCell;
-use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -100,14 +100,14 @@ pub struct Vm {
 
 impl Vm {
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
-        Vm::new_with_externals(bytes, ExternalModule::default())
+        Vm::new_with_externals(bytes, ExternalModules::new())
     }
 
-    pub fn new_with_externals(bytes: Vec<u8>, external_module: ExternalModule) -> Result<Self> {
+    pub fn new_with_externals(bytes: Vec<u8>, external_modules: ExternalModules) -> Result<Self> {
         let mut bytes = Byte::new_with_drop(bytes);
         match bytes.decode() {
             Ok(section) => {
-                let (store, internal_module) = section.complete(external_module)?;
+                let (store, internal_module) = section.complete(external_modules)?;
                 Ok(Vm {
                     store,
                     internal_module: internal_module,
@@ -164,9 +164,7 @@ impl Vm {
         use self::Inst::*;
         while let Some(expression) = frame.pop_ref() {
             match expression {
-                Unreachable => {
-                    return Err(Trap::Unreachable)
-                }
+                Unreachable => return Err(Trap::Unreachable),
                 Return => {
                     let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
                     self.stack.push_entries(&mut buf_values)?;
