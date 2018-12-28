@@ -100,7 +100,7 @@ impl InternalModule {
   }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ExternalModule {
   pub function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
@@ -127,10 +127,16 @@ impl ExternalModule {
   }
 
   pub fn find_function_instance(&self, key: &ExternalInterface) -> Option<Rc<FunctionInstance>> {
-    match key.descriptor {
-      ModuleDescriptor::Function(idx) => {
-        self.function_instances.get(idx as usize).map(|x| x.clone())
-      }
+    match key {
+      ExternalInterface {
+        descriptor: ModuleDescriptor::Function(_idx),
+        name,
+        ..
+      } => self
+        .function_instances
+        .iter()
+        .find(|instance| instance.export_name == Some(name.to_owned()))
+        .map(|x| x.clone()),
       _ => unimplemented!(),
     }
   }
@@ -160,7 +166,7 @@ impl From<&Store> for ExternalModule {
   }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ExternalModules(HashMap<ModuleName, ExternalModule>);
 
 impl ExternalModules {
