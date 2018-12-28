@@ -9,6 +9,7 @@ mod global;
 mod inst;
 mod memory;
 mod module;
+mod spectest;
 mod stack;
 mod store;
 mod trap;
@@ -17,6 +18,7 @@ mod value_type;
 mod vm;
 
 pub use self::module::{ExternalModule, ExternalModules};
+pub use self::spectest::create_spectest;
 pub use self::value::Values;
 pub use self::vm::Vm;
 

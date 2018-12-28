@@ -61,7 +61,7 @@ pub struct FunctionInstance {
   export_name: Option<String>,
   function_type: FunctionType,
   pub locals: Vec<ValueTypes>,
-  type_idex: u32,
+  type_idex: u32, // FIXME: Seems not used
   body: Rc<Vec<Inst>>,
 }
 

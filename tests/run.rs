@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
-use wasvm::{ExternalModules, Values, Vm};
+use wasvm::{create_spectest, ExternalModules, Values, Vm};
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -49,6 +49,8 @@ macro_rules! impl_e2e {
       let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
       let mut current_modules: HashMap<Option<String>, Rc<RefCell<Vm>>> = HashMap::new();
       let mut importable_modules: ExternalModules = ExternalModules::new();
+      let spectest = create_spectest();
+      importable_modules.register_module(Some("spectest".to_owned()), spectest);
 
       while let Ok(Some(Command { kind, line, .. })) = parser.next() {
         match kind {
