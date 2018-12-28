@@ -24,6 +24,7 @@ pub enum Trap {
   LengthOutofBounds,
   Unreachable,
   UnknownImport,
+  IncompatibleImportType,
 }
 
 impl From<Trap> for NoneError {
@@ -62,6 +63,7 @@ impl From<Trap> for String {
       LengthOutofBounds => "length out of bounds",
       Unreachable => "unreachable executed",
       UnknownImport => "unknown import",
+      IncompatibleImportType => "incompatible import type",
     }
     .to_owned()
   }

@@ -9,10 +9,11 @@ use std::default::Default;
 use std::iter::Iterator;
 use std::rc::Rc;
 use store::Store;
+use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
 pub enum ModuleDescriptor {
-  Function(u32),
+  Function(u32), // NOTE: Index of FunctionTypes
   Table(u32),
   Memory(u32),
   Global(u32),
@@ -65,16 +66,14 @@ impl ExternalInterfaces {
       .insert((value.module_name.clone(), value.name.clone()), value);
   }
 
-  pub fn find_by_idx(&self, idx: u32) -> Option<&ExternalInterface> {
+  pub fn find_function_by_idx(&self, idx: u32) -> Option<&ExternalInterface> {
     self
       .0
       .iter()
       .find(
         |(_key, ExternalInterface { descriptor, .. })| match descriptor {
-          ModuleDescriptor::Function(x)
-          | ModuleDescriptor::Table(x)
-          | ModuleDescriptor::Memory(x)
-          | ModuleDescriptor::Global(x) => *x == idx,
+          ModuleDescriptor::Function(x) => *x == idx,
+          _ => false,
         },
       )
       .map(|(_, x)| x)
@@ -126,18 +125,30 @@ impl ExternalModule {
     }
   }
 
-  pub fn find_function_instance(&self, key: &ExternalInterface) -> Option<Rc<FunctionInstance>> {
+  pub fn find_function_instance(
+    &self,
+    key: &ExternalInterface,
+    function_types: &Vec<FunctionType>,
+  ) -> Result<Rc<FunctionInstance>> {
     match key {
       ExternalInterface {
-        descriptor: ModuleDescriptor::Function(_idx),
+        descriptor: ModuleDescriptor::Function(idx),
         name,
         ..
-      } => self
-        .function_instances
-        .iter()
-        .find(|instance| instance.export_name == Some(name.to_owned()))
-        .map(|x| x.clone()),
-      _ => unimplemented!(),
+      } => {
+        let instance = self
+          .function_instances
+          .iter()
+          .find(|instance| instance.export_name == Some(name.to_owned()))
+          .map(|x| x.clone())
+          .ok_or(Trap::UnknownImport)?;
+        let expected_type = function_types.get(*idx as usize)?;
+        instance
+          .validate_type(expected_type)
+          .map_err(|_| Trap::IncompatibleImportType)?;
+        Ok(instance)
+      }
+      x => unreachable!("Expected function descriptor, got {:?}", x),
     }
   }
 }

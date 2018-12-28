@@ -1,6 +1,7 @@
 use inst::Inst;
 use std::fmt;
 use std::rc::Rc;
+use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
@@ -121,5 +122,12 @@ impl FunctionInstance {
 
   pub fn get_return_count(&self) -> u32 {
     self.function_type.returns_count as u32
+  }
+
+  pub fn validate_type(&self, other: &FunctionType) -> Result<()> {
+    if &self.function_type != other {
+      return Err(Trap::TypeMismatch);
+    }
+    Ok(())
   }
 }

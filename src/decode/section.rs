@@ -157,7 +157,9 @@ impl Section {
       .into_iter()
       .enumerate()
       .map(|(idx, code)| {
-        let export_name = exports.find_by_idx(idx as u32).map(|x| x.name.to_owned());
+        let export_name = exports
+          .find_function_by_idx(idx as u32)
+          .map(|x| x.name.to_owned());
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
         let function_type = Section::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;
@@ -173,6 +175,7 @@ impl Section {
   }
 
   fn external_function_instances(
+    function_types: &Vec<FunctionType>,
     imports: &ExternalInterfaces,
     external_modules: &ExternalModules,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
@@ -182,10 +185,7 @@ impl Section {
         let external_module = external_modules
           .get(module_name)
           .ok_or(Trap::UnknownImport)?;
-        let result = external_module
-          .find_function_instance(value)
-          .ok_or(Trap::UnknownImport);
-        result
+        external_module.find_function_instance(value, function_types)
       })
       .collect::<Result<Vec<_>>>()
   }
@@ -216,7 +216,7 @@ impl Section {
         let mut function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
         let mut external_function_instances =
-          Section::external_function_instances(&imports, &external_modules)?;
+          Section::external_function_instances(&function_types, &imports, &external_modules)?;
         function_instances.append(&mut external_function_instances);
 
         let global_instances = Section::global_instances(globals);
