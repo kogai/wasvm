@@ -36,7 +36,7 @@ fn bench_push(b: &mut test::Bencher) {
 }
 
 macro_rules! impl_benches {
-  ($test_name: ident, $bench_name: expr) => {
+  ($test_name: ident, $bench_name: expr, $expect: expr) => {
     #[bench]
     fn $test_name(_b: &mut test::Bencher) {
       let mut file = fs::File::open(format!("./tmp/{}.wasm", $bench_name)).unwrap();
@@ -45,7 +45,7 @@ macro_rules! impl_benches {
       flame::start($bench_name);
       // b.iter(|| {
       let mut vm = Vm::new(buffer).unwrap();
-      assert_eq!(vm.run("app_main", vec![]), "i32:9227465");
+      assert_eq!(vm.run("app_main", vec![]), $expect);
       // });
       flame::end($bench_name);
       flame::dump_stdout();
@@ -53,6 +53,10 @@ macro_rules! impl_benches {
   };
 }
 
-impl_benches!(bench_fib_recursive, "fib_recursive");
-impl_benches!(bench_pollard_rho_128, "pollard_rho_128");
-impl_benches!(bench_snappy_compress, "snappy_compress");
+impl_benches!(bench_fib_recursive, "fib_recursive", "i32:9227465");
+impl_benches!(
+  bench_pollard_rho_128,
+  "pollard_rho_128",
+  "i64:2635722126511989555"
+);
+impl_benches!(bench_snappy_compress, "snappy_compress", "i32:393476");

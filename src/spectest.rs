@@ -67,7 +67,7 @@ pub fn create_spectest() -> ExternalModule {
         ElementType::AnyFunc,
         Limit::HasUpperLimit(0, 20),
       )),
-      Element::new(0, 10, vec![1, 2]),
+      Element::new(0, 10, vec![10]),
       Some("table".to_owned()),
     )],
     // GlobalInstances
