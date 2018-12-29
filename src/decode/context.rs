@@ -19,6 +19,7 @@ pub struct Context {
   global_instances: Vec<GlobalInstance>,
   exports: ExternalInterfaces,
   imports: ExternalInterfaces,
+  start: Option<u32>,
   _type_context: Vec<TypeKind>,
 }
 
@@ -31,6 +32,7 @@ impl Context {
     global_instances: Vec<GlobalInstance>,
     exports: ExternalInterfaces,
     imports: ExternalInterfaces,
+    start: Option<u32>,
   ) -> Self {
     Context {
       function_instances,
@@ -41,6 +43,7 @@ impl Context {
       exports,
       imports,
       _type_context: vec![],
+      start,
     }
   }
 
@@ -52,7 +55,7 @@ impl Context {
       self.table_instances,
       self.global_instances,
     );
-    let internal_module = InternalModule::new(self.exports, self.imports);
+    let internal_module = InternalModule::new(self.exports, self.imports, self.start);
     Ok((store, internal_module))
   }
 

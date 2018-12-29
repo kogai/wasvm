@@ -313,6 +313,7 @@ impl Section {
             global_instances,
             exports,
             imports,
+            start,
           )
           .without_validate()?,
         )
