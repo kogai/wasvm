@@ -68,6 +68,7 @@ pub struct Section {
   elements: Vec<Element>,
   customs: Vec<(String, Vec<u8>)>,
   imports: ExternalInterfaces,
+  start: Option<u32>,
 }
 
 impl Default for Section {
@@ -84,6 +85,7 @@ impl Default for Section {
       elements: vec![],
       customs: vec![],
       imports: ExternalInterfaces::new(),
+      start: None,
     }
   }
 }
@@ -115,6 +117,11 @@ impl Section {
 
   pub fn exports<'a>(&'a mut self, xs: ExternalInterfaces) -> &'a mut Self {
     self.exports = xs;
+    self
+  }
+
+  pub fn start<'a>(&'a mut self, x: u32) -> &'a mut Self {
+    self.start = Some(x);
     self
   }
 
@@ -269,6 +276,7 @@ impl Section {
         globals,
         customs: _,
         imports,
+        start,
       } => {
         let grouped_imports = imports.group_by_kind();
         let imports_function = grouped_imports.get(&ModuleDescriptorKind::Function)?;
