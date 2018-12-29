@@ -6,7 +6,9 @@ use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use inst::Inst;
 use memory::{Limit, MemoryInstance};
-use module::{ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind};
+use module::{
+  ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
+};
 use std::convert::TryFrom;
 use std::default::Default;
 use std::rc::Rc;
@@ -159,14 +161,14 @@ impl Section {
   }
 
   fn external_table_instances(
-    imports: &ExternalInterfaces,
+    imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
   ) -> Result<Vec<TableInstance>> {
     imports
       .iter()
-      .map(|((module_name, _name), value)| {
+      .map(|value| {
         external_modules
-          .get(module_name)
+          .get(&value.module_name)
           .ok_or(Trap::UnknownImport)?
           .find_table_instance(value)
       })
@@ -209,14 +211,14 @@ impl Section {
 
   fn external_function_instances(
     function_types: &Vec<FunctionType>,
-    import_functions: &ExternalInterfaces,
+    imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
-    import_functions
+    imports
       .iter()
-      .map(|((module_name, _name), value)| {
+      .map(|value| {
         external_modules
-          .get(module_name)
+          .get(&value.module_name)
           .ok_or(Trap::UnknownImport)?
           .find_function_instance(value, function_types)
       })
@@ -240,6 +242,21 @@ impl Section {
       .collect::<Vec<_>>()
   }
 
+  fn external_global_instances(
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+  ) -> Result<Vec<GlobalInstance>> {
+    imports
+      .iter()
+      .map(|value| {
+        external_modules
+          .get(&value.module_name)
+          .ok_or(Trap::UnknownImport)?
+          .find_global_instance(value)
+      })
+      .collect::<Result<Vec<_>>>()
+  }
+
   pub fn complete(self, external_modules: ExternalModules) -> Result<(Store, InternalModule)> {
     match self {
       Section {
@@ -259,26 +276,28 @@ impl Section {
         let imports_function = grouped_imports.get(&ModuleDescriptorKind::Function)?;
         let imports_table = grouped_imports.get(&ModuleDescriptorKind::Table)?;
         let _imports_memory = grouped_imports.get(&ModuleDescriptorKind::Memory)?;
-        let _imports_global = grouped_imports.get(&ModuleDescriptorKind::Global)?;
+        let imports_global = grouped_imports.get(&ModuleDescriptorKind::Global)?;
 
-        let memory_instances = Section::memory_instances(datas, limits, &exports);
-
-        let mut table_instances = Section::table_instances(elements, tables, &exports);
         let mut function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
+        let mut table_instances = Section::table_instances(elements, tables, &exports);
+        let memory_instances = Section::memory_instances(datas, limits, &exports);
+        let mut global_instances = Section::global_instances(globals, &exports);
 
-        let mut external_table_instances =
-          Section::external_table_instances(&imports_table, &external_modules)?;
         let mut external_function_instances = Section::external_function_instances(
           &function_types,
           &imports_function,
           &external_modules,
         )?;
+        let mut external_table_instances =
+          Section::external_table_instances(&imports_table, &external_modules)?;
+        let mut external_global_instances =
+          Section::external_global_instances(&imports_global, &external_modules)?;
 
-        table_instances.append(&mut external_table_instances);
         function_instances.append(&mut external_function_instances);
+        table_instances.append(&mut external_table_instances);
+        global_instances.append(&mut external_global_instances);
 
-        let global_instances = Section::global_instances(globals, &exports);
         Ok(
           Context::new(
             function_instances,

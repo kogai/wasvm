@@ -2,12 +2,12 @@ use decode::{TableInstance, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use memory::{Limit, MemoryInstance};
-use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::convert::From;
 use std::default::Default;
 use std::iter::Iterator;
 use std::rc::Rc;
+use std::slice::Iter;
 use store::Store;
 use trap::{Result, Trap};
 
@@ -72,7 +72,7 @@ type Name = String;
 
 #[derive(Debug, Clone)]
 pub struct ExternalInterface {
-  module_name: ModuleName,
+  pub module_name: ModuleName,
   pub name: Name,
   pub descriptor: ModuleDescriptor,
 }
@@ -88,17 +88,16 @@ impl ExternalInterface {
 }
 
 #[derive(Debug)]
-pub struct ExternalInterfaces(HashMap<(ModuleName, Name), ExternalInterface>);
+pub struct ExternalInterfaces(Vec<ExternalInterface>);
 
 impl ExternalInterfaces {
   pub fn new() -> Self {
-    ExternalInterfaces(HashMap::new())
+    ExternalInterfaces(vec![])
   }
 
+  // FIXME: Rename to push.
   pub fn insert(&mut self, value: ExternalInterface) {
-    self
-      .0
-      .insert((value.module_name.clone(), value.name.clone()), value);
+    self.0.push(value);
   }
 
   pub fn find_kind_by_idx(
@@ -109,52 +108,49 @@ impl ExternalInterfaces {
     self
       .0
       .iter()
-      .find(
-        |(_key, ExternalInterface { descriptor, .. })| match descriptor {
-          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
-            ModuleDescriptorKind::Function == kind && *x == idx
-          }
-          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
-            ModuleDescriptorKind::Table == kind && *x == idx
-          }
-          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
-            ModuleDescriptorKind::Memory == kind && *x == idx
-          }
-          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
-            ModuleDescriptorKind::Global == kind && *x == idx
-          }
-          _ => unimplemented!(),
-        },
-      )
-      .map(|(_, x)| x)
+      .find(|ExternalInterface { descriptor, .. }| match descriptor {
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
+          ModuleDescriptorKind::Function == kind && *x == idx
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
+          ModuleDescriptorKind::Table == kind && *x == idx
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
+          ModuleDescriptorKind::Memory == kind && *x == idx
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
+          ModuleDescriptorKind::Global == kind && *x == idx
+        }
+        _ => unimplemented!(),
+      })
   }
 
-  pub fn iter(&self) -> Iter<(ModuleName, Name), ExternalInterface> {
+  pub fn iter(&self) -> Iter<ExternalInterface> {
     self.0.iter()
   }
 
-  pub fn group_by_kind(&self) -> HashMap<ModuleDescriptorKind, Self> {
-    let mut buf_function = ExternalInterfaces::new();
-    let mut buf_table = ExternalInterfaces::new();
-    let mut buf_memory = ExternalInterfaces::new();
-    let mut buf_global = ExternalInterfaces::new();
+  pub fn group_by_kind(&self) -> HashMap<ModuleDescriptorKind, Vec<ExternalInterface>> {
+    let mut buf_function = vec![];
+    let mut buf_table = vec![];
+    let mut buf_memory = vec![];
+    let mut buf_global = vec![];
     let mut buf = HashMap::new();
 
-    for (_module_name, x) in self.iter() {
-      match x.descriptor {
+    for x in self.iter() {
+      match &x.descriptor {
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(_)) => {
-          buf_function.insert(x.clone())
+          buf_function.push(x.clone());
         }
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_)) => {
-          buf_table.insert(x.clone())
+          buf_table.push(x.clone());
         }
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(_)) => {
-          buf_memory.insert(x.clone())
+          buf_memory.push(x.clone());
         }
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_)) => {
-          buf_global.insert(x.clone())
+          buf_global.push(x.clone());
         }
-        _ => unimplemented!(),
+        y => unimplemented!("{:?}", y),
       };
     }
     buf.insert(ModuleDescriptorKind::Function, buf_function);
@@ -177,7 +173,7 @@ impl InternalModule {
   }
 
   pub fn get_export_by_key(&self, invoke: &str) -> Option<&ExternalInterface> {
-    self.exports.0.get(&(None, invoke.to_owned()))
+    self.exports.0.iter().find(|x| x.name == invoke)
   }
 }
 
@@ -238,7 +234,7 @@ impl ExternalModule {
   pub fn find_table_instance(&self, key: &ExternalInterface) -> Result<TableInstance> {
     match key {
       ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(table_type)),
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_)),
         name,
         ..
       } => {
@@ -251,6 +247,25 @@ impl ExternalModule {
         Ok(instance)
       }
       x => unreachable!("Expected table descriptor, got {:?}", x),
+    }
+  }
+
+  pub fn find_global_instance(&self, key: &ExternalInterface) -> Result<GlobalInstance> {
+    match key {
+      ExternalInterface {
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_)),
+        name,
+        ..
+      } => {
+        let instance = self
+          .global_instances
+          .iter()
+          .find(|instance| instance.export_name == Some(name.to_owned()))
+          .ok_or(Trap::UnknownImport)
+          .map(|x| x.clone())?;
+        Ok(instance)
+      }
+      x => unreachable!("Expected global descriptor, got {:?}", x),
     }
   }
 }

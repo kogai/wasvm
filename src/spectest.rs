@@ -1,6 +1,8 @@
 use function::{FunctionInstance, FunctionType};
+use global::{GlobalInstance, GlobalType};
 use inst::Inst;
 use module::ExternalModule;
+use value::Values;
 use value_type::ValueTypes;
 
 pub fn create_spectest() -> ExternalModule {
@@ -55,8 +57,27 @@ pub fn create_spectest() -> ExternalModule {
       ),
     ],
     vec![],
+    // TableInstances
     vec![],
+    // MemoryInstances
     vec![],
-    vec![],
+    // GlobalInstances
+    vec![
+      GlobalInstance::new(
+        GlobalType::Var(ValueTypes::I32),
+        Values::I32(666),
+        Some("global_i32".to_owned()),
+      ),
+      GlobalInstance::new(
+        GlobalType::Var(ValueTypes::F32),
+        Values::F32(666.0),
+        Some("global_f32".to_owned()),
+      ),
+      GlobalInstance::new(
+        GlobalType::Var(ValueTypes::F64),
+        Values::F64(666.0),
+        Some("global_f64".to_owned()),
+      ),
+    ],
   )
 }
