@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
-use wasvm::{Values, Vm};
+use wasvm::{create_spectest, ExternalModules, Values, Vm};
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -48,6 +48,9 @@ macro_rules! impl_e2e {
       json.read_to_string(&mut buf).unwrap();
       let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
       let mut current_modules: HashMap<Option<String>, Rc<RefCell<Vm>>> = HashMap::new();
+      let mut importable_modules: ExternalModules = ExternalModules::new();
+      let spectest = create_spectest();
+      importable_modules.register_module(Some("spectest".to_owned()), spectest);
 
       while let Ok(Some(Command { kind, line, .. })) = parser.next() {
         match kind {
@@ -55,9 +58,12 @@ macro_rules! impl_e2e {
             ref module,
             ref name,
           } => {
-            let vm = Rc::new(RefCell::new(Vm::new(module.clone().into_vec()).unwrap()));
-            current_modules.insert(None, vm.clone());
-            current_modules.insert(name.clone(), vm.clone());
+            let vm_ref = Rc::new(RefCell::new(
+              Vm::new_with_externals(module.clone().into_vec(), importable_modules.clone())
+                .unwrap(),
+            ));
+            current_modules.insert(None, vm_ref.clone());
+            current_modules.insert(name.clone(), vm_ref.clone());
           }
 
           CommandKind::AssertReturn {
@@ -186,6 +192,45 @@ macro_rules! impl_e2e {
           }) => {
             println!("Skip perform action at '{}:{}'.", field, line);
             break;
+          }
+          CommandKind::Register {
+            ref name,
+            ref as_name,
+            ..
+          } => {
+            println!(
+              "Register importable module, key={:?} import_name={}.",
+              name, as_name
+            );
+            let mut vm_ref: Rc<RefCell<Vm>> = current_modules.get(name).unwrap().clone();
+            let vm = vm_ref.borrow();
+            let importable_module = vm.export_module();
+            importable_modules.register_module(Some(as_name.clone()), importable_module);
+          }
+          CommandKind::AssertUnlinkable {
+            ref module,
+            ref message,
+          } => {
+            let bytes = module.clone().into_vec();
+            let tmp_bytes = bytes.clone();
+            let (magic_numbers, _) = tmp_bytes.split_at(8);
+            if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
+              println!("Assert unlinkable at {}.", line,);
+              let mut vm = Vm::new_with_externals(bytes, importable_modules.clone());
+              match vm {
+                Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
+                Err(err) => {
+                  let actual = String::from(err);
+                  match message.as_ref() {
+                    // FIXME: Skip to assert actual message
+                    "incompatible import type" => {}
+                    _ => assert_eq!(&actual, message),
+                  }
+                }
+              }
+            } else {
+              println!("Skip unlinkable text form at line:{}.", line);
+            };
           }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",

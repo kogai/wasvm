@@ -12,6 +12,7 @@ mod sec_element;
 mod sec_export;
 mod sec_function;
 mod sec_global;
+mod sec_import;
 mod sec_memory;
 mod sec_table;
 mod sec_type;
@@ -19,5 +20,5 @@ mod section;
 
 pub use self::byte::Byte;
 pub use self::sec_data::Data;
-pub use self::sec_export::{Export, Exports};
-pub use self::sec_table::TableInstance;
+pub use self::sec_element::{Element, ElementType};
+pub use self::sec_table::{TableInstance, TableType};

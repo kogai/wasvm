@@ -9,11 +9,11 @@ use value_type::ValueTypes;
 
 #[derive(Debug)]
 pub struct Store {
-  function_instances: Vec<Rc<FunctionInstance>>,
-  function_types: Vec<FunctionType>,
-  memory_instances: Vec<MemoryInstance>,
-  table_instances: Vec<TableInstance>,
-  global_instances: Vec<GlobalInstance>,
+  pub function_instances: Vec<Rc<FunctionInstance>>,
+  pub function_types: Vec<FunctionType>,
+  pub memory_instances: Vec<MemoryInstance>,
+  pub table_instances: Vec<TableInstance>,
+  pub global_instances: Vec<GlobalInstance>,
 }
 
 impl Store {

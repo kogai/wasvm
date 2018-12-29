@@ -26,7 +26,7 @@ impl Element {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ElementType {
   AnyFunc,
 }

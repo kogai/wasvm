@@ -1,19 +1,20 @@
 use super::context::Context;
 use super::sec_element::Element;
-use super::sec_export::Exports;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
 use function::{FunctionInstance, FunctionType};
-use global::GlobalInstance;
+use global::{GlobalInstance, GlobalType};
 use inst::Inst;
-use internal_module::InternalModule;
 use memory::{Limit, MemoryInstance};
-use std::collections::HashMap;
+use module::{
+  ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
+};
 use std::convert::TryFrom;
 use std::default::Default;
 use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
+use value::Values;
 use value_type::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -58,14 +59,15 @@ impl TryFrom<Option<u8>> for SectionCode {
 pub struct Section {
   function_types: Vec<FunctionType>,
   functions: Vec<u32>,
-  exports: Exports,
+  exports: ExternalInterfaces,
   codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   datas: Vec<Data>,
   limits: Vec<Limit>,
   tables: Vec<TableType>,
-  globals: Vec<GlobalInstance>,
+  globals: Vec<(GlobalType, Values)>,
   elements: Vec<Element>,
   customs: Vec<(String, Vec<u8>)>,
+  imports: ExternalInterfaces,
 }
 
 impl Default for Section {
@@ -73,7 +75,7 @@ impl Default for Section {
     Section {
       function_types: vec![],
       functions: vec![],
-      exports: HashMap::new(),
+      exports: ExternalInterfaces::new(),
       codes: vec![],
       datas: vec![],
       limits: vec![],
@@ -81,6 +83,7 @@ impl Default for Section {
       globals: vec![],
       elements: vec![],
       customs: vec![],
+      imports: ExternalInterfaces::new(),
     }
   }
 }
@@ -101,45 +104,73 @@ impl Section {
   impl_builder!(datas, datas, Data);
   impl_builder!(limits, limits, Limit);
   impl_builder!(tables, tables, TableType);
-  impl_builder!(globals, globals, GlobalInstance);
+  impl_builder!(globals, globals, (GlobalType, Values));
   impl_builder!(elements, elements, Element);
   impl_builder!(customs, customs, (String, Vec<u8>));
 
-  pub fn exports<'a>(&'a mut self, xs: Exports) -> &'a mut Self {
+  pub fn imports<'a>(&'a mut self, xs: ExternalInterfaces) -> &'a mut Self {
+    self.imports = xs;
+    self
+  }
+
+  pub fn exports<'a>(&'a mut self, xs: ExternalInterfaces) -> &'a mut Self {
     self.exports = xs;
     self
   }
 
-  fn memory_instances(datas: Vec<Data>, limits: Vec<Limit>) -> Vec<MemoryInstance> {
-    if datas.is_empty() && limits.is_empty() {
-      return vec![];
-    };
-    if datas.is_empty() {
-      return vec![MemoryInstance::new(Data::new(0, vec![], vec![]), &limits)];
-    };
-    datas
+  fn memory_instances(
+    datas: Vec<Data>,
+    limits: Vec<Limit>,
+    exports: &ExternalInterfaces,
+  ) -> Vec<MemoryInstance> {
+    let mut datas_into_iter = datas.into_iter();
+    limits
       .into_iter()
-      .map(|d| MemoryInstance::new(d, &limits))
-      .collect::<Vec<_>>()
-  }
-
-  fn table_instances(elements: Vec<Element>, tables: Vec<TableType>) -> Vec<TableInstance> {
-    elements
-      .into_iter()
-      .map(|el| {
-        let table_type = tables
-          .get(el.get_table_idx())
-          .expect("Table type not found.");
-        TableInstance::new(&table_type, el)
+      .enumerate()
+      .map(|(idx, limit)| {
+        let export_name = exports
+          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Memory)
+          .map(|x| x.name.to_owned());
+        let data = datas_into_iter
+          .find(|data| idx as u32 == data.get_data_idx())
+          .map(|x| x.get_init())
+          .unwrap_or(vec![]);
+        MemoryInstance::new(data, limit, export_name)
       })
       .collect::<Vec<_>>()
   }
 
-  fn export_name(idx: usize, exports: &Exports) -> Option<String> {
-    exports
+  fn table_instances(
+    elements: Vec<Element>,
+    tables: Vec<TableType>,
+    exports: &ExternalInterfaces,
+  ) -> Vec<TableInstance> {
+    elements
+      .into_iter()
+      .enumerate()
+      .map(|(idx, el)| {
+        let export_name = exports
+          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Table)
+          .map(|x| x.name.to_owned());
+        let table_type = tables.get(el.get_table_idx());
+        TableInstance::new(table_type, el, export_name)
+      })
+      .collect::<Vec<_>>()
+  }
+
+  fn external_table_instances(
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+  ) -> Result<Vec<TableInstance>> {
+    imports
       .iter()
-      .find(|(_key, (_kind, i))| *i == idx)
-      .map(|(key, _)| key.to_owned())
+      .map(|value| {
+        external_modules
+          .get(&value.module_name)
+          .ok_or(Trap::UnknownImport)?
+          .find_table_instance(value)
+      })
+      .collect::<Result<Vec<_>>>()
   }
 
   fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
@@ -152,14 +183,16 @@ impl Section {
   fn function_instances(
     function_types: &Vec<FunctionType>,
     functions: Vec<u32>,
-    exports: &Exports,
+    exports: &ExternalInterfaces,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
     codes
       .into_iter()
       .enumerate()
       .map(|(idx, code)| {
-        let export_name = Section::export_name(idx, &exports);
+        let export_name = exports
+          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Function)
+          .map(|x| x.name.to_owned());
         let index_of_type = *functions.get(idx).expect("Index of type can't found.");
         let function_type = Section::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;
@@ -174,12 +207,55 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
-  // NOTE: Might be reasonable some future.
-  fn global_instances(globals: Vec<GlobalInstance>) -> Vec<GlobalInstance> {
-    globals
+  fn external_function_instances(
+    function_types: &Vec<FunctionType>,
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+  ) -> Result<Vec<Rc<FunctionInstance>>> {
+    imports
+      .iter()
+      .map(|value| {
+        external_modules
+          .get(&value.module_name)
+          .ok_or(Trap::UnknownImport)?
+          .find_function_instance(value, function_types)
+      })
+      .collect::<Result<Vec<_>>>()
   }
 
-  pub fn complete(self) -> Result<(Store, InternalModule)> {
+  // NOTE: Might be reasonable some future.
+  fn global_instances(
+    globals: Vec<(GlobalType, Values)>,
+    exports: &ExternalInterfaces,
+  ) -> Vec<GlobalInstance> {
+    globals
+      .into_iter()
+      .enumerate()
+      .map(|(idx, (global_type, value))| {
+        let export_name = exports
+          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Global)
+          .map(|x| x.name.to_owned());
+        GlobalInstance::new(global_type, value, export_name)
+      })
+      .collect::<Vec<_>>()
+  }
+
+  fn external_global_instances(
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+  ) -> Result<Vec<GlobalInstance>> {
+    imports
+      .iter()
+      .map(|value| {
+        external_modules
+          .get(&value.module_name)
+          .ok_or(Trap::UnknownImport)?
+          .find_global_instance(value)
+      })
+      .collect::<Result<Vec<_>>>()
+  }
+
+  pub fn complete(self, external_modules: ExternalModules) -> Result<(Store, InternalModule)> {
     match self {
       Section {
         function_types,
@@ -192,12 +268,34 @@ impl Section {
         elements,
         globals,
         customs: _,
+        imports,
       } => {
-        let memory_instances = Section::memory_instances(datas, limits);
-        let table_instances = Section::table_instances(elements, tables);
-        let function_instances =
+        let grouped_imports = imports.group_by_kind();
+        let imports_function = grouped_imports.get(&ModuleDescriptorKind::Function)?;
+        let imports_table = grouped_imports.get(&ModuleDescriptorKind::Table)?;
+        let _imports_memory = grouped_imports.get(&ModuleDescriptorKind::Memory)?;
+        let imports_global = grouped_imports.get(&ModuleDescriptorKind::Global)?;
+
+        let mut function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
-        let global_instances = Section::global_instances(globals);
+        let mut table_instances = Section::table_instances(elements, tables, &exports);
+        let memory_instances = Section::memory_instances(datas, limits, &exports);
+        let mut global_instances = Section::global_instances(globals, &exports);
+
+        let mut external_function_instances = Section::external_function_instances(
+          &function_types,
+          &imports_function,
+          &external_modules,
+        )?;
+        let mut external_table_instances =
+          Section::external_table_instances(&imports_table, &external_modules)?;
+        let mut external_global_instances =
+          Section::external_global_instances(&imports_global, &external_modules)?;
+
+        function_instances.append(&mut external_function_instances);
+        table_instances.append(&mut external_table_instances);
+        global_instances.append(&mut external_global_instances);
+
         Ok(
           Context::new(
             function_instances,
@@ -206,6 +304,7 @@ impl Section {
             table_instances,
             global_instances,
             exports,
+            imports,
           )
           .without_validate()?,
         )

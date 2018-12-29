@@ -1,7 +1,10 @@
-use decode::{Byte, Export};
+use decode::Byte;
 use frame::Frame;
 use inst::Inst;
-use internal_module::InternalModule;
+use module::{
+    ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
+    ModuleDescriptor,
+};
 use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
@@ -98,15 +101,26 @@ pub struct Vm {
 
 impl Vm {
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
+        Vm::new_with_externals(bytes, ExternalModules::new())
+    }
+
+    pub fn new_with_externals(bytes: Vec<u8>, external_modules: ExternalModules) -> Result<Self> {
         let mut bytes = Byte::new_with_drop(bytes);
         match bytes.decode() {
-            Ok((store, internal_module)) => Ok(Vm {
-                store,
-                internal_module,
-                stack: Stack::new(65536),
-            }),
+            Ok(section) => {
+                let (store, internal_module) = section.complete(external_modules)?;
+                Ok(Vm {
+                    store,
+                    internal_module: internal_module,
+                    stack: Stack::new(65536),
+                })
+            }
             Err(err) => Err(err),
         }
+    }
+
+    pub fn export_module(&self) -> ExternalModule {
+        ExternalModule::from(&self.store)
     }
 
     fn get_local(&mut self, idx: u32) -> Result<()> {
@@ -151,9 +165,7 @@ impl Vm {
         use self::Inst::*;
         while let Some(expression) = frame.pop_ref() {
             match expression {
-                Unreachable => {
-                    return Err(Trap::Unreachable)
-                }
+                Unreachable => return Err(Trap::Unreachable),
                 Return => {
                     let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
                     self.stack.push_entries(&mut buf_values)?;
@@ -520,11 +532,20 @@ impl Vm {
     }
 
     fn run_internal(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
-        match self.internal_module.get_export_by_key(invoke) {
-            Some((Export::Function, idx)) => {
+        match self
+            .internal_module
+            .get_export_by_key(invoke)
+            .map(|x| x.to_owned())
+        {
+            Some(ExternalInterface {
+                descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(idx)),
+                ..
+            }) => {
                 let mut arguments = arguments.to_owned();
                 arguments.reverse();
-                let _ = self.stack.push_frame(&mut self.store, idx, arguments);
+                let _ = self
+                    .stack
+                    .push_frame(&mut self.store, idx as usize, arguments);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
                         Ok(v) => String::from(v),
@@ -533,7 +554,10 @@ impl Vm {
                     Err(err) => String::from(err),
                 }
             }
-            Some((Export::Global, idx)) => match self.store.get_global_instance(idx) {
+            Some(ExternalInterface {
+                descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(idx)),
+                ..
+            }) => match self.store.get_global_instance(idx as usize) {
                 Some(global) => String::from(global.get_value()),
                 None => "".to_owned(),
             },

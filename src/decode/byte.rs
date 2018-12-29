@@ -1,10 +1,8 @@
 use super::decodable::Decodable;
 use super::section::{Section, SectionCode};
 use super::*;
-use internal_module::InternalModule;
 use std::convert::TryFrom;
 use std::default::Default;
-use store::Store;
 use trap::{Result, Trap};
 
 impl_decodable!(Byte);
@@ -30,9 +28,9 @@ impl Byte {
     Ok(bytes)
   }
 
-  pub fn decode(&mut self) -> Result<(Store, InternalModule)> {
+  pub fn decode(&mut self) -> Result<Section> {
     use self::SectionCode::*;
-    let mut section: Section = Default::default();
+    let mut section = Section::default();
     while self.has_next() {
       let code = SectionCode::try_from(self.next())?;
       let bytes = self.decode_section()?;
@@ -40,7 +38,6 @@ impl Byte {
       match code {
         Type => section.function_types(&mut sec_type::Section::new(bytes).decode()?),
         Function => section.functions(&mut sec_function::Section::new(bytes).decode()?),
-        Export => section.exports(sec_export::Section::new(bytes).decode()?),
         Code => section.codes(&mut sec_code::Section::new(bytes).decode()?),
         Data => section.datas(&mut sec_data::Section::new(bytes).decode()?),
         Memory => section.limits(&mut sec_memory::Section::new(bytes).decode()?),
@@ -48,12 +45,14 @@ impl Byte {
         Global => section.globals(&mut sec_global::Section::new(bytes).decode()?),
         Element => section.elements(&mut sec_element::Section::new(bytes).decode()?),
         Custom => section.customs(&mut sec_custom::Section::new(bytes).decode()?),
-        Import | Start => {
+        Export => section.exports(sec_export::Section::new(bytes).decode()?),
+        Import => section.imports(sec_import::Section::new(bytes).decode()?),
+        Start => {
           unimplemented!("{:?}", code);
         }
       };
     }
-    Ok(section.complete()?)
+    Ok(section)
   }
 }
 
@@ -62,6 +61,7 @@ mod tests {
   use super::*;
   use function::{FunctionInstance, FunctionType};
   use inst::Inst;
+  use module::ExternalModules;
   use std::fs::File;
   use std::io::Read;
   use value_type::ValueTypes;
@@ -76,7 +76,13 @@ mod tests {
         let _ = file.read_to_end(&mut buffer);
         let mut bc = Byte::new_with_drop(buffer);
         assert_eq!(
-          bc.decode().unwrap().0.get_function_instance(0).unwrap(),
+          bc.decode()
+            .unwrap()
+            .complete(ExternalModules::new())
+            .unwrap()
+            .0
+            .get_function_instance(0)
+            .unwrap(),
           $fn_insts
         );
       }

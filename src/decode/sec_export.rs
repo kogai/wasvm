@@ -1,38 +1,25 @@
-use super::code::ExportDescriptionCode;
-use super::decodable::Decodable;
-use std::collections::HashMap;
+use super::decodable::{Decodable, NameDecodable};
+use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
 use std::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);
-
-#[derive(Eq, PartialEq, Hash, Debug, Clone)]
-pub enum Export {
-  Function,
-  Global,
-  Memory,
-  Table,
-}
-
-pub type Exports = HashMap<String, (Export, usize)>;
+impl_name_decodable!(Section);
 
 impl Decodable for Section {
-  type Item = Exports;
+  type Item = ExternalInterfaces;
 
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
-    let mut exports: Exports = HashMap::new();
+    let mut exports: ExternalInterfaces = ExternalInterfaces::new();
     for _ in 0..count_of_section {
-      let key = self.decode_name()?;
-      let description_code = ExportDescriptionCode::from(self.next());
-      let index = self.next()? as usize;
-      let kind = match description_code {
-        ExportDescriptionCode::ExportDescFunctionIdx => Export::Function,
-        ExportDescriptionCode::ExportDescGlobalIdx => Export::Global,
-        ExportDescriptionCode::ExportDescMemIdx => Export::Memory,
-        ExportDescriptionCode::ExportDescTableIdx => Export::Table,
-      };
-      exports.insert(key, (kind, index));
+      let name = self.decode_name()?;
+      let export_descriptor = ExportDescriptor::from((self.next(), self.decode_leb128_u32()?));
+      exports.insert(ExternalInterface::new(
+        None,
+        name,
+        ModuleDescriptor::ExportDescriptor(export_descriptor),
+      ));
     }
     Ok(exports)
   }

@@ -37,7 +37,7 @@ macro_rules! impl_decode_leb128 {
       }
       let is_buf_signed = buf & signed_bits != 0;
       if is_buf_signed {
-        buf |= !1 << shift - 1;
+        buf |= !0 << shift;
       };
       Ok(buf as $t)
     }
@@ -72,7 +72,9 @@ macro_rules! impl_decodable {
       impl_decode_leb128!(i64, u64, decode_leb128_i64);
       impl_decode_float!(f32, u32, decode_f32, f32::from_bits, 32);
       impl_decode_float!(f64, u64, decode_f64, f64::from_bits, 64);
+
       // FIXME: Generalize with macro decoding signed integer.
+      #[allow(dead_code)]
       fn decode_leb128_u32(&mut self) -> Result<u32> {
         let mut buf: u32 = 0;
         let mut shift = 0;
@@ -102,16 +104,6 @@ macro_rules! impl_decodable {
         self.byte_ptr += 1;
         el.map(|&x| x)
       }
-
-      #[allow(dead_code)]
-      fn decode_name(&mut self) -> Result<String> {
-        let size_of_name = self.decode_leb128_u32()?;
-        let mut buf = vec![];
-        for _ in 0..size_of_name {
-          buf.push(self.next()?);
-        }
-        Ok(String::from_utf8(buf).expect("To encode export name has been failured."))
-      }
     }
   };
 }
@@ -133,6 +125,25 @@ macro_rules! impl_decode_limit {
           }
           x => unreachable!("Expected limit code, got {:?}", x),
         }
+      }
+    }
+  };
+}
+
+pub trait NameDecodable {
+  fn decode_name(&mut self) -> Result<String>;
+}
+
+macro_rules! impl_name_decodable {
+  ($name: ident) => {
+    impl NameDecodable for $name {
+      fn decode_name(&mut self) -> Result<String> {
+        let size_of_name = self.decode_leb128_u32()?;
+        let mut buf = vec![];
+        for _ in 0..size_of_name {
+          buf.push(self.next()?);
+        }
+        Ok(String::from_utf8(buf).expect("To encode export name has been failured."))
       }
     }
   };

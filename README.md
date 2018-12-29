@@ -9,9 +9,10 @@
   - [ ] Separate Runtime-error "Trap" and Decoding-time-error
 - [x] Build wasm from wast at CI
 - [x] Reasonable, pretty formattable Stack
-- [ ] Investigate whether a test of block/at-load-operand is correct
+- [x] Investigate whether a test of block/at-load-operand is correct
   - May need to ask core-team?
-- [ ] Consider to measure performance
+  - After all, tests are reasonable, it assume to statefull vm for specs.
+- [x] Consider to measure performance
   - https://blog.sqreen.io/webassembly-performance/
   - https://github.com/perlin-network/life/tree/master/bench/cases
 

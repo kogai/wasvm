@@ -1,7 +1,7 @@
 use value::Values;
 use value_type::ValueTypes;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GlobalType {
   Const(ValueTypes),
   Var(ValueTypes),
@@ -17,15 +17,20 @@ impl GlobalType {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GlobalInstance {
   global_type: GlobalType,
   value: Values,
+  pub export_name: Option<String>,
 }
 
 impl GlobalInstance {
-  pub fn new(global_type: GlobalType, value: Values) -> Self {
-    GlobalInstance { global_type, value }
+  pub fn new(global_type: GlobalType, value: Values, export_name: Option<String>) -> Self {
+    GlobalInstance {
+      global_type,
+      value,
+      export_name,
+    }
   }
   pub fn get_value(&self) -> &Values {
     &self.value

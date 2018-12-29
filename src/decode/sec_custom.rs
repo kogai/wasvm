@@ -1,8 +1,9 @@
-use super::decodable::Decodable;
+use super::decodable::{Decodable, NameDecodable};
 use std::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);
+impl_name_decodable!(Section);
 
 impl Decodable for Section {
   type Item = Vec<(String, Vec<u8>)>;
