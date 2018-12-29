@@ -152,10 +152,8 @@ impl Section {
         let export_name = exports
           .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Table)
           .map(|x| x.name.to_owned());
-        let table_type = tables
-          .get(el.get_table_idx())
-          .expect("Table type not found.");
-        TableInstance::new(&table_type, el, export_name)
+        let table_type = tables.get(el.get_table_idx());
+        TableInstance::new(table_type, el, export_name)
       })
       .collect::<Vec<_>>()
   }

@@ -27,12 +27,19 @@ pub struct TableInstance {
 }
 
 impl TableInstance {
-  pub fn new(table: &TableType, element: Element, export_name: Option<String>) -> Self {
+  pub fn new(table: Option<&TableType>, element: Element, export_name: Option<String>) -> Self {
     TableInstance {
       elements: element.move_init_to(),
-      max: match table.limit {
-        Limit::NoUpperLimit(_) => None,
-        Limit::HasUpperLimit(_, max) => Some(max),
+      max: match table {
+        Some(TableType {
+          limit: Limit::NoUpperLimit(_),
+          ..
+        }) => None,
+        Some(TableType {
+          limit: Limit::HasUpperLimit(_, max),
+          ..
+        }) => Some(*max),
+        _ => None,
       },
       export_name,
     }

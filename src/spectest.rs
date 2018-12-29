@@ -1,6 +1,8 @@
+use decode::{Element, ElementType, TableInstance, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use inst::Inst;
+use memory::Limit;
 use module::ExternalModule;
 use value::Values;
 use value_type::ValueTypes;
@@ -57,10 +59,17 @@ pub fn create_spectest() -> ExternalModule {
       ),
     ],
     vec![],
-    // TableInstances
-    vec![],
     // MemoryInstances
     vec![],
+    // TableInstances
+    vec![TableInstance::new(
+      Some(&TableType::new(
+        ElementType::AnyFunc,
+        Limit::HasUpperLimit(0, 20),
+      )),
+      Element::new(0, 10, vec![1, 2]),
+      Some("table".to_owned()),
+    )],
     // GlobalInstances
     vec![
       GlobalInstance::new(
