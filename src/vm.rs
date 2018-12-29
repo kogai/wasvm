@@ -2,7 +2,8 @@ use decode::Byte;
 use frame::Frame;
 use inst::Inst;
 use module::{
-    ExternalInterface, ExternalModule, ExternalModules, InternalModule, ModuleDescriptor,
+    ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
+    ModuleDescriptor,
 };
 use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
 use store::Store;
@@ -537,7 +538,7 @@ impl Vm {
             .map(|x| x.to_owned())
         {
             Some(ExternalInterface {
-                descriptor: ModuleDescriptor::Function(idx),
+                descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(idx)),
                 ..
             }) => {
                 let mut arguments = arguments.to_owned();
@@ -554,7 +555,7 @@ impl Vm {
                 }
             }
             Some(ExternalInterface {
-                descriptor: ModuleDescriptor::Global(idx),
+                descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(idx)),
                 ..
             }) => match self.store.get_global_instance(idx as usize) {
                 Some(global) => String::from(global.get_value()),

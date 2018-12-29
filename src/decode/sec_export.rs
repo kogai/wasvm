@@ -1,5 +1,5 @@
 use super::decodable::{Decodable, NameDecodable};
-use module::{ExternalInterface, ExternalInterfaces, ModuleDescriptor};
+use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
 use std::{f32, f64};
 use trap::Result;
 
@@ -14,8 +14,12 @@ impl Decodable for Section {
     let mut exports: ExternalInterfaces = ExternalInterfaces::new();
     for _ in 0..count_of_section {
       let name = self.decode_name()?;
-      let export_descriptor = ModuleDescriptor::from((self.next(), self.decode_leb128_u32()?));
-      exports.insert(ExternalInterface::new(None, name, export_descriptor));
+      let export_descriptor = ExportDescriptor::from((self.next(), self.decode_leb128_u32()?));
+      exports.insert(ExternalInterface::new(
+        None,
+        name,
+        ModuleDescriptor::ExportDescriptor(export_descriptor),
+      ));
     }
     Ok(exports)
   }

@@ -7,6 +7,7 @@ use value_type::ValueTypes;
 // NOTE: 65536 is constant page size of webassembly.
 const PAGE_SIZE: u32 = 65536;
 
+// Prefer to rename MemoryType
 #[derive(Clone)]
 pub enum Limit {
   // (min)

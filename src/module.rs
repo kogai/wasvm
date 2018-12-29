@@ -1,7 +1,7 @@
-use decode::TableInstance;
+use decode::{TableInstance, TableType};
 use function::{FunctionInstance, FunctionType};
-use global::GlobalInstance;
-use memory::MemoryInstance;
+use global::{GlobalInstance, GlobalType};
+use memory::{Limit, MemoryInstance};
 use std::collections::hash_map::Iter;
 use std::collections::HashMap;
 use std::convert::From;
@@ -12,24 +12,38 @@ use store::Store;
 use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
-pub enum ModuleDescriptor {
+pub enum ImportDescriptor {
+  Function(u32), // NOTE: Index of FunctionTypes
+  Table(TableType),
+  Memory(Limit),
+  Global(GlobalType),
+}
+
+#[derive(Debug, Clone)]
+pub enum ExportDescriptor {
   Function(u32), // NOTE: Index of FunctionTypes
   Table(u32),
   Memory(u32),
   Global(u32),
 }
 
-impl From<(Option<u8>, u32)> for ModuleDescriptor {
+impl From<(Option<u8>, u32)> for ExportDescriptor {
   fn from(codes: (Option<u8>, u32)) -> Self {
-    use self::ModuleDescriptor::*;
+    use self::ExportDescriptor::*;
     match codes.0 {
-      Some(0x0) => Function(codes.1),
-      Some(0x1) => Table(codes.1),
-      Some(0x2) => Memory(codes.1),
-      Some(0x3) => Global(codes.1),
-      x => unreachable!("Expected import descriptor, got {:?}", x),
+      Some(0x00) => Function(codes.1),
+      Some(0x01) => Table(codes.1),
+      Some(0x02) => Memory(codes.1),
+      Some(0x03) => Global(codes.1),
+      x => unreachable!("Expected exports descriptor, got {:?}", x),
     }
   }
+}
+
+#[derive(Debug, Clone)]
+pub enum ModuleDescriptor {
+  ImportDescriptor(ImportDescriptor),
+  ExportDescriptor(ExportDescriptor),
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
@@ -38,6 +52,19 @@ pub enum ModuleDescriptorKind {
   Table,
   Memory,
   Global,
+}
+
+impl From<Option<u8>> for ModuleDescriptorKind {
+  fn from(code: Option<u8>) -> Self {
+    use self::ModuleDescriptorKind::*;
+    match code {
+      Some(0x0) => Function,
+      Some(0x1) => Table,
+      Some(0x2) => Memory,
+      Some(0x3) => Global,
+      x => unreachable!("Expected import descriptor, got {:x?}", x),
+    }
+  }
 }
 
 type ModuleName = Option<String>;
@@ -84,10 +111,19 @@ impl ExternalInterfaces {
       .iter()
       .find(
         |(_key, ExternalInterface { descriptor, .. })| match descriptor {
-          ModuleDescriptor::Function(x) => ModuleDescriptorKind::Function == kind && *x == idx,
-          ModuleDescriptor::Table(x) => ModuleDescriptorKind::Table == kind && *x == idx,
-          ModuleDescriptor::Memory(x) => ModuleDescriptorKind::Memory == kind && *x == idx,
-          ModuleDescriptor::Global(x) => ModuleDescriptorKind::Global == kind && *x == idx,
+          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
+            ModuleDescriptorKind::Function == kind && *x == idx
+          }
+          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
+            ModuleDescriptorKind::Table == kind && *x == idx
+          }
+          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
+            ModuleDescriptorKind::Memory == kind && *x == idx
+          }
+          ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
+            ModuleDescriptorKind::Global == kind && *x == idx
+          }
+          _ => unimplemented!(),
         },
       )
       .map(|(_, x)| x)
@@ -106,10 +142,19 @@ impl ExternalInterfaces {
 
     for (_module_name, x) in self.iter() {
       match x.descriptor {
-        ModuleDescriptor::Function(_) => buf_function.insert(x.clone()),
-        ModuleDescriptor::Table(_) => buf_table.insert(x.clone()),
-        ModuleDescriptor::Memory(_) => buf_memory.insert(x.clone()),
-        ModuleDescriptor::Global(_) => buf_global.insert(x.clone()),
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(_)) => {
+          buf_function.insert(x.clone())
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_)) => {
+          buf_table.insert(x.clone())
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(_)) => {
+          buf_memory.insert(x.clone())
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_)) => {
+          buf_global.insert(x.clone())
+        }
+        _ => unimplemented!(),
       };
     }
     buf.insert(ModuleDescriptorKind::Function, buf_function);
@@ -122,6 +167,7 @@ impl ExternalInterfaces {
 
 pub struct InternalModule {
   exports: ExternalInterfaces,
+  #[allow(dead_code)]
   imports: ExternalInterfaces,
 }
 
@@ -168,7 +214,7 @@ impl ExternalModule {
   ) -> Result<Rc<FunctionInstance>> {
     match key {
       ExternalInterface {
-        descriptor: ModuleDescriptor::Function(idx),
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(idx)),
         name,
         ..
       } => {
@@ -178,27 +224,6 @@ impl ExternalModule {
           .iter()
           .find(|instance| instance.export_name == Some(name.to_owned()))
           .ok_or(Trap::UnknownImport)
-          .map_err(|err| {
-            if self
-              .global_instances
-              .iter()
-              .find(|instance| instance.export_name == Some(name.to_owned()))
-              .is_some()
-              || self
-                .memory_instances
-                .iter()
-                .find(|instance| instance.export_name == Some(name.to_owned()))
-                .is_some()
-              || self
-                .table_instances
-                .iter()
-                .find(|instance| instance.export_name == Some(name.to_owned()))
-                .is_some()
-            {
-              return Trap::IncompatibleImportType;
-            };
-            err
-          })
           .map(|x| x.clone())?;
 
         instance
@@ -207,6 +232,25 @@ impl ExternalModule {
         Ok(instance)
       }
       x => unreachable!("Expected function descriptor, got {:?}", x),
+    }
+  }
+
+  pub fn find_table_instance(&self, key: &ExternalInterface) -> Result<TableInstance> {
+    match key {
+      ExternalInterface {
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(table_type)),
+        name,
+        ..
+      } => {
+        let instance = self
+          .table_instances
+          .iter()
+          .find(|instance| instance.export_name == Some(name.to_owned()))
+          .ok_or(Trap::UnknownImport)
+          .map(|x| x.clone())?;
+        Ok(instance)
+      }
+      x => unreachable!("Expected table descriptor, got {:?}", x),
     }
   }
 }

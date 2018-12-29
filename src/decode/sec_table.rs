@@ -4,7 +4,7 @@ use memory::Limit;
 use std::{f32, f64};
 use trap::{Result, Trap};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TableType {
   element_type: ElementType,
   limit: Limit,
