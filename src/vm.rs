@@ -109,11 +109,17 @@ impl Vm {
         match bytes.decode() {
             Ok(section) => {
                 let (store, internal_module) = section.complete(external_modules)?;
-                Ok(Vm {
+                let mut vm = Vm {
                     store,
                     internal_module: internal_module,
                     stack: Stack::new(65536),
-                })
+                };
+                if let Some(idx) = vm.internal_module.start {
+                    vm.stack.push_frame(&mut vm.store, idx as usize, vec![])?;
+                    vm.evaluate()?;
+                    vm.stack = Stack::new(65536);
+                };
+                Ok(vm)
             }
             Err(err) => Err(err),
         }

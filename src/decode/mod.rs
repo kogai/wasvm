@@ -9,6 +9,7 @@ mod sec_code;
 mod sec_custom;
 mod sec_data;
 mod sec_element;
+mod sec_start;
 mod sec_export;
 mod sec_function;
 mod sec_global;

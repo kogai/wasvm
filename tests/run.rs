@@ -106,6 +106,24 @@ macro_rules! impl_e2e {
               _ => assert_eq!(&actual, message),
             }
           }
+          CommandKind::AssertUninstantiable {
+            ref module,
+            ref message,
+          } => {
+            println!("Assert uninstantiable at line:{}.", line);
+            let bytes = module.clone().into_vec();
+            let mut vm = Vm::new(bytes);
+            match vm {
+              Ok(_) => unreachable!(),
+              Err(err) => {
+                let actual = String::from(err);
+                match message.as_ref() {
+                  "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+                  _ => assert_eq!(&actual, message),
+                }
+              }
+            }
+          }
           CommandKind::AssertExhaustion {
             action: Action::Invoke {
               ref field, args: _, ..
@@ -188,10 +206,14 @@ macro_rules! impl_e2e {
             assert_eq!(&actual, "NaN");
           }
           CommandKind::PerformAction(Action::Invoke {
-            ref field, args: _, ..
+            ref field,
+            ref args,
+            ref module,
           }) => {
-            println!("Skip perform action at '{}:{}'.", field, line);
-            break;
+            println!("Perform action at {}:{}.", field, line);
+            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
+            let mut vm = vm_ref.borrow_mut();
+            vm.run(field.as_ref(), get_args(args));
           }
           CommandKind::Register {
             ref name,
@@ -303,7 +325,7 @@ impl_e2e!(test_select, "select");
 impl_e2e!(test_set_local, "set_local");
 impl_e2e!(test_skip_stack_guard_page, "skip-stack-guard-page");
 impl_e2e!(test_stack, "stack");
-// impl_e2e!(test_start, "start");
+impl_e2e!(test_start, "start");
 impl_e2e!(test_store_retval, "store_retval");
 impl_e2e!(test_switch, "switch");
 impl_e2e!(test_tee_local, "tee_local");

@@ -47,9 +47,7 @@ impl Byte {
         Custom => section.customs(&mut sec_custom::Section::new(bytes).decode()?),
         Export => section.exports(sec_export::Section::new(bytes).decode()?),
         Import => section.imports(sec_import::Section::new(bytes).decode()?),
-        Start => {
-          unimplemented!("{:?}", code);
-        }
+        Start => section.start(sec_start::Section::new(bytes).decode()?),
       };
     }
     Ok(section)
