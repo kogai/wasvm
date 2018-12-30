@@ -116,9 +116,9 @@ impl Vm {
                 };
                 if let Some(idx) = vm.internal_module.start {
                     vm.stack.push_frame(&mut vm.store, idx as usize, vec![])?;
+                    vm.evaluate()?;
+                    vm.stack = Stack::new(65536);
                 };
-                vm.evaluate()?;
-                vm.stack = Stack::new(65536);
                 Ok(vm)
             }
             Err(err) => Err(err),
