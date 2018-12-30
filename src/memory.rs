@@ -2,10 +2,11 @@ use decode::Data;
 use inst::Inst;
 use std::fmt;
 use std::mem::transmute;
+use std::u32;
 use trap::{Result, Trap};
 use value::Values;
 
-// NOTE: 65536 is constant page size of webassembly.
+// NOTE: 65536(64KiB) is constant data size per page.
 const PAGE_SIZE: u32 = 65536;
 
 // Prefer to rename MemoryType
@@ -95,19 +96,28 @@ impl MemoryInstance {
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
     ptr > self.data_size()
   }
+
   pub fn size_by_pages(&self) -> u32 {
     self.data_size() / PAGE_SIZE
   }
+
   pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
     match self.limit {
-      Limit::HasUpperLimit(_, max) if self.size_by_pages() + increase_page >= max => {
+      Limit::HasUpperLimit(_, max) if self.size_by_pages() + increase_page > max => {
         return Err(Trap::FailToGrow)
       }
       _ => {
-        let current_size = self.data.len();
-        let growing_size = (increase_page * PAGE_SIZE) as usize;
-        self.data.resize(current_size + growing_size, 0);
-        Ok(())
+        let current_size = self.data.len() as u32;
+        match increase_page.checked_mul(PAGE_SIZE) {
+          Some(growing_size) => match current_size.checked_add(growing_size) {
+            Some(next_size) => {
+              self.data.resize(next_size as usize, 0);
+              Ok(())
+            }
+            None => Err(Trap::FailToGrow),
+          },
+          None => Err(Trap::FailToGrow),
+        }
       }
     }
   }

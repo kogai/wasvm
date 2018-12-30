@@ -313,7 +313,7 @@ impl_e2e!(test_labels, "labels");
 // impl_e2e!(test_left_to_right, "left-to-right");
 // impl_e2e!(test_linking, "linking");
 impl_e2e!(test_loop, "loop");
-// impl_e2e!(test_memory_grow, "memory_grow");
+impl_e2e!(test_memory_grow, "memory_grow");
 impl_e2e!(test_memory_redundancy, "memory_redundancy");
 // impl_e2e!(test_memory_trap, "memory_trap");
 impl_e2e!(test_memory, "memory");
