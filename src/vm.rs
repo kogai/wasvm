@@ -12,20 +12,41 @@ use value::Values;
 use value_type::ValueTypes;
 
 macro_rules! impl_load_inst {
-    ($load_data_width: expr, $self: ident, $offset: ident, $value_kind: expr) => {{
-        let width = $load_data_width / 8;
-        let i = $self.stack.pop_value_ext_i32() as u32;
-        let (effective_address, overflowed) = i.overflowing_add(*$offset);
-        if overflowed {
-            return Err(Trap::MemoryAccessOutOfBounds);
-        };
-        let (ptr, overflowed) = effective_address.overflowing_add(width);
-        if overflowed || $self.store.data_size_small_than(ptr) {
-            return Err(Trap::MemoryAccessOutOfBounds);
-        };
-        let data = $self.store.load_data(effective_address, ptr, &$value_kind);
-        $self.stack.push(StackEntry::new_value(data))?;
-    }};
+    ($fn_name: ident, $load_fn: ident, $ty: ty) => {
+        fn $fn_name(&mut self, offset: u32, load_data_width: u32) -> Result<$ty> {
+            let width = load_data_width / 8;
+            let i = self.stack.pop_value_ext_i32() as u32;
+            let (effective_address, overflowed) = i.overflowing_add(offset);
+            if overflowed {
+                return Err(Trap::MemoryAccessOutOfBounds);
+            };
+            let (ptr, overflowed) = effective_address.overflowing_add(width);
+            if overflowed || self.store.data_size_small_than(ptr) {
+                return Err(Trap::MemoryAccessOutOfBounds);
+            };
+            let data = self
+                .store
+                .$load_fn(effective_address, ptr);
+            Ok(data)
+        }
+    };
+}
+
+macro_rules! impl_load_to {
+    ($fn_name: ident, $load_fn: ident, $path: path, $ty: ty) => {
+    fn $fn_name(&mut self, offset: u32, width: u32, sign: bool) -> Result<()> {
+        let mut value = self.$load_fn(offset, width)?;
+        if sign {
+            let is_msb_one = value & (1 << (width - 1)) != 0;
+            if is_msb_one {
+                value |= !0 << width;
+            };
+        }
+        self.stack
+            .push(StackEntry::new_value($path(value as $ty)))?;
+        Ok(())
+    }
+    };
 }
 
 macro_rules! impl_store_inst {
@@ -100,6 +121,14 @@ pub struct Vm {
 }
 
 impl Vm {
+    impl_load_inst!(load_data_32, load_data_32, u32);
+    impl_load_inst!(load_data_64, load_data_64, u64);
+    impl_load_inst!(load_data_f32, load_data_f32, f32);
+    impl_load_inst!(load_data_f64, load_data_f64, f64);
+
+    impl_load_to!(load_data_to_i32, load_data_32, Values::I32, i32);
+    impl_load_to!(load_data_to_i64, load_data_64, Values::I64, i64);
+
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
         Vm::new_with_externals(bytes, ExternalModules::new())
     }
@@ -398,20 +427,31 @@ impl Vm {
                 I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
                 I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
 
-                I32Load(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::I32),
-                I64Load(_, offset) => impl_load_inst!(64, self, offset, ValueTypes::I64),
-                F32Load(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::F32),
-                F64Load(_, offset) => impl_load_inst!(64, self, offset, ValueTypes::F64),
-                I32Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I32),
-                I32Load8Sign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I32),
-                I32Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I32),
-                I32Load16Sign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I32),
-                I64Load8Unsign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I64),
-                I64Load8Sign(_, offset) => impl_load_inst!(8, self, offset, ValueTypes::I64),
-                I64Load16Unsign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I64),
-                I64Load16Sign(_, offset) => impl_load_inst!(16, self, offset, ValueTypes::I64),
-                I64Load32Sign(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::I64),
-                I64Load32Unsign(_, offset) => impl_load_inst!(32, self, offset, ValueTypes::I64),
+                I32Load(_, offset) => self.load_data_to_i32(*offset, 32, true)?,
+                I32Load8Unsign(_, offset) => self.load_data_to_i32(*offset, 8, false)?,
+                I32Load8Sign(_, offset) => self.load_data_to_i32(*offset, 8, true)?,
+                I32Load16Unsign(_, offset) => self.load_data_to_i32(*offset, 16, false)?,
+                I32Load16Sign(_, offset) => self.load_data_to_i32(*offset, 16, true)?,
+
+                I64Load(_, offset) => self.load_data_to_i64(*offset, 64, true)?,
+                I64Load8Unsign(_, offset) => self.load_data_to_i64(*offset, 8, false)?,
+                I64Load8Sign(_, offset) => self.load_data_to_i64(*offset, 8, true)?,
+                I64Load16Unsign(_, offset) => self.load_data_to_i64(*offset, 16, false)?,
+                I64Load16Sign(_, offset) => self.load_data_to_i64(*offset, 16, true)?,
+                I64Load32Unsign(_, offset) => self.load_data_to_i64(*offset, 32, false)?,
+                I64Load32Sign(_, offset) => self.load_data_to_i64(*offset, 32, true)?,
+
+                F32Load(_, offset) => {
+                    let value = self.load_data_f32(*offset, 32)?;
+                    self.stack
+                        .push(StackEntry::new_value(Values::F32(value as f32)))?;
+                }
+
+                F64Load(_, offset) => {
+                    let value = self.load_data_f64(*offset, 64)?;
+                    self.stack
+                        .push(StackEntry::new_value(Values::F64(value as f64)))?;
+                }
 
                 I32Store(_, offset) => impl_store_inst!(32, self, offset),
                 F32Store(_, offset) => impl_store_inst!(32, self, offset),
@@ -427,7 +467,9 @@ impl Vm {
                 F32Abs | F64Abs => impl_unary_inst!(self, abs),
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 MemorySize => {
-                    unimplemented!();
+                    let page_size = self.store.size_by_pages();
+                    self.stack
+                        .push(StackEntry::new_value(Values::I32(page_size as i32)))?;
                 }
                 MemoryGrow => {
                     let page_size = self.store.size_by_pages();

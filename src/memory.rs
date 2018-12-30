@@ -1,8 +1,9 @@
+use decode::Data;
+use inst::Inst;
 use std::fmt;
 use std::mem::transmute;
 use trap::{Result, Trap};
 use value::Values;
-use value_type::ValueTypes;
 
 // NOTE: 65536 is constant page size of webassembly.
 const PAGE_SIZE: u32 = 65536;
@@ -38,16 +39,15 @@ pub struct MemoryInstance {
 }
 
 macro_rules! impl_load_data {
-  ($name: ident, $ty: ty, $value_ty:ty, $return_type: path) => {
-    fn $name(&self, from: u32, to: u32) -> $value_ty {
+  ($name: ident, $ty: ty) => {
+    pub fn $name(&self, from: u32, to: u32) -> $ty {
       let data = &self.data[(from as usize)..(to as usize)];
-      let width = data.len();
       let mut bit_buf: $ty = 0;
-      for idx in 0..width {
-        let bits = (data[idx] as $ty) << idx * 8;
+      for (idx, d) in data.iter().enumerate() {
+        let bits = (*d as $ty) << idx * 8;
         bit_buf = bit_buf ^ bits;
       }
-      bit_buf as $value_ty
+      bit_buf
     }
   };
 }
@@ -65,23 +65,33 @@ macro_rules! impl_store_data {
 }
 
 impl MemoryInstance {
-  pub fn new(initial_data: Vec<u8>, limit: Limit, export_name: Option<String>) -> Self {
-    let mut initial_data = initial_data;
+  pub fn new(datas: Vec<Data>, limit: Limit, export_name: Option<String>) -> Self {
     let min_size = match limit {
       Limit::NoUpperLimit(min) => min,
       Limit::HasUpperLimit(min, _) => min,
     };
-    initial_data.resize((PAGE_SIZE * min_size) as usize, 0);
+    let mut data = vec![0; (PAGE_SIZE * min_size) as usize];
+    for Data { offset, init, .. } in datas.into_iter() {
+      let offset = match offset.first() {
+        Some(Inst::I32Const(offset)) => *offset as usize,
+        x => unreachable!("Expected offset value of memory, got {:?}", x),
+      };
+      for (i, d) in init.into_iter().enumerate() {
+        data[i + offset] = d;
+      }
+    }
 
     MemoryInstance {
-      data: initial_data.to_vec(),
+      data,
       limit,
       export_name,
     }
   }
+
   fn data_size(&self) -> u32 {
     self.data.len() as u32
   }
+
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
     ptr > self.data_size()
   }
@@ -102,31 +112,22 @@ impl MemoryInstance {
     }
   }
 
-  impl_load_data!(load_data_i32, u32, i32, Values::I32);
-  impl_load_data!(load_data_i64, u64, i64, Values::I64);
-  impl_load_data!(load_data_f32, u32, u32, Values::F32);
-  impl_load_data!(load_data_f64, u64, u64, Values::F64);
+  impl_load_data!(load_data_32, u32);
+  impl_load_data!(load_data_64, u64);
+
+  pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
+    f32::from_bits(self.load_data_32(from, to))
+  }
+
+  pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
+    f64::from_bits(self.load_data_64(from, to))
+  }
+
   impl_store_data!(store_data_i32, 4, i32);
   impl_store_data!(store_data_f32, 4, f32);
   impl_store_data!(store_data_i64, 8, i64);
   impl_store_data!(store_data_f64, 8, f64);
 
-  pub fn load_data(&self, from: u32, to: u32, value_kind: &ValueTypes) -> Values {
-    use self::ValueTypes::*;
-    match value_kind {
-      I32 => Values::I32(self.load_data_i32(from, to)),
-      I64 => Values::I64(self.load_data_i64(from, to)),
-      F32 => {
-        let loaded = self.load_data_f32(from, to);
-        Values::F32(f32::from_bits(loaded))
-      }
-      F64 => {
-        let loaded = self.load_data_f64(from, to);
-        Values::F64(f64::from_bits(loaded))
-      }
-      Empty => unreachable!("Loading empty type does not make any sense."),
-    }
-  }
   pub fn store_data(&mut self, from: u32, to: u32, value: Values) {
     match value {
       Values::I32(v) => self.store_data_i32(v, from, to),

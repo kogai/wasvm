@@ -130,21 +130,16 @@ impl Section {
     limits: Vec<Limit>,
     exports: &ExternalInterfaces,
   ) -> Vec<MemoryInstance> {
-    let mut datas_into_iter = datas.into_iter();
-    limits
-      .into_iter()
-      .enumerate()
-      .map(|(idx, limit)| {
-        let export_name = exports
-          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Memory)
-          .map(|x| x.name.to_owned());
-        let data = datas_into_iter
-          .find(|data| idx as u32 == data.get_data_idx())
-          .map(|x| x.get_init())
-          .unwrap_or(vec![]);
-        MemoryInstance::new(data, limit, export_name)
-      })
-      .collect::<Vec<_>>()
+    // NOTE: Currently WASM specification assumed only one memory instance;
+    let memory_idx = 0;
+    let export_name = exports
+      .find_kind_by_idx(memory_idx, ModuleDescriptorKind::Memory)
+      .map(|x| x.name.to_owned());
+    if let Some(limit) = limits.get(memory_idx as usize) {
+      vec![MemoryInstance::new(datas, limit.to_owned(), export_name)]
+    } else {
+      vec![]
+    }
   }
 
   fn table_instances(
