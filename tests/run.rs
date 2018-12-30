@@ -317,7 +317,7 @@ impl_e2e!(test_memory_grow, "memory_grow");
 impl_e2e!(test_memory_redundancy, "memory_redundancy");
 // impl_e2e!(test_memory_trap, "memory_trap");
 impl_e2e!(test_memory, "memory");
-// impl_e2e!(test_names, "names");
+impl_e2e!(test_names, "names");
 impl_e2e!(test_nop, "nop");
 // impl_e2e!(test_resizing, "resizing");
 impl_e2e!(test_return, "return");
