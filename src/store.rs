@@ -5,7 +5,6 @@ use memory::MemoryInstance;
 use std::rc::Rc;
 use trap::Result;
 use value::Values;
-use value_type::ValueTypes;
 
 #[derive(Debug)]
 pub struct Store {
@@ -76,24 +75,42 @@ impl Store {
       .get(0)
       .expect("At least one memory instance expected")
   }
+
   fn get_mut_memory_instance(&mut self) -> &mut MemoryInstance {
     self
       .memory_instances
       .get_mut(0)
       .expect("At least one memory instance expected")
   }
+
   pub fn data_size_small_than(&self, ptr: u32) -> bool {
     self.get_memory_instance().data_size_smaller_than(ptr)
   }
-  pub fn load_data(&self, from: u32, to: u32, value_kind: &ValueTypes) -> Values {
-    self.get_memory_instance().load_data(from, to, value_kind)
+
+  pub fn load_data_32(&self, from: u32, to: u32) -> u32 {
+    self.get_memory_instance().load_data_32(from, to)
   }
+
+  pub fn load_data_64(&self, from: u32, to: u32) -> u64 {
+    self.get_memory_instance().load_data_64(from, to)
+  }
+
+  pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
+    self.get_memory_instance().load_data_f32(from, to)
+  }
+
+  pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
+    self.get_memory_instance().load_data_f64(from, to)
+  }
+
   pub fn store_data(&mut self, from: u32, to: u32, value: Values) {
     self.get_mut_memory_instance().store_data(from, to, value)
   }
+
   pub fn size_by_pages(&self) -> u32 {
     self.get_memory_instance().size_by_pages()
   }
+
   pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
     self.get_mut_memory_instance().memory_grow(increase_page)
   }
