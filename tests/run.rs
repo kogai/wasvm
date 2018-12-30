@@ -319,7 +319,7 @@ impl_e2e!(test_memory_trap, "memory_trap");
 impl_e2e!(test_memory, "memory");
 impl_e2e!(test_names, "names");
 impl_e2e!(test_nop, "nop");
-// impl_e2e!(test_resizing, "resizing");
+impl_e2e!(test_resizing, "resizing");
 impl_e2e!(test_return, "return");
 impl_e2e!(test_select, "select");
 impl_e2e!(test_set_local, "set_local");
