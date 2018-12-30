@@ -1,3 +1,5 @@
+use decode::Data;
+use inst::Inst;
 use std::fmt;
 use std::mem::transmute;
 use trap::{Result, Trap};
@@ -65,23 +67,33 @@ macro_rules! impl_store_data {
 }
 
 impl MemoryInstance {
-  pub fn new(initial_data: Vec<u8>, limit: Limit, export_name: Option<String>) -> Self {
-    let mut initial_data = initial_data;
+  pub fn new(datas: Vec<Data>, limit: Limit, export_name: Option<String>) -> Self {
     let min_size = match limit {
       Limit::NoUpperLimit(min) => min,
       Limit::HasUpperLimit(min, _) => min,
     };
-    initial_data.resize((PAGE_SIZE * min_size) as usize, 0);
+    let mut data = vec![0; (PAGE_SIZE * min_size) as usize];
+    for Data { offset, init, .. } in datas.into_iter() {
+      let offset = match offset.first() {
+        Some(Inst::I32Const(offset)) => *offset as usize,
+        x => unreachable!("Expected offset value of memory, got {:?}", x),
+      };
+      for (i, d) in init.into_iter().enumerate() {
+        data[i + offset] = d;
+      }
+    }
 
     MemoryInstance {
-      data: initial_data.to_vec(),
+      data,
       limit,
       export_name,
     }
   }
+
   fn data_size(&self) -> u32 {
     self.data.len() as u32
   }
+
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
     ptr > self.data_size()
   }

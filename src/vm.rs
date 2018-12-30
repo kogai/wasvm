@@ -427,7 +427,9 @@ impl Vm {
                 F32Abs | F64Abs => impl_unary_inst!(self, abs),
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 MemorySize => {
-                    unimplemented!();
+                    let page_size = self.store.size_by_pages();
+                    self.stack
+                        .push(StackEntry::new_value(Values::I32(page_size as i32)))?;
                 }
                 MemoryGrow => {
                     let page_size = self.store.size_by_pages();

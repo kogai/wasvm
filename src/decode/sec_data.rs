@@ -5,10 +5,9 @@ use trap::{Result, Trap};
 
 #[derive(Debug)]
 pub struct Data {
-  memidx: u32,
-  // FIXME: Offset may represents as u32?
-  offset: Vec<Inst>,
-  init: Vec<u8>,
+  pub memidx: u32,
+  pub offset: Vec<Inst>,
+  pub init: Vec<u8>,
 }
 
 impl Data {
