@@ -129,16 +129,20 @@ impl Section {
     datas: Vec<Data>,
     limits: Vec<Limit>,
     exports: &ExternalInterfaces,
-  ) -> Vec<MemoryInstance> {
+  ) -> Result<Vec<MemoryInstance>> {
     // NOTE: Currently WASM specification assumed only one memory instance;
     let memory_idx = 0;
     let export_name = exports
       .find_kind_by_idx(memory_idx, ModuleDescriptorKind::Memory)
       .map(|x| x.name.to_owned());
     if let Some(limit) = limits.get(memory_idx as usize) {
-      vec![MemoryInstance::new(datas, limit.to_owned(), export_name)]
+      Ok(vec![MemoryInstance::new(
+        datas,
+        limit.to_owned(),
+        export_name,
+      )?])
     } else {
-      vec![]
+      Ok(vec![])
     }
   }
 
@@ -282,7 +286,7 @@ impl Section {
         let mut function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
         let mut table_instances = Section::table_instances(elements, tables, &exports);
-        let memory_instances = Section::memory_instances(datas, limits, &exports);
+        let memory_instances = Section::memory_instances(datas, limits, &exports)?;
         let mut global_instances = Section::global_instances(globals, &exports);
 
         let mut external_function_instances = Section::external_function_instances(
