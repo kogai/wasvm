@@ -20,7 +20,7 @@ impl GlobalType {
 #[derive(Debug, Clone)]
 pub struct GlobalInstance {
   global_type: GlobalType,
-  value: Values,
+  pub value: Values,
   pub export_name: Option<String>,
 }
 
