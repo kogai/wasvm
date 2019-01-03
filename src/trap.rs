@@ -1,5 +1,7 @@
-use std::convert::From;
-use std::option::NoneError;
+use alloc::prelude::*;
+use alloc::string::String;
+use core::convert::From;
+use core::option::NoneError;
 
 // TODO: Prefer to separate runtime error and decode-time one.
 #[derive(Debug, Clone, PartialEq)]
@@ -71,4 +73,4 @@ impl From<Trap> for String {
   }
 }
 
-pub type Result<T> = std::result::Result<T, Trap>;
+pub type Result<T> = core::result::Result<T, Trap>;

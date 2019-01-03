@@ -1,7 +1,9 @@
 use super::decodable::Decodable;
 use super::sec_element::{Element, ElementType};
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::{f32, f64};
 use memory::Limit;
-use std::{f32, f64};
 use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]

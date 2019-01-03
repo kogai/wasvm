@@ -1,10 +1,13 @@
+use alloc::prelude::*;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::cell::{RefCell, RefMut};
+use core::fmt;
+use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
 use inst::Inst;
 use stack::StackEntry;
-use std::cell::{RefCell, RefMut};
-use std::fmt;
-use std::ops::{AddAssign, Sub};
-use std::rc::Rc;
 use store::Store;
 use trap::Result;
 use value::Values;

@@ -1,3 +1,4 @@
+use alloc::prelude::*;
 use decode::{Element, ElementType, TableInstance, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};

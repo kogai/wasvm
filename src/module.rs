@@ -1,13 +1,16 @@
+use alloc::prelude::*;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::From;
+use core::default::Default;
+use core::iter::Iterator;
+use core::slice::Iter;
 use decode::{TableInstance, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
+use hashbrown::HashMap;
 use memory::{Limit, MemoryInstance};
-use std::collections::HashMap;
-use std::convert::From;
-use std::default::Default;
-use std::iter::Iterator;
-use std::rc::Rc;
-use std::slice::Iter;
 use store::Store;
 use trap::{Result, Trap};
 

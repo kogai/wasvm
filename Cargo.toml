@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Shinichi Kogai <kogai0121@gmail.com>"]
 
 [dependencies]
+hashbrown = "0.1"
 
 [dev-dependencies]
 wabt = "0.7.1"

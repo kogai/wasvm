@@ -2,6 +2,12 @@ use super::context::Context;
 use super::sec_element::Element;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
+use alloc::prelude::*;
+use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::convert::TryFrom;
+use core::default::Default;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use inst::Inst;
@@ -9,9 +15,6 @@ use memory::{Limit, MemoryInstance};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
 };
-use std::convert::TryFrom;
-use std::default::Default;
-use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -35,7 +38,7 @@ pub enum SectionCode {
 
 impl TryFrom<Option<u8>> for SectionCode {
   type Error = Trap;
-  fn try_from(code: Option<u8>) -> std::result::Result<Self, Self::Error> {
+  fn try_from(code: Option<u8>) -> core::result::Result<Self, Self::Error> {
     use self::SectionCode::*;
     match code {
       Some(0x0) => Ok(Custom),

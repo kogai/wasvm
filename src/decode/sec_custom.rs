@@ -1,5 +1,7 @@
 use super::decodable::{Decodable, NameDecodable};
-use std::{f32, f64};
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);
