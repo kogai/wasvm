@@ -804,17 +804,24 @@ macro_rules! impl_from_values {
 impl_from_values!(Values);
 impl_from_values!(&Values);
 
-impl From<ValueTypes> for Values {
-  fn from(x: ValueTypes) -> Self {
-    match x {
-      ValueTypes::I32 => Values::I32(0),
-      ValueTypes::I64 => Values::I64(0),
-      ValueTypes::F32 => Values::F32(0.0),
-      ValueTypes::F64 => Values::F64(0.0),
-      ValueTypes::Empty => unreachable!(),
+macro_rules! impl_from_valuetypes {
+  ($ty: ty) => {
+    impl From<$ty> for Values {
+      fn from(x: $ty) -> Self {
+        match x {
+          ValueTypes::I32 => Values::I32(0),
+          ValueTypes::I64 => Values::I64(0),
+          ValueTypes::F32 => Values::F32(0.0),
+          ValueTypes::F64 => Values::F64(0.0),
+          ValueTypes::Empty => unreachable!(),
+        }
+      }
     }
-  }
+  };
 }
+
+impl_from_valuetypes!(ValueTypes);
+impl_from_valuetypes!(&ValueTypes);
 
 impl fmt::Debug for Values {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

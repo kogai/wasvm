@@ -56,10 +56,13 @@ impl Frame {
     function_instance: Rc<FunctionInstance>,
   ) -> RefCell<Vec<Rc<StackEntry>>> {
     let mut local_variables: Vec<Rc<StackEntry>> = vec![];
+
+    // NOTE: To iterate from tail of locals, it should clone local-type-defs.
     let mut locals = function_instance.locals.clone();
     while let Some(local) = locals.pop() {
       local_variables.push(StackEntry::new_value(Values::from(local)));
     }
+
     for arg in arguments.into_iter() {
       local_variables.push(StackEntry::new_value(arg));
     }
@@ -133,10 +136,6 @@ impl Frame {
 
   pub fn get_table_address(&self) -> u32 {
     0
-  }
-
-  pub fn increment_return_ptr(&mut self) {
-    self.return_ptr += 1;
   }
 }
 

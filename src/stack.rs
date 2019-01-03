@@ -1,4 +1,5 @@
 use frame::Frame;
+use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 use store::Store;
@@ -29,7 +30,6 @@ pub enum StackEntry {
   Pointer(usize),
   Value(Values),
   Label(Label),
-  Frame(Frame),
 }
 
 impl fmt::Debug for StackEntry {
@@ -40,7 +40,6 @@ impl fmt::Debug for StackEntry {
       Pointer(v) => format!("P(*{:?})", v),
       Value(v) => format!("{:?}", v),
       Label(v) => format!("{:?}", v),
-      Frame(v) => format!("Frame({:?})", v),
     };
     write!(f, "{}", label)
   }
@@ -51,13 +50,11 @@ pub enum StackEntryKind {
   Empty,
   Value,
   Label,
-  Frame,
 }
 
 // pub const STACK_ENTRY_KIND_EMPTY: StackEntryKind = StackEntryKind::Empty;
 // pub const STACK_ENTRY_KIND_VALUE: StackEntryKind = StackEntryKind::Value;
 pub const STACK_ENTRY_KIND_LABEL: StackEntryKind = StackEntryKind::Label;
-pub const STACK_ENTRY_KIND_FRAME: StackEntryKind = StackEntryKind::Frame;
 
 impl StackEntry {
   pub fn new_empty() -> Rc<Self> {
@@ -78,10 +75,6 @@ impl StackEntry {
     }))
   }
 
-  pub fn new_frame(frame: Frame) -> Rc<Self> {
-    Rc::new(StackEntry::Frame(frame))
-  }
-
   pub fn new_pointer(ptr: usize) -> Rc<Self> {
     Rc::new(StackEntry::Pointer(ptr))
   }
@@ -91,8 +84,7 @@ impl StackEntry {
     match (self, other) {
       (Empty, StackEntryKind::Empty)
       | (Value(_), StackEntryKind::Value)
-      | (Label(_), StackEntryKind::Label)
-      | (Frame(_), StackEntryKind::Frame) => true,
+      | (Label(_), StackEntryKind::Label) => true,
       _ => false,
     }
   }
@@ -130,7 +122,7 @@ macro_rules! impl_pop_value_ext {
   };
 }
 
-/// Layout of Stack
+/// Layout of Operand Stack
 ///
 /// +---------------+
 /// | ..            |
@@ -155,37 +147,34 @@ macro_rules! impl_pop_value_ext {
 /// +---------------+
 pub struct Stack {
   stack_size: usize,
-  entries: Vec<Rc<StackEntry>>,
-  pushed_frame: usize,
+  operands: Vec<Rc<StackEntry>>,
+  calls: RefCell<Vec<Frame>>,
   stack_ptr: usize,
   pub frame_ptr: usize,
 }
 
 impl Stack {
   pub fn new(stack_size: usize) -> Self {
-    let entries = vec![StackEntry::new_empty(); stack_size];
+    let operands = vec![StackEntry::new_empty(); stack_size];
+    let calls = RefCell::new(Vec::with_capacity(stack_size));
     Stack {
       stack_size,
-      entries,
-      pushed_frame: 0,
+      operands,
+      calls,
       stack_ptr: 0,
       frame_ptr: 0,
     }
   }
 
-  pub fn is_empty(&self) -> bool {
-    self.stack_ptr == 0
-  }
-
   pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
-    self.entries.get(ptr).map(|x| x.clone())
+    self.operands.get(ptr).map(|x| x.clone())
   }
 
   pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) -> Result<()> {
     if ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
-    self.entries[ptr] = entry;
+    self.operands[ptr] = entry;
     Ok(())
   }
 
@@ -193,7 +182,7 @@ impl Stack {
     if self.stack_ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
-    self.entries[self.stack_ptr] = entry;
+    self.operands[self.stack_ptr] = entry;
     self.stack_ptr += 1;
     Ok(())
   }
@@ -210,30 +199,44 @@ impl Stack {
   /// | Val0    |
   /// +---------+
   pub fn push_entries(&mut self, entries: &mut Vec<Rc<StackEntry>>) -> Result<()> {
-    while let Some(entry) = entries.pop() {
-      self.push(entry)?;
+    let len = entries.len();
+    if self.stack_ptr + len >= self.stack_size {
+      Err(Trap::StackOverflow)
+    } else {
+      entries.reverse();
+      entries.swap_with_slice(&mut self.operands[self.stack_ptr..self.stack_ptr + len]);
+      self.stack_ptr += len;
+      Ok(())
     }
-    Ok(())
   }
 
   pub fn push_frame(
-    &mut self,
+    &self,
     store: &mut Store,
     function_idx: usize,
     arguments: Vec<Values>,
   ) -> Result<()> {
     let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
-    self.push(StackEntry::new_frame(frame))?;
-    self.pushed_frame += 1;
+    let mut calls = self.calls.borrow_mut();
+    calls.push(frame);
     Ok(())
   }
 
-  pub fn decrease_pushed_frame(&mut self) {
-    self.pushed_frame -= 1;
+  pub fn push_back_frame(&self, frame: Frame) {
+    let mut calls = self.calls.borrow_mut();
+    let len = calls.len();
+    calls.push(frame);
+    calls.swap(len, len - 1);
   }
 
-  pub fn is_frame_ramained(&self) -> bool {
-    self.pushed_frame > 0
+  pub fn pop_frame(&self) -> Option<Frame> {
+    let mut calls = self.calls.borrow_mut();
+    calls.pop()
+  }
+
+  pub fn call_stack_is_empty(&self) -> bool {
+    let calls = self.calls.borrow();
+    calls.is_empty()
   }
 
   pub fn peek(&self) -> Option<Rc<StackEntry>> {
@@ -243,7 +246,7 @@ impl Stack {
     if self.stack_ptr <= 0 {
       return None;
     }
-    self.entries.get(self.stack_ptr - 1).map(|x| x.clone())
+    self.operands.get(self.stack_ptr - 1).map(|x| x.clone())
   }
 
   pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
@@ -251,7 +254,7 @@ impl Stack {
       return Err(Trap::StackUnderflow);
     }
     self.stack_ptr -= 1;
-    match self.entries.get(self.stack_ptr) {
+    match self.operands.get(self.stack_ptr) {
       Some(entry) => Ok(entry.clone()),
       None => Err(Trap::Unknown),
     }
@@ -270,13 +273,6 @@ impl Stack {
     StackEntry::Label,
     Label,
     "Expect to pop up Label, but got None"
-  );
-  impl_pop!(
-    pop_frame,
-    pop_frame_ext,
-    StackEntry::Frame,
-    Frame,
-    "Expect to pop up Frame, but got None"
   );
 
   pub fn pop_until(&mut self, kind: &StackEntryKind) -> Result<Vec<Rc<StackEntry>>> {
@@ -353,7 +349,7 @@ impl Stack {
 
 impl fmt::Debug for Stack {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let (entries, _) = self.entries.split_at(self.stack_ptr);
+    let (entries, _) = self.operands.split_at(self.stack_ptr);
     let entries = entries
       .iter()
       .enumerate()
