@@ -202,8 +202,6 @@ impl Vm {
             match expression {
                 Unreachable => return Err(Trap::Unreachable),
                 Return => {
-                    let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
-                    self.stack.push_entries(&mut buf_values)?;
                     frame.jump_to_last();
                     break;
                 }
@@ -516,66 +514,40 @@ impl Vm {
     }
 
     fn evaluate(&mut self) -> Result<()> {
-        let mut result = None;
-        while !self.stack.is_empty() {
-            let popped = self.stack.pop()?;
-            match *popped {
-                StackEntry::Value(ref v) => {
-                    if self.stack.is_frame_ramained() {
-                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_FRAME)?;
-                        let frame = self.stack.pop()?;
-                        self.stack.push(popped.clone())?;
-                        self.stack.push_entries(&mut buf_values)?;
-                        self.stack.push(frame)?;
-                    } else {
-                        result = Some(StackEntry::new_value(v.to_owned()));
-                        break;
-                    }
-                }
-                StackEntry::Frame(ref frame) => {
-                    // NOTE: Only fresh frame should be initialization.
-                    if frame.is_fresh() {
-                        let prev_frame_ptr = self.stack.frame_ptr;
-                        let return_type = frame
-                            .get_return_type()
-                            .first()
-                            .map_or(ValueTypes::Empty, |x| x.to_owned());
-                        let label =
-                            StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
-                        self.stack.frame_ptr = frame.return_ptr;
-                        self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
-                        self.stack.push_entries(&mut frame.get_local_variables())?;
-                        self.stack.push(label)?;
-                    }
-                    self.evaluate_instructions(frame)?;
+        while !self.stack.call_stack_is_empty() {
+            let frame = self.stack.pop_frame()?;
+            // NOTE: Only fresh frame should be initialization.
+            if frame.is_fresh() {
+                let prev_frame_ptr = self.stack.frame_ptr;
+                let return_type = frame
+                    .get_return_type()
+                    .first()
+                    .map_or(ValueTypes::Empty, |x| x.to_owned());
+                let label = StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
+                self.stack.frame_ptr = frame.return_ptr;
+                self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
+                self.stack.push_entries(&mut frame.get_local_variables())?;
+                self.stack.push(label)?;
+            }
+            self.evaluate_instructions(&frame)?;
 
-                    let is_completed = frame.is_completed();
-                    if !is_completed {
-                        let mut next_frame = self.stack.pop_frame_ext();
-                        next_frame.increment_return_ptr();
-                        self.stack.push(popped.clone())?;
-                        self.stack.push(StackEntry::new_frame(next_frame))?;
-                        continue;
-                    }
-                    self.stack.decrease_pushed_frame();
-                    let count_of_returns = frame.get_return_count();
-                    let mut returns = vec![];
-                    for _ in 0..count_of_returns {
-                        returns.push(self.stack.pop_value()?);
-                    }
-                    self.stack.update_frame_ptr();
-                    for v in returns.iter() {
-                        self.stack.push(StackEntry::new_value(v.clone()))?;
-                    }
-                }
-                StackEntry::Empty | StackEntry::Label(_) | StackEntry::Pointer(_) => {
-                    unreachable!("Invalid popping stack.")
-                }
+            let is_completed = frame.is_completed();
+            if !is_completed {
+                let next_frame = self.stack.pop_frame()?;
+                self.stack.push_raw_frame(frame)?;
+                self.stack.push_raw_frame(next_frame)?;
+                continue;
+            }
+            let count_of_returns = frame.get_return_count();
+            let mut returns = vec![];
+            for _ in 0..count_of_returns {
+                returns.push(self.stack.pop_value()?);
+            }
+            self.stack.update_frame_ptr();
+            for v in returns.iter() {
+                self.stack.push(StackEntry::new_value(v.clone()))?;
             }
         }
-        if let Some(v) = result {
-            self.stack.push(v)?;
-        };
         Ok(())
     }
 

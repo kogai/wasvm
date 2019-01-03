@@ -149,7 +149,6 @@ pub struct Stack {
   stack_size: usize,
   operands: Vec<Rc<StackEntry>>,
   calls: RefCell<Vec<Frame>>,
-  pushed_frame: usize,
   stack_ptr: usize,
   pub frame_ptr: usize,
 }
@@ -162,14 +161,9 @@ impl Stack {
       stack_size,
       operands,
       calls,
-      pushed_frame: 0,
       stack_ptr: 0,
       frame_ptr: 0,
     }
-  }
-
-  pub fn is_empty(&self) -> bool {
-    self.stack_ptr == 0
   }
 
   pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
@@ -223,6 +217,12 @@ impl Stack {
     Ok(())
   }
 
+  pub fn push_raw_frame(&self, frame: Frame) -> Result<()> {
+    let mut calls = self.calls.borrow_mut();
+    calls.push(frame);
+    Ok(())
+  }
+
   pub fn pop_frame(&self) -> Option<Frame> {
     let mut calls = self.calls.borrow_mut();
     calls.pop()
@@ -231,14 +231,6 @@ impl Stack {
   pub fn call_stack_is_empty(&self) -> bool {
     let calls = self.calls.borrow();
     calls.is_empty()
-  }
-
-  pub fn decrease_pushed_frame(&mut self) {
-    self.pushed_frame -= 1;
-  }
-
-  pub fn is_frame_ramained(&self) -> bool {
-    self.pushed_frame > 0
   }
 
   pub fn peek(&self) -> Option<Rc<StackEntry>> {

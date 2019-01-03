@@ -134,10 +134,6 @@ impl Frame {
   pub fn get_table_address(&self) -> u32 {
     0
   }
-
-  pub fn increment_return_ptr(&mut self) {
-    self.return_ptr += 1;
-  }
 }
 
 impl fmt::Debug for Frame {
