@@ -81,7 +81,12 @@ impl MemoryInstance {
     let mut data = vec![0; initial_size];
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = match offset.first() {
-        Some(Inst::I32Const(offset)) => *offset,
+        Some(Inst::I32Const(offset)) => {
+          if offset < &0 {
+            return Err(Trap::DataSegmentDoesNotFit);
+          }
+          *offset
+        }
         Some(Inst::GetGlobal(idx)) => global_instances
           .get(*idx as usize)
           .map(|g| match &g.value {
