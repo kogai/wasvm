@@ -5,7 +5,7 @@ use module::{
     ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
     ModuleDescriptor,
 };
-use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_FRAME, STACK_ENTRY_KIND_LABEL};
+use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
