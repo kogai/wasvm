@@ -186,8 +186,11 @@ impl InternalModule {
 pub struct ExternalModule {
   pub function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
+  // FIXME: Change to MemoryType(Limit)
   memory_instances: Vec<MemoryInstance>,
+  // FIXME: Change to TableType
   table_instances: Vec<TableInstance>,
+  // FIXME: Change to GlobalType
   global_instances: Vec<GlobalInstance>,
 }
 
@@ -264,6 +267,25 @@ impl ExternalModule {
       } => {
         let instance = self
           .global_instances
+          .iter()
+          .find(|instance| instance.export_name == Some(name.to_owned()))
+          .ok_or(Trap::UnknownImport)
+          .map(|x| x.clone())?;
+        Ok(instance)
+      }
+      x => unreachable!("Expected global descriptor, got {:?}", x),
+    }
+  }
+
+  pub fn find_memory_instance(&self, key: &ExternalInterface) -> Result<MemoryInstance> {
+    match key {
+      ExternalInterface {
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(_)),
+        name,
+        ..
+      } => {
+        let instance = self
+          .memory_instances
           .iter()
           .find(|instance| instance.export_name == Some(name.to_owned()))
           .ok_or(Trap::UnknownImport)

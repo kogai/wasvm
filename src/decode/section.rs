@@ -129,16 +129,42 @@ impl Section {
     datas: Vec<Data>,
     limits: Vec<Limit>,
     exports: &ExternalInterfaces,
-  ) -> Vec<MemoryInstance> {
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+    global_instances: &Vec<GlobalInstance>,
+  ) -> Result<Vec<MemoryInstance>> {
     // NOTE: Currently WASM specification assumed only one memory instance;
     let memory_idx = 0;
     let export_name = exports
       .find_kind_by_idx(memory_idx, ModuleDescriptorKind::Memory)
       .map(|x| x.name.to_owned());
+
+    let external_memory_types = imports
+      .iter()
+      .map(|value| {
+        external_modules
+          .get(&value.module_name)
+          .ok_or(Trap::UnknownImport)?
+          .find_memory_instance(value)
+      })
+      .collect::<Result<Vec<MemoryInstance>>>()?;
+
     if let Some(limit) = limits.get(memory_idx as usize) {
-      vec![MemoryInstance::new(datas, limit.to_owned(), export_name)]
+      Ok(vec![MemoryInstance::new(
+        datas,
+        limit.to_owned(),
+        export_name,
+        global_instances,
+      )?])
+    } else if let Some(memory_instance) = external_memory_types.get(memory_idx as usize) {
+      Ok(vec![MemoryInstance::new(
+        datas,
+        memory_instance.limit.to_owned(),
+        export_name,
+        global_instances,
+      )?])
     } else {
-      vec![]
+      Ok(vec![])
     }
   }
 
@@ -276,13 +302,12 @@ impl Section {
         let grouped_imports = imports.group_by_kind();
         let imports_function = grouped_imports.get(&ModuleDescriptorKind::Function)?;
         let imports_table = grouped_imports.get(&ModuleDescriptorKind::Table)?;
-        let _imports_memory = grouped_imports.get(&ModuleDescriptorKind::Memory)?;
+        let imports_memory = grouped_imports.get(&ModuleDescriptorKind::Memory)?;
         let imports_global = grouped_imports.get(&ModuleDescriptorKind::Global)?;
 
         let mut function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
         let mut table_instances = Section::table_instances(elements, tables, &exports);
-        let memory_instances = Section::memory_instances(datas, limits, &exports);
         let mut global_instances = Section::global_instances(globals, &exports);
 
         let mut external_function_instances = Section::external_function_instances(
@@ -298,6 +323,15 @@ impl Section {
         function_instances.append(&mut external_function_instances);
         table_instances.append(&mut external_table_instances);
         global_instances.append(&mut external_global_instances);
+
+        let memory_instances = Section::memory_instances(
+          datas,
+          limits,
+          &exports,
+          &imports_memory,
+          &external_modules,
+          &global_instances,
+        )?;
 
         Ok(
           Context::new(

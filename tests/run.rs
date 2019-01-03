@@ -282,7 +282,7 @@ impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
 impl_e2e!(test_conversions, "conversions");
 impl_e2e!(test_custom_section, "custom_section");
 // impl_e2e!(test_custom, "custom");
-// impl_e2e!(test_data, "data");
+impl_e2e!(test_data, "data");
 // impl_e2e!(test_elem, "elem");
 // impl_e2e!(test_endianness, "endianness");
 impl_e2e!(test_exports, "exports");

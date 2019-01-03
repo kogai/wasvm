@@ -6,6 +6,7 @@ use std::option::NoneError;
 pub enum Trap {
   DivisionOverflow,
   DivisionByZero,
+  DataSegmentDoesNotFit,
   MemoryAccessOutOfBounds,
   BitshiftOverflow,
   IntegerOverflow,
@@ -45,6 +46,7 @@ impl From<Trap> for String {
     match x {
       DivisionOverflow => "integer overflow",
       DivisionByZero => "integer divide by zero",
+      DataSegmentDoesNotFit => "data segment does not fit",
       MemoryAccessOutOfBounds => "out of bounds memory access",
       BitshiftOverflow => "bit shift overflow",
       IntegerOverflow => "integer overflow",

@@ -1,4 +1,5 @@
 use decode::Data;
+use global::GlobalInstance;
 use inst::Inst;
 use std::fmt;
 use std::mem::transmute;
@@ -34,8 +35,8 @@ impl fmt::Debug for Limit {
 
 #[derive(Clone)]
 pub struct MemoryInstance {
-  data: Vec<u8>, // Do not fixed size.
-  limit: Limit,
+  data: Vec<u8>,
+  pub limit: Limit,
   pub export_name: Option<String>,
 }
 
@@ -66,27 +67,52 @@ macro_rules! impl_store_data {
 }
 
 impl MemoryInstance {
-  pub fn new(datas: Vec<Data>, limit: Limit, export_name: Option<String>) -> Self {
+  pub fn new(
+    datas: Vec<Data>,
+    limit: Limit,
+    export_name: Option<String>,
+    global_instances: &Vec<GlobalInstance>,
+  ) -> Result<Self> {
     let min_size = match limit {
       Limit::NoUpperLimit(min) => min,
       Limit::HasUpperLimit(min, _) => min,
     };
-    let mut data = vec![0; (PAGE_SIZE * min_size) as usize];
+    let initial_size = (PAGE_SIZE * min_size) as usize;
+    let mut data = vec![0; initial_size];
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = match offset.first() {
-        Some(Inst::I32Const(offset)) => *offset as usize,
+        Some(Inst::I32Const(offset)) => {
+          if offset < &0 {
+            return Err(Trap::DataSegmentDoesNotFit);
+          }
+          *offset
+        }
+        Some(Inst::GetGlobal(idx)) => global_instances
+          .get(*idx as usize)
+          .map(|g| match &g.value {
+            Values::I32(ref v) => *v,
+            x => unreachable!("Expect I32, got {:?}", x),
+          })
+          .expect(&format!(
+            "Expect to get {:?} of {:?}, got None",
+            idx, global_instances,
+          )),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
-      };
+      } as usize;
+      let size = offset + init.len();
+      if size > initial_size {
+        return Err(Trap::DataSegmentDoesNotFit);
+      }
       for (i, d) in init.into_iter().enumerate() {
         data[i + offset] = d;
       }
     }
 
-    MemoryInstance {
+    Ok(MemoryInstance {
       data,
       limit,
       export_name,
-    }
+    })
   }
 
   fn data_size(&self) -> u32 {
