@@ -1,3 +1,4 @@
+use alloc::prelude::*;
 use alloc::string::String;
 use core::convert::From;
 use core::option::NoneError;

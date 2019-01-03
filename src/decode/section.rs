@@ -2,6 +2,7 @@ use super::context::Context;
 use super::sec_element::Element;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
+use alloc::prelude::*;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;

@@ -1,3 +1,4 @@
+use alloc::prelude::*;
 use alloc::string::String;
 use core::mem::transmute;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
