@@ -539,12 +539,10 @@ impl Vm {
             let count_of_returns = frame.get_return_count();
             let mut returns = vec![];
             for _ in 0..count_of_returns {
-                returns.push(self.stack.pop_value()?);
+                returns.push(StackEntry::new_value(self.stack.pop_value()?));
             }
             self.stack.update_frame_ptr();
-            for v in returns.iter() {
-                self.stack.push(StackEntry::new_value(v.clone()))?;
-            }
+            self.stack.push_entries(&mut returns)?;
         }
         Ok(())
     }

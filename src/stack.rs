@@ -199,10 +199,15 @@ impl Stack {
   /// | Val0    |
   /// +---------+
   pub fn push_entries(&mut self, entries: &mut Vec<Rc<StackEntry>>) -> Result<()> {
-    while let Some(entry) = entries.pop() {
-      self.push(entry)?;
+    let len = entries.len();
+    if self.stack_ptr + len >= self.stack_size {
+      Err(Trap::StackOverflow)
+    } else {
+      entries.reverse();
+      entries.swap_with_slice(&mut self.operands[self.stack_ptr..self.stack_ptr + len]);
+      self.stack_ptr += len;
+      Ok(())
     }
-    Ok(())
   }
 
   pub fn push_frame(
