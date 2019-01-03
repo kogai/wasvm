@@ -1,6 +1,6 @@
 use super::decodable::Decodable;
+use core::{f32, f64};
 use global::GlobalType;
-use std::{f32, f64};
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;

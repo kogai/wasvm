@@ -1,5 +1,5 @@
 use super::decodable::Decodable;
-use std::{f32, f64};
+use core::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);

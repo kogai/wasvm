@@ -1,6 +1,14 @@
 #![feature(try_trait)]
 #![feature(try_from)]
 #![feature(int_to_from_bytes)]
+#![feature(alloc)]
+
+#[macro_use]
+extern crate alloc;
+
+#[macro_use]
+extern crate core;
+
 #[macro_use]
 mod decode;
 mod frame;

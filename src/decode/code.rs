@@ -1,4 +1,4 @@
-use std::convert::From;
+use core::convert::From;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {

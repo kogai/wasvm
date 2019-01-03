@@ -1,7 +1,7 @@
+use alloc::rc::Rc;
+use core::cell::RefCell;
+use core::fmt;
 use frame::Frame;
-use std::cell::RefCell;
-use std::fmt;
-use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;

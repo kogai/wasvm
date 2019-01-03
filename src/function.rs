@@ -1,6 +1,6 @@
+use alloc::rc::Rc;
+use core::fmt;
 use inst::Inst;
-use std::fmt;
-use std::rc::Rc;
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 

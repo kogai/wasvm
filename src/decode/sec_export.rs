@@ -1,6 +1,6 @@
 use super::decodable::{Decodable, NameDecodable};
+use core::{f32, f64};
 use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
-use std::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);

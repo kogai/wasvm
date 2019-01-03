@@ -1,8 +1,8 @@
 use super::decodable::Decodable;
 use super::section::{Section, SectionCode};
 use super::*;
-use std::convert::TryFrom;
-use std::default::Default;
+use core::convert::TryFrom;
+use core::default::Default;
 use trap::{Result, Trap};
 
 impl_decodable!(Byte);

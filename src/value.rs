@@ -1,8 +1,8 @@
-use std::f32;
-use std::f64;
-use std::fmt;
-use std::mem::transmute;
-use std::ops::{BitAnd, BitOr, BitXor, Neg};
+use core::f32;
+use core::f64;
+use core::fmt;
+use core::mem::transmute;
+use core::ops::{BitAnd, BitOr, BitXor, Neg};
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 

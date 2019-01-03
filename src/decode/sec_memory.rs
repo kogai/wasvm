@@ -1,6 +1,6 @@
 use super::decodable::Decodable;
+use core::{f32, f64};
 use memory::Limit;
-use std::{f32, f64};
 use trap::Result;
 
 impl_decodable!(Section);

@@ -1,12 +1,12 @@
 use super::sec_table::TableInstance;
 
+use alloc::rc::Rc;
 use frame::Frame;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use inst::TypeKind;
 use memory::MemoryInstance;
 use module::{ExternalInterfaces, InternalModule};
-use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value_type::ValueTypes;

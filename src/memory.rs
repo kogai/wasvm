@@ -1,9 +1,9 @@
+use core::fmt;
+use core::mem::transmute;
+use core::u32;
 use decode::Data;
 use global::GlobalInstance;
 use inst::Inst;
-use std::fmt;
-use std::mem::transmute;
-use std::u32;
 use trap::{Result, Trap};
 use value::Values;
 

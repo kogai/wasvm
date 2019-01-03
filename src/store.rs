@@ -1,8 +1,8 @@
+use alloc::rc::Rc;
 use decode::TableInstance;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use memory::MemoryInstance;
-use std::rc::Rc;
 use trap::Result;
 use value::Values;
 

@@ -1,6 +1,6 @@
 use super::decodable::Decodable;
+use core::{f32, f64};
 use inst::Inst;
-use std::{f32, f64};
 use trap::{Result, Trap};
 
 #[derive(Debug)]

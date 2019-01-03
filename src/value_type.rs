@@ -1,5 +1,5 @@
-use std::convert::From;
-use std::fmt;
+use core::convert::From;
+use core::fmt;
 
 #[derive(PartialEq, Clone)]
 pub enum ValueTypes {

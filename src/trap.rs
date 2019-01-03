@@ -1,5 +1,5 @@
-use std::convert::From;
-use std::option::NoneError;
+use core::convert::From;
+use core::option::NoneError;
 
 // TODO: Prefer to separate runtime error and decode-time one.
 #[derive(Debug, Clone, PartialEq)]

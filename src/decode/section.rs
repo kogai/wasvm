@@ -2,6 +2,9 @@ use super::context::Context;
 use super::sec_element::Element;
 use super::sec_table::{TableInstance, TableType};
 use super::Data;
+use alloc::rc::Rc;
+use core::convert::TryFrom;
+use core::default::Default;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use inst::Inst;
@@ -9,9 +12,6 @@ use memory::{Limit, MemoryInstance};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
 };
-use std::convert::TryFrom;
-use std::default::Default;
-use std::rc::Rc;
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
