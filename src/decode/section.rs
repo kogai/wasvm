@@ -231,7 +231,6 @@ impl Section {
           export_name,
           function_type,
           locals,
-          index_of_type,
           expressions,
         ))
       })

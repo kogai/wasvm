@@ -10,9 +10,7 @@ use value_type::ValueTypes;
 #[derive(PartialEq, Clone)]
 pub struct FunctionType {
   parameters: Vec<ValueTypes>,
-  parameters_count: usize,
   returns: Vec<ValueTypes>,
-  returns_count: usize,
 }
 
 impl fmt::Debug for FunctionType {
@@ -39,8 +37,6 @@ impl fmt::Debug for FunctionType {
 impl FunctionType {
   pub fn new(parameters: Vec<ValueTypes>, returns: Vec<ValueTypes>) -> Self {
     FunctionType {
-      parameters_count: parameters.len(),
-      returns_count: returns.len(),
       parameters,
       returns,
     }
@@ -56,17 +52,16 @@ impl FunctionType {
   }
 
   pub fn get_arity(&self) -> u32 {
-    self.parameters_count as u32
+    self.parameters.len() as u32
   }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq)]
 pub struct FunctionInstance {
   pub export_name: Option<String>,
   function_type: FunctionType,
   pub locals: Vec<ValueTypes>,
-  type_idex: u32, // FIXME: Seems not used
-  body: Rc<Vec<Inst>>,
+  body: Vec<Inst>,
 }
 
 impl fmt::Debug for FunctionInstance {
@@ -76,13 +71,7 @@ impl fmt::Debug for FunctionInstance {
       Some(ref n) => n,
       _ => "_",
     };
-    write!(
-      f,
-      "[{}] {}: {}",
-      self.type_idex,
-      name,
-      format!("{:?}", self.function_type)
-    )
+    write!(f, "{}: {}", name, format!("{:?}", self.function_type))
   }
 }
 
@@ -91,15 +80,13 @@ impl FunctionInstance {
     export_name: Option<String>,
     function_type: FunctionType,
     locals: Vec<ValueTypes>,
-    type_idex: u32,
     body: Vec<Inst>,
   ) -> Rc<Self> {
     Rc::new(FunctionInstance {
       export_name,
       function_type,
       locals,
-      type_idex,
-      body: Rc::new(body),
+      body,
     })
   }
 
@@ -112,7 +99,7 @@ impl FunctionInstance {
   }
 
   pub fn get_arity(&self) -> u32 {
-    self.function_type.parameters_count as u32
+    self.function_type.parameters.len() as u32
   }
 
   pub fn get_function_type(&self) -> FunctionType {
@@ -124,7 +111,7 @@ impl FunctionInstance {
   }
 
   pub fn get_return_count(&self) -> u32 {
-    self.function_type.returns_count as u32
+    self.function_type.returns.len() as u32
   }
 
   pub fn validate_type(&self, other: &FunctionType) -> Result<()> {

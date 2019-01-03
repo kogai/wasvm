@@ -15,7 +15,6 @@ pub fn create_spectest() -> ExternalModule {
         Some("print".to_owned()),
         FunctionType::new(vec![], vec![]),
         vec![],
-        0,
         vec![Inst::End],
       ),
       // 4
@@ -23,7 +22,6 @@ pub fn create_spectest() -> ExternalModule {
         Some("print_i32".to_owned()),
         FunctionType::new(vec![ValueTypes::I32], vec![]),
         vec![],
-        0,
         vec![Inst::End],
       ),
       // 5
@@ -31,7 +29,6 @@ pub fn create_spectest() -> ExternalModule {
         Some("print_i32_f32".to_owned()),
         FunctionType::new(vec![ValueTypes::I32, ValueTypes::F32], vec![]),
         vec![],
-        0,
         vec![Inst::End],
       ),
       // 6
@@ -39,7 +36,6 @@ pub fn create_spectest() -> ExternalModule {
         Some("print_f64_f64".to_owned()),
         FunctionType::new(vec![ValueTypes::F64, ValueTypes::F64], vec![]),
         vec![],
-        0,
         vec![Inst::End],
       ),
       // 2
@@ -47,7 +43,6 @@ pub fn create_spectest() -> ExternalModule {
         Some("print_f32".to_owned()),
         FunctionType::new(vec![ValueTypes::F32], vec![]),
         vec![],
-        0,
         vec![Inst::End],
       ),
       // 3
@@ -55,7 +50,6 @@ pub fn create_spectest() -> ExternalModule {
         Some("print_f64".to_owned()),
         FunctionType::new(vec![ValueTypes::F64], vec![]),
         vec![],
-        0,
         vec![Inst::End],
       ),
     ],
