@@ -533,9 +533,7 @@ impl Vm {
 
             let is_completed = frame.is_completed();
             if !is_completed {
-                let next_frame = self.stack.pop_frame()?;
-                self.stack.push_raw_frame(frame)?;
-                self.stack.push_raw_frame(next_frame)?;
+                self.stack.push_back_frame(frame);
                 continue;
             }
             let count_of_returns = frame.get_return_count();

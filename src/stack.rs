@@ -217,10 +217,11 @@ impl Stack {
     Ok(())
   }
 
-  pub fn push_raw_frame(&self, frame: Frame) -> Result<()> {
+  pub fn push_back_frame(&self, frame: Frame) {
     let mut calls = self.calls.borrow_mut();
+    let len = calls.len();
     calls.push(frame);
-    Ok(())
+    calls.swap(len, len - 1);
   }
 
   pub fn pop_frame(&self) -> Option<Frame> {
