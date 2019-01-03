@@ -74,7 +74,7 @@ pub fn create_spectest() -> ExternalModule {
         Limit::HasUpperLimit(0, 20),
         // Limit::HasUpperLimit(10, 20),
       )),
-      Element::new(0, 10, vec![10]),
+      Element::new(0, vec![Inst::I32Const(10)], vec![10]),
       Some("table".to_owned()),
     )],
     // GlobalInstances
