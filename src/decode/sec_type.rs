@@ -1,5 +1,6 @@
 use super::code::Code;
 use super::decodable::Decodable;
+use alloc::vec::Vec;
 use core::convert::From;
 use core::{f32, f64};
 use function::FunctionType;

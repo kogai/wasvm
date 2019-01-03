@@ -1,6 +1,6 @@
 use super::sec_table::TableInstance;
-
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use frame::Frame;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;

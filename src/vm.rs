@@ -1,3 +1,5 @@
+use alloc::string::String;
+use alloc::vec::Vec;
 use decode::Byte;
 use frame::Frame;
 use inst::Inst;

@@ -1,4 +1,6 @@
 use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::fmt;
 use inst::Inst;
 use trap::{Result, Trap};

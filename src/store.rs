@@ -1,4 +1,5 @@
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use decode::TableInstance;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;

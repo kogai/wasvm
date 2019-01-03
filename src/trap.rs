@@ -1,3 +1,4 @@
+use alloc::string::String;
 use core::convert::From;
 use core::option::NoneError;
 
@@ -71,4 +72,4 @@ impl From<Trap> for String {
   }
 }
 
-pub type Result<T> = std::result::Result<T, Trap>;
+pub type Result<T> = core::result::Result<T, Trap>;

@@ -1,4 +1,6 @@
 use alloc::rc::Rc;
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::convert::From;
 use core::default::Default;
 use core::iter::Iterator;
@@ -6,8 +8,8 @@ use core::slice::Iter;
 use decode::{TableInstance, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
+use hashbrown::HashMap;
 use memory::{Limit, MemoryInstance};
-use std::collections::HashMap;
 use store::Store;
 use trap::{Result, Trap};
 

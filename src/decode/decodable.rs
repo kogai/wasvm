@@ -1,3 +1,4 @@
+use alloc::string::String;
 use trap::Result;
 
 #[macro_export]

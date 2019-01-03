@@ -1,3 +1,5 @@
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::fmt;
 use core::mem::transmute;
 use core::u32;

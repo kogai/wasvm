@@ -1,8 +1,7 @@
-use core::f32;
-use core::f64;
-use core::fmt;
+use alloc::string::String;
 use core::mem::transmute;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
+use core::{f32, f64, fmt};
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 

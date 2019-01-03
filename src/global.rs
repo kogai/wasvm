@@ -1,3 +1,4 @@
+use alloc::string::String;
 use value::Values;
 use value_type::ValueTypes;
 

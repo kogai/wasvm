@@ -1,6 +1,7 @@
 use super::decodable::Decodable;
 use super::section::{Section, SectionCode};
 use super::*;
+use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
 use trap::{Result, Trap};

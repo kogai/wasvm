@@ -1,4 +1,5 @@
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
 use frame::Frame;
