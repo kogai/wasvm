@@ -1,5 +1,5 @@
 use alloc::prelude::*;
-use decode::{Element, ElementType, TableType};
+use decode::{ElementType, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use inst::Inst;
@@ -65,14 +65,13 @@ pub fn create_spectest() -> ExternalModule {
     .unwrap()],
     // TableInstances
     vec![TableInstance::new(
-      Some(&TableType::new(
-        ElementType::AnyFunc,
-        Limit::HasUpperLimit(0, 20),
-        // Limit::HasUpperLimit(10, 20),
-      )),
-      Element::new(0, vec![Inst::I32Const(10)], vec![10]),
+      // vec![Element::new(0, vec![Inst::I32Const(10)], vec![10])],
+      vec![],
+      &TableType::new(ElementType::AnyFunc, Limit::HasUpperLimit(10, 20)),
       Some("table".to_owned()),
-    )],
+      &vec![],
+    )
+    .unwrap()],
     // GlobalInstances
     vec![
       GlobalInstance::new(
