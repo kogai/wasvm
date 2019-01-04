@@ -21,6 +21,7 @@ mod module;
 mod spectest;
 mod stack;
 mod store;
+mod table;
 mod trap;
 mod value;
 mod value_type;

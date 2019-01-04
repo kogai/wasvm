@@ -1,10 +1,11 @@
 use alloc::prelude::*;
-use decode::{Element, ElementType, TableInstance, TableType};
+use decode::{Element, ElementType, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use inst::Inst;
 use memory::{Limit, MemoryInstance};
 use module::ExternalModule;
+use table::TableInstance;
 use value::Values;
 use value_type::ValueTypes;
 

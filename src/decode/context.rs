@@ -1,4 +1,3 @@
-use super::sec_table::TableInstance;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use frame::Frame;
@@ -8,6 +7,7 @@ use inst::TypeKind;
 use memory::MemoryInstance;
 use module::{ExternalInterfaces, InternalModule};
 use store::Store;
+use table::TableInstance;
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 

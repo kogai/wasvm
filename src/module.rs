@@ -6,12 +6,13 @@ use core::convert::From;
 use core::default::Default;
 use core::iter::Iterator;
 use core::slice::Iter;
-use decode::{TableInstance, TableType};
+use decode::TableType;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalType};
 use hashbrown::HashMap;
 use memory::{Limit, MemoryInstance};
 use store::Store;
+use table::TableInstance;
 use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]

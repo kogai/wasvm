@@ -1,6 +1,6 @@
 use super::context::Context;
 use super::sec_element::Element;
-use super::sec_table::{TableInstance, TableType};
+use super::sec_table::TableType;
 use super::Data;
 use alloc::prelude::*;
 use alloc::rc::Rc;
@@ -16,6 +16,7 @@ use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
 };
 use store::Store;
+use table::TableInstance;
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
