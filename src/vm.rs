@@ -137,7 +137,7 @@ impl Vm {
     }
 
     pub fn new_with_externals(bytes: Vec<u8>, external_modules: ExternalModules) -> Result<Self> {
-        let mut bytes = Byte::new_with_drop(bytes);
+        let mut bytes = Byte::new_with_drop(bytes)?;
         match bytes.decode() {
             Ok(section) => {
                 let (store, internal_module) = section.complete(external_modules)?;

@@ -30,6 +30,8 @@ pub enum Trap {
   UnknownImport,
   UninitializedElement(u32),
   IncompatibleImportType,
+  MagicHeaderNotDetected,
+  UnsupportedTextform,
 }
 
 impl From<Trap> for NoneError {
@@ -72,6 +74,8 @@ impl From<Trap> for String {
       UnknownImport => "unknown import".to_owned(),
       IncompatibleImportType => "incompatible import type".to_owned(),
       UninitializedElement(idx) => format!("uninitialized element {}", idx),
+      UnsupportedTextform => "unsupported text form".to_owned(),
+      MagicHeaderNotDetected => "magic header not detected".to_owned(),
     }
   }
 }

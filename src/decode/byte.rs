@@ -9,9 +9,25 @@ use trap::{Result, Trap};
 impl_decodable!(Byte);
 
 impl Byte {
-  pub fn new_with_drop(bytes: Vec<u8>) -> Self {
-    let (_, bytes) = bytes.split_at(8);
-    Byte::new(bytes.to_vec())
+  pub fn new_with_drop(bytes: Vec<u8>) -> Result<Self> {
+    if 4 > bytes.len() {
+      return Err(Trap::UnexpectedEnd);
+    }
+    let (magic_words, bytes) = bytes.split_at(4);
+    if magic_words == [40, 109, 101, 109] {
+      return Err(Trap::UnsupportedTextform);
+    }
+    if magic_words != [0, 97, 115, 109] {
+      return Err(Trap::MagicHeaderNotDetected);
+    }
+    if 4 > bytes.len() {
+      return Err(Trap::UnexpectedEnd);
+    }
+    let (wasm_versions, bytes) = bytes.split_at(4);
+    if wasm_versions != [1, 0, 0, 0] {
+      return Err(Trap::UnsupportedTextform);
+    }
+    Ok(Byte::new(bytes.to_vec()))
   }
 
   fn has_next(&self) -> bool {
@@ -73,7 +89,7 @@ mod tests {
         let mut file = File::open(format!("./{}.wasm", $file_name)).unwrap();
         let mut buffer = vec![];
         let _ = file.read_to_end(&mut buffer);
-        let mut bc = Byte::new_with_drop(buffer);
+        let mut bc = Byte::new_with_drop(buffer).unwrap();
         assert_eq!(
           bc.decode()
             .unwrap()

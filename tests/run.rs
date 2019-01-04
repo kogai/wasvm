@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
-use wasvm::{create_spectest, ExternalModules, Values, Vm};
+use wasvm::{create_spectest, ExternalModules, Trap, Values, Vm};
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -140,27 +140,26 @@ macro_rules! impl_e2e {
             ref module,
             ref message,
           } => {
-            let bytes = module.clone().into_vec();
-            let tmp_bytes = bytes.clone();
-            let (magic_numbers, _) = tmp_bytes.split_at(8);
-            if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
-              if ($file_name == "custom_section" && line == 77)
-                || ($file_name == "custom_section" && line == 94)
-              {
-                println!("Skip {}, it seems not reasonable...", line);
-                continue;
-              };
-              println!("Assert malformed at {}.", line,);
-              let mut vm = Vm::new(bytes);
-              match vm {
-                Ok(_) => unreachable!(),
-                Err(err) => {
-                  assert_eq!(&String::from(err), message);
-                }
-              }
-            } else {
-              println!("Skip malformed text form at line:{}.", line);
+            if ($file_name == "custom_section" && line == 77)
+              || ($file_name == "custom_section" && line == 94)
+            {
+              println!("Skip {}, it seems not reasonable...", line);
+              continue;
             };
+            println!("Assert malformed at {}.", line,);
+            let bytes = module.clone().into_vec();
+            let mut vm = Vm::new(bytes);
+            match vm {
+              Ok(_) => unreachable!(),
+              Err(err) => {
+                match err {
+                  Trap::UnsupportedTextform => {
+                    println!("Skip malformed text form at line:{}.", line);
+                  }
+                  _ => assert_eq!(&String::from(err), message),
+                };
+              }
+            }
           }
           CommandKind::AssertInvalid {
             ref message,
