@@ -311,6 +311,7 @@ impl Vm {
                     break;
                 }
                 CallIndirect(idx) => {
+                    // FIXME: Due to only single table instance allowed, `ta` always equal to 0.
                     let ta = frame.get_table_address();
                     let table = self.store.get_table_at(ta)?.clone();
                     let i = self.stack.pop_value_ext_i32();

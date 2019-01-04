@@ -7,7 +7,7 @@ use inst::TypeKind;
 use memory::MemoryInstance;
 use module::{ExternalInterfaces, InternalModule};
 use store::Store;
-use table::TableInstance;
+use table::TableInstances;
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 
@@ -15,7 +15,7 @@ pub struct Context {
   function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
-  table_instances: Vec<TableInstance>,
+  table_instances: TableInstances,
   global_instances: Vec<GlobalInstance>,
   exports: ExternalInterfaces,
   imports: ExternalInterfaces,
@@ -28,7 +28,7 @@ impl Context {
     function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
-    table_instances: Vec<TableInstance>,
+    table_instances: TableInstances,
     global_instances: Vec<GlobalInstance>,
     exports: ExternalInterfaces,
     imports: ExternalInterfaces,

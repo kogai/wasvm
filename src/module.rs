@@ -12,7 +12,7 @@ use global::{GlobalInstance, GlobalType};
 use hashbrown::HashMap;
 use memory::{Limit, MemoryInstance};
 use store::Store;
-use table::TableInstance;
+use table::{TableInstance, TableInstances};
 use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
@@ -190,16 +190,16 @@ impl InternalModule {
 pub struct ExternalModule {
   pub function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
-  // FIXME: Change to MemoryType(Limit)
+  // FIXME: Change to MemoryType(Limit)?
   memory_instances: Vec<MemoryInstance>,
-  // FIXME: Change to TableType
-  table_instances: Vec<TableInstance>,
-  // FIXME: Change to GlobalType
+  table_instances: TableInstances,
+  // FIXME: Change to GlobalType?
   global_instances: Vec<GlobalInstance>,
 }
 
 impl ExternalModule {
-  pub fn new(
+  // NOTE: Only for spectest
+  pub(crate) fn new(
     function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
@@ -210,7 +210,7 @@ impl ExternalModule {
       function_instances,
       function_types,
       memory_instances,
-      table_instances,
+      table_instances: TableInstances::new(table_instances),
       global_instances,
     }
   }
@@ -243,21 +243,15 @@ impl ExternalModule {
     }
   }
 
-  pub fn find_table_instance(&self, key: &ExternalInterface) -> Result<TableInstance> {
+  pub fn find_table_instance(
+    &self,
+    key: &ExternalInterface, // import section of table
+  ) -> TableInstances {
     match key {
       ExternalInterface {
         descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_)),
-        name,
         ..
-      } => {
-        let instance = self
-          .table_instances
-          .iter()
-          .find(|instance| instance.export_name == Some(name.to_owned()))
-          .ok_or(Trap::UnknownImport)
-          .map(|x| x.clone())?;
-        Ok(instance)
-      }
+      } => self.table_instances.clone(),
       x => unreachable!("Expected table descriptor, got {:?}", x),
     }
   }
@@ -307,7 +301,7 @@ impl Default for ExternalModule {
       function_instances: vec![],
       function_types: vec![],
       memory_instances: vec![],
-      table_instances: vec![],
+      table_instances: TableInstances::empty(),
       global_instances: vec![],
     }
   }

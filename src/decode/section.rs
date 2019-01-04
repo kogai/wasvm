@@ -1,5 +1,5 @@
 use super::context::Context;
-use super::sec_element::{Element, ElementType};
+use super::sec_element::Element;
 use super::sec_table::TableType;
 use super::Data;
 use alloc::prelude::*;
@@ -16,7 +16,7 @@ use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
 };
 use store::Store;
-use table::TableInstance;
+use table::{TableInstance, TableInstances};
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
@@ -179,7 +179,7 @@ impl Section {
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
     global_instances: &Vec<GlobalInstance>,
-  ) -> Result<Vec<TableInstance>> {
+  ) -> Result<TableInstances> {
     if tables.len() > 0 {
       tables
         .into_iter()
@@ -190,32 +190,20 @@ impl Section {
           TableInstance::new(elements.clone(), &table_type, export_name, global_instances)
         })
         .collect::<Result<Vec<_>>>()
+        .map(|table_instances| TableInstances::new(table_instances))
     } else {
-      let external_table_instances = imports
-        .iter()
-        .map(|value| {
-          external_modules
-            .get(&value.module_name)
-            .ok_or(Trap::UnknownImport)?
-            .find_table_instance(value)
-        })
-        .map(|table_instance| {
-          let table_instance = table_instance?;
-          Ok(TableType::new(
-            ElementType::AnyFunc,
-            Limit::NoUpperLimit(table_instance.function_elements.len() as u32),
-          ))
-        })
-        .collect::<Result<Vec<_>>>()?;
-      external_table_instances
-        .into_iter()
-        .map(|table_type| {
-          let export_name = exports
-            .find_kind_by_idx(0, ModuleDescriptorKind::Table)
-            .map(|x| x.name.to_owned());
-          TableInstance::new(elements.clone(), &table_type, export_name, global_instances)
-        })
-        .collect::<Result<Vec<_>>>()
+      // NOTE: Only one table instance allowed.
+      match imports.first() {
+        Some(import) => external_modules
+          .get(&import.module_name)
+          .map(|em| em.find_table_instance(import))
+          .ok_or(Trap::UnknownImport)
+          .map(|table_instances| {
+            table_instances.update(elements.clone(), global_instances)?;
+            Ok(table_instances)
+          })?,
+        None => Ok(TableInstances::empty()),
+      }
     }
   }
 
