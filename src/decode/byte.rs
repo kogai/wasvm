@@ -14,7 +14,7 @@ impl Byte {
       return Err(Trap::UnexpectedEnd);
     }
     let (magic_words, bytes) = bytes.split_at(4);
-    if magic_words == [40, 109, 101, 109] {
+    if magic_words.starts_with(&[40]) {
       return Err(Trap::UnsupportedTextform);
     }
     if magic_words != [0, 97, 115, 109] {

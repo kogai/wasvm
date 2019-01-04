@@ -26,7 +26,11 @@ macro_rules! impl_decode_leb128 {
         // num =      00000000_00000000_00000000_00000001
         // num << 7 = 00000000_00000000_00000000_10000000
         // buf | num  00000000_00000000_10000000_10000000
-        buf |= num << shift;
+        let (shifted, is_overflowed) = num.overflowing_shl(shift);
+        if is_overflowed {
+          return Err(Trap::IntegerRepresentationTooLong);
+        }
+        buf |= shifted;
         shift += 7;
         if is_msb_zero {
           break;

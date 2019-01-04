@@ -150,7 +150,7 @@ macro_rules! impl_e2e {
             let bytes = module.clone().into_vec();
             let mut vm = Vm::new(bytes);
             match vm {
-              Ok(_) => unreachable!(),
+              Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
               Err(err) => {
                 match err {
                   Trap::UnsupportedTextform => {
