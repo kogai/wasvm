@@ -11,7 +11,7 @@ type FunctionAddress = u32;
 
 #[derive(Debug, Clone)]
 pub struct TableInstance {
-  function_elements: Vec<Option<FunctionAddress>>,
+  pub(crate) function_elements: Vec<Option<FunctionAddress>>,
   pub(crate) export_name: Option<String>,
 }
 
@@ -30,7 +30,7 @@ impl TableInstance {
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => {
           if offset < &0 {
-            return Err(Trap::InvalidElementSegment);
+            return Err(Trap::ElementSegmentDoesNotFit);
           }
           *offset
         }
@@ -48,6 +48,9 @@ impl TableInstance {
       } as usize;
       let mut function_addresses = el.wrap_by_option();
       let end = offset + function_addresses.len();
+      if end > function_elements.len() {
+        return Err(Trap::ElementSegmentDoesNotFit);
+      }
       function_addresses.swap_with_slice(&mut function_elements[offset..end]);
     }
     Ok(TableInstance {
@@ -63,8 +66,8 @@ impl TableInstance {
   pub fn get_function_address(&self, idx: u32) -> Result<u32> {
     match self.function_elements.get(idx as usize) {
       Some(Some(x)) => Ok(*x),
-      Some(None) => Err(Trap::UndefinedElement),
-      None => unreachable!(),
+      Some(None) => Err(Trap::UninitializedElement(idx)),
+      None => Err(Trap::UndefinedElement),
     }
   }
 }

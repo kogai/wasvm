@@ -1,5 +1,5 @@
 use super::context::Context;
-use super::sec_element::Element;
+use super::sec_element::{Element, ElementType};
 use super::sec_table::TableType;
 use super::Data;
 use alloc::prelude::*;
@@ -176,35 +176,48 @@ impl Section {
     elements: Vec<Element>,
     tables: Vec<TableType>,
     exports: &ExternalInterfaces,
-    _imports: &Vec<ExternalInterface>,
-    _external_modules: &ExternalModules,
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
     global_instances: &Vec<GlobalInstance>,
   ) -> Result<Vec<TableInstance>> {
-    tables
-      .into_iter()
-      .map(|table_type| {
-        let export_name = exports
-          .find_kind_by_idx(0, ModuleDescriptorKind::Table)
-          .map(|x| x.name.to_owned());
-        TableInstance::new(elements.clone(), &table_type, export_name, global_instances)
-      })
-      .collect::<Result<Vec<_>>>()
+    if tables.len() > 0 {
+      tables
+        .into_iter()
+        .map(|table_type| {
+          let export_name = exports
+            .find_kind_by_idx(0, ModuleDescriptorKind::Table)
+            .map(|x| x.name.to_owned());
+          TableInstance::new(elements.clone(), &table_type, export_name, global_instances)
+        })
+        .collect::<Result<Vec<_>>>()
+    } else {
+      let external_table_instances = imports
+        .iter()
+        .map(|value| {
+          external_modules
+            .get(&value.module_name)
+            .ok_or(Trap::UnknownImport)?
+            .find_table_instance(value)
+        })
+        .map(|table_instance| {
+          let table_instance = table_instance?;
+          Ok(TableType::new(
+            ElementType::AnyFunc,
+            Limit::NoUpperLimit(table_instance.function_elements.len() as u32),
+          ))
+        })
+        .collect::<Result<Vec<_>>>()?;
+      external_table_instances
+        .into_iter()
+        .map(|table_type| {
+          let export_name = exports
+            .find_kind_by_idx(0, ModuleDescriptorKind::Table)
+            .map(|x| x.name.to_owned());
+          TableInstance::new(elements.clone(), &table_type, export_name, global_instances)
+        })
+        .collect::<Result<Vec<_>>>()
+    }
   }
-
-  // fn external_table_instances(
-  //   imports: &Vec<ExternalInterface>,
-  //   external_modules: &ExternalModules,
-  // ) -> Result<Vec<TableInstance>> {
-  //   imports
-  //     .iter()
-  //     .map(|value| {
-  //       external_modules
-  //         .get(&value.module_name)
-  //         .ok_or(Trap::UnknownImport)?
-  //         .find_table_instance(value)
-  //     })
-  //     .collect::<Result<Vec<_>>>()
-  // }
 
   fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
     function_types
