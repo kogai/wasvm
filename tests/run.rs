@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
-use wasvm::{create_spectest, ExternalModules, Values, Vm};
+use wasvm::{create_spectest, ExternalModules, Trap, Values, Vm};
 
 fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
   args
@@ -140,27 +140,26 @@ macro_rules! impl_e2e {
             ref module,
             ref message,
           } => {
-            let bytes = module.clone().into_vec();
-            let tmp_bytes = bytes.clone();
-            let (magic_numbers, _) = tmp_bytes.split_at(8);
-            if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
-              if ($file_name == "custom_section" && line == 77)
-                || ($file_name == "custom_section" && line == 94)
-              {
-                println!("Skip {}, it seems not reasonable...", line);
-                continue;
-              };
-              println!("Assert malformed at {}.", line,);
-              let mut vm = Vm::new(bytes);
-              match vm {
-                Ok(_) => unreachable!(),
-                Err(err) => {
-                  assert_eq!(&String::from(err), message);
-                }
-              }
-            } else {
-              println!("Skip malformed text form at line:{}.", line);
+            if ($file_name == "custom_section" && line == 77)
+              || ($file_name == "custom_section" && line == 94)
+            {
+              println!("Skip {}, it seems not reasonable...", line);
+              continue;
             };
+            println!("Assert malformed at {}.", line,);
+            let bytes = module.clone().into_vec();
+            let mut vm = Vm::new(bytes);
+            match vm {
+              Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
+              Err(err) => {
+                match err {
+                  Trap::UnsupportedTextform => {
+                    println!("Skip malformed text form at line:{}.", line);
+                  }
+                  _ => assert_eq!(&String::from(err), message),
+                };
+              }
+            }
           }
           CommandKind::AssertInvalid {
             ref message,
@@ -281,10 +280,10 @@ impl_e2e!(test_comments, "comments");
 impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
 impl_e2e!(test_conversions, "conversions");
 impl_e2e!(test_custom_section, "custom_section");
-// impl_e2e!(test_custom, "custom");
+// impl_e2e!(test_custom_simple, "custom");
 impl_e2e!(test_data, "data");
 impl_e2e!(test_elem, "elem");
-// impl_e2e!(test_endianness, "endianness");
+impl_e2e!(test_endianness, "endianness");
 impl_e2e!(test_exports, "exports");
 impl_e2e!(test_f32_bitwise, "f32_bitwise");
 impl_e2e!(test_f32_cmp, "f32_cmp");
@@ -296,9 +295,9 @@ impl_e2e!(test_fac, "fac");
 impl_e2e!(test_float_exprs, "float_exprs");
 impl_e2e!(test_float_literals, "float_literals");
 impl_e2e!(test_float_memory, "float_memory");
-// impl_e2e!(test_float_misc, "float_misc");
+impl_e2e!(test_float_misc, "float_misc");
 impl_e2e!(test_forward, "forward");
-// impl_e2e!(test_func_ptrs, "func_ptrs");
+impl_e2e!(test_func_ptrs, "func_ptrs");
 impl_e2e!(test_func, "func");
 impl_e2e!(test_get_local, "get_local");
 // impl_e2e!(test_globals, "globals");
