@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
 use frame::Frame;
+use function::FunctionInstance;
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -149,7 +150,7 @@ macro_rules! impl_pop_value_ext {
 /// +---------------+
 pub struct Stack {
   stack_size: usize,
-  operands: Vec<Rc<StackEntry>>,
+  operands: RefCell<Vec<Rc<StackEntry>>>,
   calls: RefCell<Vec<Frame>>,
   stack_ptr: usize,
   pub frame_ptr: usize,
@@ -157,7 +158,7 @@ pub struct Stack {
 
 impl Stack {
   pub fn new(stack_size: usize) -> Self {
-    let operands = vec![StackEntry::new_empty(); stack_size];
+    let operands = RefCell::new(vec![StackEntry::new_empty(); stack_size]);
     let calls = RefCell::new(Vec::with_capacity(stack_size));
     Stack {
       stack_size,
@@ -169,14 +170,14 @@ impl Stack {
   }
 
   pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
-    self.operands.get(ptr).map(|x| x.clone())
+    self.operands.borrow().get(ptr).map(|x| x.clone())
   }
 
   pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) -> Result<()> {
     if ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
-    self.operands[ptr] = entry;
+    self.operands.borrow_mut()[ptr] = entry;
     Ok(())
   }
 
@@ -184,7 +185,7 @@ impl Stack {
     if self.stack_ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
-    self.operands[self.stack_ptr] = entry;
+    self.operands.borrow_mut()[self.stack_ptr] = entry;
     self.stack_ptr += 1;
     Ok(())
   }
@@ -206,7 +207,8 @@ impl Stack {
       Err(Trap::StackOverflow)
     } else {
       entries.reverse();
-      entries.swap_with_slice(&mut self.operands[self.stack_ptr..self.stack_ptr + len]);
+      entries
+        .swap_with_slice(&mut self.operands.borrow_mut()[self.stack_ptr..self.stack_ptr + len]);
       self.stack_ptr += len;
       Ok(())
     }
@@ -219,6 +221,17 @@ impl Stack {
     arguments: Vec<Values>,
   ) -> Result<()> {
     let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
+    let mut calls = self.calls.borrow_mut();
+    calls.push(frame);
+    Ok(())
+  }
+
+  pub fn push_frame_from_function_instance(
+    &self,
+    function_instance: Rc<FunctionInstance>,
+    arguments: Vec<Values>,
+  ) -> Result<()> {
+    let frame = Frame::from_function_instance(self.stack_ptr, function_instance, arguments);
     let mut calls = self.calls.borrow_mut();
     calls.push(frame);
     Ok(())
@@ -248,7 +261,11 @@ impl Stack {
     if self.stack_ptr <= 0 {
       return None;
     }
-    self.operands.get(self.stack_ptr - 1).map(|x| x.clone())
+    self
+      .operands
+      .borrow_mut()
+      .get(self.stack_ptr - 1)
+      .map(|x| x.clone())
   }
 
   pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
@@ -256,7 +273,7 @@ impl Stack {
       return Err(Trap::StackUnderflow);
     }
     self.stack_ptr -= 1;
-    match self.operands.get(self.stack_ptr) {
+    match self.operands.borrow_mut().get(self.stack_ptr) {
       Some(entry) => Ok(entry.clone()),
       None => Err(Trap::Unknown),
     }
@@ -351,7 +368,8 @@ impl Stack {
 
 impl fmt::Debug for Stack {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    let (entries, _) = self.operands.split_at(self.stack_ptr);
+    let operands = self.operands.borrow();
+    let (entries, _) = operands.split_at(self.stack_ptr);
     let entries = entries
       .iter()
       .enumerate()

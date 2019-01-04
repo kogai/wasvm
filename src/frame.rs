@@ -40,6 +40,21 @@ impl Frame {
     })
   }
 
+  pub fn from_function_instance(
+    return_ptr: usize,
+    function_instance: Rc<FunctionInstance>,
+    arguments: Vec<Values>,
+  ) -> Self {
+    let last_ptr = function_instance.get_expressions_count() as u32;
+    Frame {
+      local_variables: Frame::derive_local_variables(arguments, function_instance.clone()),
+      function_instance,
+      last_ptr,
+      return_ptr,
+      ptr: RefCell::new(0),
+    }
+  }
+
   pub fn is_completed(&self) -> bool {
     self.ptr.borrow().ge(&self.last_ptr)
   }

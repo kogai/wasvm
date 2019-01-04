@@ -1,14 +1,16 @@
 use super::decodable::Decodable;
+use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::{f32, f64};
+use function::FunctionInstance;
 use inst::Inst;
 use trap::{Result, Trap};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Element {
-  table_idx: u32,
-  offset: Vec<Inst>,
-  init: Vec<u32>, // vec of funcidx
+  pub(crate) table_idx: u32,
+  pub(crate) offset: Vec<Inst>,
+  pub(crate) init: Vec<u32>, // vec of funcidx
 }
 
 impl Element {
@@ -22,8 +24,23 @@ impl Element {
   pub fn get_table_idx(&self) -> usize {
     self.table_idx as usize
   }
-  pub fn move_init_to(self) -> Vec<u32> {
-    self.init
+  pub fn move_init_to(&self) -> Vec<u32> {
+    self.init.clone()
+  }
+
+  pub(crate) fn wrap_by_option(
+    &self,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> Vec<Option<Rc<FunctionInstance>>> {
+    self
+      .init
+      .iter()
+      .map(|fn_idx| {
+        function_instances
+          .get(*fn_idx as usize)
+          .map(|ins| ins.clone())
+      })
+      .collect()
   }
 }
 

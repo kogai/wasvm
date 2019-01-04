@@ -1,6 +1,6 @@
 use super::context::Context;
 use super::sec_element::Element;
-use super::sec_table::{TableInstance, TableType};
+use super::sec_table::TableType;
 use super::Data;
 use alloc::prelude::*;
 use alloc::rc::Rc;
@@ -16,6 +16,7 @@ use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
 };
 use store::Store;
+use table::{TableInstance, TableInstances};
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
@@ -175,33 +176,42 @@ impl Section {
     elements: Vec<Element>,
     tables: Vec<TableType>,
     exports: &ExternalInterfaces,
-  ) -> Vec<TableInstance> {
-    elements
-      .into_iter()
-      .enumerate()
-      .map(|(idx, el)| {
-        let export_name = exports
-          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Table)
-          .map(|x| x.name.to_owned());
-        let table_type = tables.get(el.get_table_idx());
-        TableInstance::new(table_type, el, export_name)
-      })
-      .collect::<Vec<_>>()
-  }
-
-  fn external_table_instances(
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
-  ) -> Result<Vec<TableInstance>> {
-    imports
-      .iter()
-      .map(|value| {
-        external_modules
-          .get(&value.module_name)
-          .ok_or(Trap::UnknownImport)?
-          .find_table_instance(value)
-      })
-      .collect::<Result<Vec<_>>>()
+    global_instances: &Vec<GlobalInstance>,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> Result<TableInstances> {
+    if tables.len() > 0 {
+      tables
+        .into_iter()
+        .map(|table_type| {
+          let export_name = exports
+            .find_kind_by_idx(0, ModuleDescriptorKind::Table)
+            .map(|x| x.name.to_owned());
+          TableInstance::new(
+            elements.clone(),
+            &table_type,
+            export_name,
+            global_instances,
+            function_instances,
+          )
+        })
+        .collect::<Result<Vec<_>>>()
+        .map(|table_instances| TableInstances::new(table_instances))
+    } else {
+      // NOTE: Only one table instance allowed.
+      match imports.first() {
+        Some(import) => external_modules
+          .get(&import.module_name)
+          .map(|em| em.find_table_instance(import))
+          .ok_or(Trap::UnknownImport)
+          .map(|table_instances| {
+            table_instances.update(elements.clone(), global_instances, function_instances)?;
+            Ok(table_instances)
+          })?,
+        None => Ok(TableInstances::empty()),
+      }
+    }
   }
 
   fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
@@ -231,7 +241,6 @@ impl Section {
           export_name,
           function_type,
           locals,
-          index_of_type,
           expressions,
         ))
       })
@@ -310,7 +319,6 @@ impl Section {
 
         let mut function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
-        let mut table_instances = Section::table_instances(elements, tables, &exports);
         let mut global_instances = Section::global_instances(globals, &exports);
 
         let mut external_function_instances = Section::external_function_instances(
@@ -318,13 +326,10 @@ impl Section {
           &imports_function,
           &external_modules,
         )?;
-        let mut external_table_instances =
-          Section::external_table_instances(&imports_table, &external_modules)?;
         let mut external_global_instances =
           Section::external_global_instances(&imports_global, &external_modules)?;
 
         function_instances.append(&mut external_function_instances);
-        table_instances.append(&mut external_table_instances);
         global_instances.append(&mut external_global_instances);
 
         let memory_instances = Section::memory_instances(
@@ -334,6 +339,15 @@ impl Section {
           &imports_memory,
           &external_modules,
           &global_instances,
+        )?;
+        let mut table_instances = Section::table_instances(
+          elements,
+          tables,
+          &exports,
+          &imports_table,
+          &external_modules,
+          &global_instances,
+          &function_instances,
         )?;
 
         Ok(

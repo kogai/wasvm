@@ -1,9 +1,9 @@
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use decode::TableInstance;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstance;
 use memory::MemoryInstance;
+use table::{TableInstance, TableInstances};
 use trap::Result;
 use value::Values;
 
@@ -12,7 +12,7 @@ pub struct Store {
   pub function_instances: Vec<Rc<FunctionInstance>>,
   pub function_types: Vec<FunctionType>,
   pub memory_instances: Vec<MemoryInstance>,
-  pub table_instances: Vec<TableInstance>,
+  pub table_instances: TableInstances,
   pub global_instances: Vec<GlobalInstance>,
 }
 
@@ -21,7 +21,7 @@ impl Store {
     function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
-    table_instances: Vec<TableInstance>,
+    table_instances: TableInstances,
     global_instances: Vec<GlobalInstance>,
   ) -> Self {
     Store {
@@ -66,8 +66,8 @@ impl Store {
       .map(|g| g.set_value(value));
   }
 
-  pub fn get_table_at(&self, idx: u32) -> Option<&TableInstance> {
-    self.table_instances.get(idx as usize)
+  pub fn get_table_at(&self, idx: u32) -> Option<TableInstance> {
+    self.table_instances.get_table_at(idx)
   }
 
   fn get_memory_instance(&self) -> &MemoryInstance {
