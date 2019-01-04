@@ -297,7 +297,7 @@ impl_e2e!(test_float_literals, "float_literals");
 impl_e2e!(test_float_memory, "float_memory");
 impl_e2e!(test_float_misc, "float_misc");
 impl_e2e!(test_forward, "forward");
-// impl_e2e!(test_func_ptrs, "func_ptrs");
+impl_e2e!(test_func_ptrs, "func_ptrs");
 impl_e2e!(test_func, "func");
 impl_e2e!(test_get_local, "get_local");
 // impl_e2e!(test_globals, "globals");
