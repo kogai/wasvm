@@ -37,18 +37,18 @@ macro_rules! impl_load_inst {
 
 macro_rules! impl_load_to {
     ($fn_name: ident, $load_fn: ident, $path: path, $ty: ty) => {
-    fn $fn_name(&mut self, offset: u32, width: u32, sign: bool) -> Result<()> {
-        let mut value = self.$load_fn(offset, width)?;
-        if sign {
-            let is_msb_one = value & (1 << (width - 1)) != 0;
-            if is_msb_one {
-                value |= !0 << width;
-            };
+        fn $fn_name(&mut self, offset: u32, width: u32, sign: bool) -> Result<()> {
+            let mut value = self.$load_fn(offset, width)?;
+            if sign {
+                let is_msb_one = value & (1 << (width - 1)) != 0;
+                if is_msb_one {
+                    value |= !1 << (width - 1);
+                };
+            }
+            self.stack
+                .push(StackEntry::new_value($path(value as $ty)))?;
+            Ok(())
         }
-        self.stack
-            .push(StackEntry::new_value($path(value as $ty)))?;
-        Ok(())
-    }
     };
 }
 
