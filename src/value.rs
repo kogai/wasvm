@@ -1,6 +1,7 @@
 use alloc::prelude::*;
 use alloc::string::String;
 use core::mem::transmute;
+use core::ops::Rem;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
 use core::{f32, f64, fmt};
 use trap::{Result, Trap};
@@ -761,7 +762,15 @@ impl Values {
         } else if *l < 0.0 && *l >= -0.5 {
           Values::F32(0.0)
         } else {
-          Values::F32(l.round())
+          let round = l.round();
+          let result = if round.rem(2.0) == 1.0 {
+            l.floor()
+          } else if round.rem(2.0) == -1.0 {
+            l.ceil()
+          } else {
+            round
+          };
+          Values::F32(result)
         }
       }
       Values::F64(l) => {
@@ -770,7 +779,15 @@ impl Values {
         } else if *l < 0.0 && *l >= -0.5 {
           Values::F64(0.0)
         } else {
-          Values::F64(l.round())
+          let round = l.round();
+          let result = if round.rem(2.0) == 1.0 {
+            l.floor()
+          } else if round.rem(2.0) == -1.0 {
+            l.ceil()
+          } else {
+            round
+          };
+          Values::F64(result)
         }
       }
       _ => unimplemented!(),

@@ -280,7 +280,7 @@ impl_e2e!(test_comments, "comments");
 impl_e2e!(test_const, "const"); /* All specs suppose Text-format */
 impl_e2e!(test_conversions, "conversions");
 impl_e2e!(test_custom_section, "custom_section");
-// impl_e2e!(test_custom, "custom");
+// impl_e2e!(test_custom_simple, "custom");
 impl_e2e!(test_data, "data");
 impl_e2e!(test_elem, "elem");
 impl_e2e!(test_endianness, "endianness");
@@ -295,7 +295,7 @@ impl_e2e!(test_fac, "fac");
 impl_e2e!(test_float_exprs, "float_exprs");
 impl_e2e!(test_float_literals, "float_literals");
 impl_e2e!(test_float_memory, "float_memory");
-// impl_e2e!(test_float_misc, "float_misc");
+impl_e2e!(test_float_misc, "float_misc");
 impl_e2e!(test_forward, "forward");
 // impl_e2e!(test_func_ptrs, "func_ptrs");
 impl_e2e!(test_func, "func");
