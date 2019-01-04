@@ -32,6 +32,7 @@ pub enum Trap {
   IncompatibleImportType,
   MagicHeaderNotDetected,
   UnsupportedTextform,
+  IntegerRepresentationTooLong
 }
 
 impl From<Trap> for NoneError {
@@ -76,6 +77,7 @@ impl From<Trap> for String {
       UninitializedElement(idx) => format!("uninitialized element {}", idx),
       UnsupportedTextform => "unsupported text form".to_owned(),
       MagicHeaderNotDetected => "magic header not detected".to_owned(),
+      IntegerRepresentationTooLong => "integer representation too long".to_owned()
     }
   }
 }

@@ -8,7 +8,7 @@ use global::GlobalType;
 use module::{
   ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, ModuleDescriptorKind,
 };
-use trap::Result;
+use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 impl_decodable!(Section);

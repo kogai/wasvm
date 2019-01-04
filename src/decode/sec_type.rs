@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use core::convert::From;
 use core::{f32, f64};
 use function::FunctionType;
-use trap::Result;
+use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 impl_decodable!(Section);

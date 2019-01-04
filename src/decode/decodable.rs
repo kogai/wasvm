@@ -85,7 +85,11 @@ macro_rules! impl_decodable {
           shift += 7;
         }
         let num = (self.next()?) as u32;
-        buf = buf ^ (num << shift);
+        let (shifted, is_overflowed) = num.overflowing_shl(shift);
+        if is_overflowed {
+          return Err(Trap::IntegerRepresentationTooLong);
+        }
+        buf = buf ^ shifted;
         Ok(buf)
       }
 
@@ -116,13 +120,13 @@ macro_rules! impl_decode_limit {
         use $crate::memory::Limit::*;
         match self.next() {
           Some(0x0) => {
-            let min = self.decode_leb128_i32()?;
-            Ok(NoUpperLimit(min as u32))
+            let min = self.decode_leb128_u32()?;
+            Ok(NoUpperLimit(min))
           }
           Some(0x1) => {
-            let min = self.decode_leb128_i32()?;
-            let max = self.decode_leb128_i32()?;
-            Ok(HasUpperLimit(min as u32, max as u32))
+            let min = self.decode_leb128_u32()?;
+            let max = self.decode_leb128_u32()?;
+            Ok(HasUpperLimit(min, max))
           }
           x => unreachable!("Expected limit code, got {:?}", x),
         }
@@ -158,6 +162,7 @@ pub trait Decodable {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use trap::Trap;
 
   impl_decodable!(TestDecodable);
 

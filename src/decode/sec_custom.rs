@@ -2,7 +2,7 @@ use super::decodable::{Decodable, NameDecodable};
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::{f32, f64};
-use trap::Result;
+use trap::{Result, Trap};
 
 impl_decodable!(Section);
 impl_name_decodable!(Section);

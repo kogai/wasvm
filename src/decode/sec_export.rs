@@ -3,7 +3,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::{f32, f64};
 use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
-use trap::Result;
+use trap::{Result, Trap};
 
 impl_decodable!(Section);
 impl_name_decodable!(Section);

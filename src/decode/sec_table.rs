@@ -3,7 +3,7 @@ use super::sec_element::ElementType;
 use alloc::vec::Vec;
 use core::{f32, f64};
 use memory::Limit;
-use trap::Result;
+use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
 pub struct TableType {
