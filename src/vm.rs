@@ -318,11 +318,11 @@ impl Vm {
                     if i > table.len() as i32 {
                         return Err(Trap::UndefinedElement);
                     }
-                    let address = table.get_function_address(i as u32)?;
+                    let function_instance = table.get_function_instance(i as u32)?;
                     let mut arguments = {
-                        let actual_fn_ty = self.store.get_function_type_by_instance(address)?;
+                        let actual_fn_ty = &function_instance.function_type;
                         let expect_fn_ty = self.store.get_function_type(*idx)?;
-                        if &actual_fn_ty != expect_fn_ty {
+                        if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
                         }
                         let mut arg = vec![];
@@ -331,9 +331,8 @@ impl Vm {
                         }
                         arg
                     };
-
                     self.stack
-                        .push_frame(&mut self.store, address as usize, arguments)?;
+                        .push_frame_from_function_instance(function_instance, arguments)?;
                     break;
                 }
                 GetLocal(idx) => self.get_local(*idx)?,

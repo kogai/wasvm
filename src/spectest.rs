@@ -70,6 +70,7 @@ pub fn create_spectest() -> ExternalModule {
       &TableType::new(ElementType::AnyFunc, Limit::HasUpperLimit(10, 20)),
       Some("table".to_owned()),
       &vec![],
+      &vec![],
     )
     .unwrap()],
     // GlobalInstances

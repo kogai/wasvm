@@ -1,6 +1,8 @@
 use super::decodable::Decodable;
+use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::{f32, f64};
+use function::FunctionInstance;
 use inst::Inst;
 use trap::{Result, Trap};
 
@@ -26,8 +28,19 @@ impl Element {
     self.init.clone()
   }
 
-  pub(crate) fn wrap_by_option(&self) -> Vec<Option<u32>> {
-    self.init.iter().map(|x| Some(*x)).collect()
+  pub(crate) fn wrap_by_option(
+    &self,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> Vec<Option<Rc<FunctionInstance>>> {
+    self
+      .init
+      .iter()
+      .map(|fn_idx| {
+        function_instances
+          .get(*fn_idx as usize)
+          .map(|ins| ins.clone())
+      })
+      .collect()
   }
 }
 

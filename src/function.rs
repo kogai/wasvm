@@ -59,7 +59,7 @@ impl FunctionType {
 #[derive(PartialEq)]
 pub struct FunctionInstance {
   pub export_name: Option<String>,
-  function_type: FunctionType,
+  pub(crate) function_type: FunctionType,
   pub locals: Vec<ValueTypes>,
   body: Vec<Inst>,
 }

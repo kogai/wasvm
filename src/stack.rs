@@ -4,6 +4,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
 use frame::Frame;
+use function::FunctionInstance;
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -220,6 +221,17 @@ impl Stack {
     arguments: Vec<Values>,
   ) -> Result<()> {
     let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
+    let mut calls = self.calls.borrow_mut();
+    calls.push(frame);
+    Ok(())
+  }
+
+  pub fn push_frame_from_function_instance(
+    &self,
+    function_instance: Rc<FunctionInstance>,
+    arguments: Vec<Values>,
+  ) -> Result<()> {
+    let frame = Frame::from_function_instance(self.stack_ptr, function_instance, arguments);
     let mut calls = self.calls.borrow_mut();
     calls.push(frame);
     Ok(())

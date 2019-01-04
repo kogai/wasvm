@@ -4,17 +4,16 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::clone::Clone;
 use decode::{Element, TableType};
+use function::FunctionInstance;
 use global::GlobalInstance;
 use inst::Inst;
 use memory::Limit;
 use trap::{Result, Trap};
 use value::Values;
 
-type FunctionAddress = u32;
-
 #[derive(Debug, Clone)]
 pub struct TableInstance {
-  pub(crate) function_elements: Vec<Option<FunctionAddress>>,
+  pub(crate) function_elements: Vec<Option<Rc<FunctionInstance>>>,
   pub(crate) export_name: Option<String>,
 }
 
@@ -24,6 +23,7 @@ impl TableInstance {
     table_type: &TableType,
     export_name: Option<String>,
     global_instances: &Vec<GlobalInstance>,
+    function_instances: &Vec<Rc<FunctionInstance>>,
   ) -> Result<Self> {
     let table_size = match table_type.limit {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
@@ -49,7 +49,7 @@ impl TableInstance {
           )),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
-      let mut function_addresses = el.wrap_by_option();
+      let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > function_elements.len() {
         return Err(Trap::ElementSegmentDoesNotFit);
@@ -66,9 +66,9 @@ impl TableInstance {
     self.function_elements.len()
   }
 
-  pub fn get_function_address(&self, idx: u32) -> Result<u32> {
+  pub fn get_function_instance(&self, idx: u32) -> Result<Rc<FunctionInstance>> {
     match self.function_elements.get(idx as usize) {
-      Some(Some(x)) => Ok(*x),
+      Some(Some(x)) => Ok(x.clone()),
       Some(None) => Err(Trap::UninitializedElement(idx)),
       None => Err(Trap::UndefinedElement),
     }
@@ -97,8 +97,8 @@ impl TableInstances {
     &self,
     elements: Vec<Element>,
     global_instances: &Vec<GlobalInstance>,
+    function_instances: &Vec<Rc<FunctionInstance>>,
   ) -> Result<()> {
-    // let mut function_elements = self.0.borrow().first()?.function_elements.clone();
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
     let function_elements = &mut table_instance.function_elements;
@@ -124,17 +124,13 @@ impl TableInstances {
           )),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
-      let mut function_addresses = el.wrap_by_option();
+      let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > function_elements.len() {
         return Err(Trap::ElementSegmentDoesNotFit);
       }
       function_addresses.swap_with_slice(&mut function_elements[offset..end]);
     }
-    // let mut table_instances = self.0.borrow_mut();
-    // for ti in table_instances.iter_mut() {
-    //   ti.swap_function_elements(function_elements.clone());
-    // }
     Ok(())
   }
 }

@@ -179,6 +179,7 @@ impl Section {
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
     global_instances: &Vec<GlobalInstance>,
+    function_instances: &Vec<Rc<FunctionInstance>>,
   ) -> Result<TableInstances> {
     if tables.len() > 0 {
       tables
@@ -187,7 +188,13 @@ impl Section {
           let export_name = exports
             .find_kind_by_idx(0, ModuleDescriptorKind::Table)
             .map(|x| x.name.to_owned());
-          TableInstance::new(elements.clone(), &table_type, export_name, global_instances)
+          TableInstance::new(
+            elements.clone(),
+            &table_type,
+            export_name,
+            global_instances,
+            function_instances,
+          )
         })
         .collect::<Result<Vec<_>>>()
         .map(|table_instances| TableInstances::new(table_instances))
@@ -199,7 +206,7 @@ impl Section {
           .map(|em| em.find_table_instance(import))
           .ok_or(Trap::UnknownImport)
           .map(|table_instances| {
-            table_instances.update(elements.clone(), global_instances)?;
+            table_instances.update(elements.clone(), global_instances, function_instances)?;
             Ok(table_instances)
           })?,
         None => Ok(TableInstances::empty()),
@@ -340,6 +347,7 @@ impl Section {
           &imports_table,
           &external_modules,
           &global_instances,
+          &function_instances,
         )?;
 
         Ok(
