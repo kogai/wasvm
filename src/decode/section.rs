@@ -190,7 +190,7 @@ impl Section {
             .map(|x| x.name.to_owned());
           TableInstance::new(
             elements.clone(),
-            &table_type,
+            table_type,
             export_name,
             global_instances,
             function_instances,

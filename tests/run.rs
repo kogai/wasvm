@@ -103,6 +103,7 @@ macro_rules! impl_e2e {
             let actual = vm.run(field.as_ref(), get_args(args));
             match message.as_ref() {
               "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+              "uninitialized element 7" => assert_eq!(actual, "uninitialized element"),
               _ => assert_eq!(&actual, message),
             }
           }

@@ -249,15 +249,17 @@ impl ExternalModule {
   ) -> Result<TableInstances> {
     match key {
       ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_)),
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(table_type)),
         name,
         ..
       } => {
-        if self.table_instances.find_by_name(name) {
-          Ok(self.table_instances.clone())
-        } else {
-          Err(Trap::UnknownImport)
+        if !self.table_instances.find_by_name(name) {
+          return Err(Trap::UnknownImport);
         }
+        if self.table_instances.gt_table_type(table_type) {
+          return Err(Trap::IncompatibleImportType);
+        }
+        Ok(self.table_instances.clone())
       }
       x => unreachable!("Expected table descriptor, got {:?}", x),
     }

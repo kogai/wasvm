@@ -15,12 +15,13 @@ use value::Values;
 pub struct TableInstance {
   pub(crate) function_elements: Vec<Option<Rc<FunctionInstance>>>,
   pub(crate) export_name: Option<String>,
+  table_type: TableType,
 }
 
 impl TableInstance {
   pub fn new(
     elements: Vec<Element>,
-    table_type: &TableType,
+    table_type: TableType,
     export_name: Option<String>,
     global_instances: &Vec<GlobalInstance>,
     function_instances: &Vec<Rc<FunctionInstance>>,
@@ -59,6 +60,7 @@ impl TableInstance {
     Ok(TableInstance {
       function_elements,
       export_name,
+      table_type,
     })
   }
 
@@ -90,6 +92,14 @@ impl TableInstances {
   pub fn find_by_name(&self, name: &String) -> bool {
     match self.0.borrow().first() {
       Some(table_instance) => table_instance.export_name == Some(name.to_owned()),
+      None => false,
+    }
+  }
+
+  // NOTE: It represents `self.table_type > other_table_type`
+  pub fn gt_table_type(&self, other: &TableType) -> bool {
+    match self.0.borrow().first() {
+      Some(table_instance) => &table_instance.table_type > other,
       None => false,
     }
   }

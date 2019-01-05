@@ -5,7 +5,7 @@ use core::{f32, f64};
 use memory::Limit;
 use trap::{Result, Trap};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct TableType {
   element_type: ElementType,
   pub(crate) limit: Limit,

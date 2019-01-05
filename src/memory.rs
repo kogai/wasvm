@@ -1,6 +1,7 @@
 use alloc::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::cmp::{Ordering, PartialOrd};
 use core::fmt;
 use core::mem::transmute;
 use core::u32;
@@ -14,12 +15,62 @@ use value::Values;
 const PAGE_SIZE: u32 = 65536;
 
 // Prefer to rename MemoryType
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Limit {
   // (min)
   NoUpperLimit(u32),
   // (min, max)
   HasUpperLimit(u32, u32),
+}
+
+impl PartialOrd for Limit {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    use self::Limit::*;
+    match (self, other) {
+      // NOTE: In the mean of Limit, to compare min bound `A.min < B.min` represents self > other.
+      // However, `A.max < B.max` self < other.
+      // It seems the specification assumes to compare range of limitations.
+      //
+      // Example: in case of `A < B`.
+      // +---+---+---+---+---+---+---+---+---+---+
+      // | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+      // +---+---+---+---+---+---+---+---+---+---+
+      //       ^       ^           ^       ^
+      //     B.min    A.min ----- A.max   B.max
+      (NoUpperLimit(min), NoUpperLimit(min_other)) => {
+        if min > min_other {
+          Some(Ordering::Less)
+        } else if min == min_other {
+          Some(Ordering::Equal)
+        } else {
+          Some(Ordering::Greater)
+        }
+      }
+      (NoUpperLimit(min), HasUpperLimit(min_other, _)) => {
+        if min > min_other {
+          Some(Ordering::Less)
+        } else {
+          Some(Ordering::Greater)
+        }
+      }
+      (HasUpperLimit(min, _), NoUpperLimit(min_other)) => {
+        if min < min_other {
+          Some(Ordering::Greater)
+        } else {
+          Some(Ordering::Less)
+        }
+      }
+      (HasUpperLimit(min, max), HasUpperLimit(min_other, max_other)) => {
+        if min > min_other || max < max_other {
+          return Some(Ordering::Less);
+        }
+        if min < min_other || max > max_other {
+          return Some(Ordering::Greater);
+        }
+        Some(Ordering::Equal)
+      }
+    }
+  }
 }
 
 impl fmt::Debug for Limit {
