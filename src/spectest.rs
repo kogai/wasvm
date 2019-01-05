@@ -67,7 +67,7 @@ pub fn create_spectest() -> ExternalModule {
     vec![TableInstance::new(
       // vec![Element::new(0, vec![Inst::I32Const(10)], vec![10])],
       vec![],
-      &TableType::new(ElementType::AnyFunc, Limit::HasUpperLimit(10, 20)),
+      TableType::new(ElementType::AnyFunc, Limit::HasUpperLimit(10, 20)),
       Some("table".to_owned()),
       &vec![],
       &vec![],

@@ -15,12 +15,13 @@ use value::Values;
 pub struct TableInstance {
   pub(crate) function_elements: Vec<Option<Rc<FunctionInstance>>>,
   pub(crate) export_name: Option<String>,
+  table_type: TableType,
 }
 
 impl TableInstance {
   pub fn new(
     elements: Vec<Element>,
-    table_type: &TableType,
+    table_type: TableType,
     export_name: Option<String>,
     global_instances: &Vec<GlobalInstance>,
     function_instances: &Vec<Rc<FunctionInstance>>,
@@ -59,6 +60,7 @@ impl TableInstance {
     Ok(TableInstance {
       function_elements,
       export_name,
+      table_type,
     })
   }
 
@@ -69,7 +71,7 @@ impl TableInstance {
   pub fn get_function_instance(&self, idx: u32) -> Result<Rc<FunctionInstance>> {
     match self.function_elements.get(idx as usize) {
       Some(Some(x)) => Ok(x.clone()),
-      Some(None) => Err(Trap::UninitializedElement(idx)),
+      Some(None) => Err(Trap::UninitializedElement),
       None => Err(Trap::UndefinedElement),
     }
   }
@@ -85,6 +87,21 @@ impl TableInstances {
 
   pub fn empty() -> Self {
     TableInstances(Rc::new(RefCell::new(vec![])))
+  }
+
+  pub fn find_by_name(&self, name: &String) -> bool {
+    match self.0.borrow().first() {
+      Some(table_instance) => table_instance.export_name == Some(name.to_owned()),
+      None => false,
+    }
+  }
+
+  // NOTE: It represents `self.table_type > other_table_type`
+  pub fn gt_table_type(&self, other: &TableType) -> bool {
+    match self.0.borrow().first() {
+      Some(table_instance) => &table_instance.table_type > other,
+      None => false,
+    }
   }
 
   pub fn get_table_at<'a>(&'a self, idx: u32) -> Option<TableInstance> {

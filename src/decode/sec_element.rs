@@ -44,7 +44,7 @@ impl Element {
   }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum ElementType {
   AnyFunc,
 }

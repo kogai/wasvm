@@ -246,12 +246,21 @@ impl ExternalModule {
   pub fn find_table_instance(
     &self,
     key: &ExternalInterface, // import section of table
-  ) -> TableInstances {
+  ) -> Result<TableInstances> {
     match key {
       ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_)),
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(table_type)),
+        name,
         ..
-      } => self.table_instances.clone(),
+      } => {
+        if !self.table_instances.find_by_name(name) {
+          return Err(Trap::UnknownImport);
+        }
+        if self.table_instances.gt_table_type(table_type) {
+          return Err(Trap::IncompatibleImportType);
+        }
+        Ok(self.table_instances.clone())
+      }
       x => unreachable!("Expected table descriptor, got {:?}", x),
     }
   }
@@ -278,7 +287,7 @@ impl ExternalModule {
   pub fn find_memory_instance(&self, key: &ExternalInterface) -> Result<MemoryInstance> {
     match key {
       ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(_)),
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)),
         name,
         ..
       } => {
@@ -288,7 +297,11 @@ impl ExternalModule {
           .find(|instance| instance.export_name == Some(name.to_owned()))
           .ok_or(Trap::UnknownImport)
           .map(|x| x.clone())?;
-        Ok(instance)
+        if &instance.limit > limit {
+          Err(Trap::IncompatibleImportType)
+        } else {
+          Ok(instance)
+        }
       }
       x => unreachable!("Expected global descriptor, got {:?}", x),
     }

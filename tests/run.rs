@@ -103,6 +103,7 @@ macro_rules! impl_e2e {
             let actual = vm.run(field.as_ref(), get_args(args));
             match message.as_ref() {
               "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+              "uninitialized element 7" => assert_eq!(actual, "uninitialized element"),
               _ => assert_eq!(&actual, message),
             }
           }
@@ -146,18 +147,21 @@ macro_rules! impl_e2e {
               println!("Skip {}, it seems not reasonable...", line);
               continue;
             };
-            println!("Assert malformed at {}.", line,);
             let bytes = module.clone().into_vec();
             let mut vm = Vm::new(bytes);
+            use self::Trap::*;
             match vm {
               Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
               Err(err) => {
-                match err {
-                  Trap::UnsupportedTextform => {
-                    println!("Skip malformed text form at line:{}.", line);
-                  }
-                  _ => assert_eq!(&String::from(err), message),
-                };
+                if let UnsupportedTextform = err {
+                  println!("Skip malformed text form at line:{}.", line);
+                } else {
+                  println!("Assert malformed at {}.", line,);
+                  match err {
+                    UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
+                    _ => assert_eq!(&String::from(err), message),
+                  };
+                }
               }
             }
           }
@@ -304,12 +308,12 @@ impl_e2e!(test_get_local, "get_local");
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
 impl_e2e!(test_if, "if");
-// impl_e2e!(test_imports, "imports");
+impl_e2e!(test_imports, "imports");
 impl_e2e!(test_inline_module, "inline-module");
 impl_e2e!(test_int_exprs, "int_exprs");
 impl_e2e!(test_int_literals, "int_literals");
 impl_e2e!(test_labels, "labels");
-// impl_e2e!(test_left_to_right, "left-to-right");
+impl_e2e!(test_left_to_right, "left-to-right");
 // impl_e2e!(test_linking, "linking");
 impl_e2e!(test_loop, "loop");
 impl_e2e!(test_memory_grow, "memory_grow");
@@ -334,7 +338,7 @@ impl_e2e!(test_type, "type");
 impl_e2e!(test_typecheck, "typecheck");
 impl_e2e!(test_unreachable, "unreachable");
 impl_e2e!(test_unreached_invalid, "unreached-invalid");
-// impl_e2e!(test_unwind, "unwind");
+impl_e2e!(test_unwind, "unwind");
 // impl_e2e!(test_utf8_custom_section_id, "utf8-custom-section-id");
 // impl_e2e!(test_utf8_import_field, "utf8-import-field");
 // impl_e2e!(test_utf8_import_module, "utf8-import-module");

@@ -190,7 +190,7 @@ impl Section {
             .map(|x| x.name.to_owned());
           TableInstance::new(
             elements.clone(),
-            &table_type,
+            table_type,
             export_name,
             global_instances,
             function_instances,
@@ -206,6 +206,7 @@ impl Section {
           .map(|em| em.find_table_instance(import))
           .ok_or(Trap::UnknownImport)
           .map(|table_instances| {
+            let table_instances = table_instances?;
             table_instances.update(elements.clone(), global_instances, function_instances)?;
             Ok(table_instances)
           })?,
