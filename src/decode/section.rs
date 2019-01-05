@@ -235,7 +235,10 @@ impl Section {
         let export_name = exports
           .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Function)
           .map(|x| x.name.to_owned());
-        let index_of_type = *functions.get(idx).expect("Index of type can't found.");
+        let index_of_type = match functions.get(idx) {
+          Some(n) => *n,
+          None => return Err(Trap::FunctionAndCodeInconsitent),
+        };
         let function_type = Section::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;
         Ok(FunctionInstance::new(
