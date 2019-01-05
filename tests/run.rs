@@ -147,18 +147,21 @@ macro_rules! impl_e2e {
               println!("Skip {}, it seems not reasonable...", line);
               continue;
             };
-            println!("Assert malformed at {}.", line,);
             let bytes = module.clone().into_vec();
             let mut vm = Vm::new(bytes);
             use self::Trap::*;
             match vm {
               Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
               Err(err) => {
-                match err {
-                  UnsupportedTextform => println!("Skip malformed text form at line:{}.", line),
-                  UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
-                  _ => assert_eq!(&String::from(err), message),
-                };
+                if let UnsupportedTextform = err {
+                  println!("Skip malformed text form at line:{}.", line);
+                } else {
+                  println!("Assert malformed at {}.", line,);
+                  match err {
+                    UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
+                    _ => assert_eq!(&String::from(err), message),
+                  };
+                }
               }
             }
           }
@@ -305,7 +308,7 @@ impl_e2e!(test_get_local, "get_local");
 impl_e2e!(test_i32, "i32");
 impl_e2e!(test_i64, "i64");
 impl_e2e!(test_if, "if");
-// impl_e2e!(test_imports, "imports");
+impl_e2e!(test_imports, "imports");
 impl_e2e!(test_inline_module, "inline-module");
 impl_e2e!(test_int_exprs, "int_exprs");
 impl_e2e!(test_int_literals, "int_literals");
