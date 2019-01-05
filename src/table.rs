@@ -69,7 +69,7 @@ impl TableInstance {
   pub fn get_function_instance(&self, idx: u32) -> Result<Rc<FunctionInstance>> {
     match self.function_elements.get(idx as usize) {
       Some(Some(x)) => Ok(x.clone()),
-      Some(None) => Err(Trap::UninitializedElement(idx)),
+      Some(None) => Err(Trap::UninitializedElement),
       None => Err(Trap::UndefinedElement),
     }
   }

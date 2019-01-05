@@ -149,13 +149,13 @@ macro_rules! impl_e2e {
             println!("Assert malformed at {}.", line,);
             let bytes = module.clone().into_vec();
             let mut vm = Vm::new(bytes);
+            use self::Trap::*;
             match vm {
               Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
               Err(err) => {
                 match err {
-                  Trap::UnsupportedTextform => {
-                    println!("Skip malformed text form at line:{}.", line);
-                  }
+                  UnsupportedTextform => println!("Skip malformed text form at line:{}.", line),
+                  UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
                   _ => assert_eq!(&String::from(err), message),
                 };
               }
