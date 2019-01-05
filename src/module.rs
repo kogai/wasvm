@@ -287,7 +287,7 @@ impl ExternalModule {
   pub fn find_memory_instance(&self, key: &ExternalInterface) -> Result<MemoryInstance> {
     match key {
       ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(_)),
+        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)),
         name,
         ..
       } => {
@@ -297,7 +297,11 @@ impl ExternalModule {
           .find(|instance| instance.export_name == Some(name.to_owned()))
           .ok_or(Trap::UnknownImport)
           .map(|x| x.clone())?;
-        Ok(instance)
+        if &instance.limit > limit {
+          Err(Trap::IncompatibleImportType)
+        } else {
+          Ok(instance)
+        }
       }
       x => unreachable!("Expected global descriptor, got {:?}", x),
     }
