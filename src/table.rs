@@ -87,6 +87,13 @@ impl TableInstances {
     TableInstances(Rc::new(RefCell::new(vec![])))
   }
 
+  pub fn find_by_name(&self, name: &String) -> bool {
+    match self.0.borrow().first() {
+      Some(table_instance) => table_instance.export_name == Some(name.to_owned()),
+      None => false,
+    }
+  }
+
   pub fn get_table_at<'a>(&'a self, idx: u32) -> Option<TableInstance> {
     let table_instances = self.0.borrow();
     let table_instance = table_instances.get(idx as usize);

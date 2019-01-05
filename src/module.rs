@@ -246,12 +246,19 @@ impl ExternalModule {
   pub fn find_table_instance(
     &self,
     key: &ExternalInterface, // import section of table
-  ) -> TableInstances {
+  ) -> Result<TableInstances> {
     match key {
       ExternalInterface {
         descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_)),
+        name,
         ..
-      } => self.table_instances.clone(),
+      } => {
+        if self.table_instances.find_by_name(name) {
+          Ok(self.table_instances.clone())
+        } else {
+          Err(Trap::UnknownImport)
+        }
+      }
       x => unreachable!("Expected table descriptor, got {:?}", x),
     }
   }
