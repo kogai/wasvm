@@ -1,7 +1,6 @@
 use super::decodable::Decodable;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use core::{f32, f64};
 use function::FunctionInstance;
 use inst::Inst;
 use trap::{Result, Trap};

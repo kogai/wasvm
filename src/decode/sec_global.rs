@@ -1,6 +1,5 @@
 use super::decodable::Decodable;
 use alloc::vec::Vec;
-use core::{f32, f64};
 use global::GlobalType;
 use trap::{Result, Trap};
 use value::Values;

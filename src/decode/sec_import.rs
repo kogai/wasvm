@@ -3,7 +3,6 @@ use super::sec_element::ElementType;
 use super::sec_table::TableType;
 use alloc::string::String;
 use alloc::vec::Vec;
-use core::{f32, f64};
 use global::GlobalType;
 use module::{
   ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, ModuleDescriptorKind,

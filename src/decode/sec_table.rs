@@ -1,7 +1,6 @@
 use super::decodable::Decodable;
 use super::sec_element::ElementType;
 use alloc::vec::Vec;
-use core::{f32, f64};
 use memory::Limit;
 use trap::{Result, Trap};
 

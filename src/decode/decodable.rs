@@ -49,22 +49,6 @@ macro_rules! impl_decode_leb128 {
   };
 }
 
-macro_rules! impl_decode_float {
-  ($ty: ty, $buf_ty: ty, $fn_name: ident, $convert: path, $bitwidth: expr) => {
-    #[allow(dead_code)]
-    fn $fn_name(&mut self) -> $crate::trap::Result<$ty> {
-      let mut buf: $buf_ty = 0;
-      let mut shift = 0;
-      for _ in 0..($bitwidth / 8) {
-        let num = self.next()? as $buf_ty;
-        buf = buf ^ (num << shift);
-        shift += 8;
-      }
-      Ok($convert(buf))
-    }
-  };
-}
-
 macro_rules! impl_decodable {
   ($name: ident) => {
     pub struct $name {
@@ -75,8 +59,6 @@ macro_rules! impl_decodable {
     impl $name {
       impl_decode_leb128!(i32, u32, decode_leb128_i32);
       impl_decode_leb128!(i64, u64, decode_leb128_i64);
-      impl_decode_float!(f32, u32, decode_f32, f32::from_bits, 32);
-      impl_decode_float!(f64, u64, decode_f64, f64::from_bits, 64);
 
       // FIXME: Generalize with macro decoding signed integer.
       #[allow(dead_code)]
