@@ -3,10 +3,9 @@ use trap::Result;
 
 #[macro_export]
 macro_rules! impl_decode_leb128 {
-  ($t:ty, $buf_size: ty, $fn_name: ident) => {
-    #[allow(dead_code)]
-    fn $fn_name(&mut self) -> $crate::trap::Result<$t> {
-      let mut buf: $buf_size = 0;
+  ($ty: ty, $fn_name: ident) => {
+    fn $fn_name(&mut self) -> $crate::trap::Result<($ty, u32)> {
+      let mut buf: $ty = 0;
       let mut shift = 0;
 
       // Check whether leftmost bit is 1 or 0, if most significant bit is zero,
@@ -21,7 +20,7 @@ macro_rules! impl_decode_leb128 {
       loop {
         let raw_code = self.next()?;
         let is_msb_zero = raw_code & 0b10000000 == 0;
-        let num = (raw_code & 0b01111111) as $buf_size; // Drop leftmost bit
+        let num = (raw_code & 0b01111111) as $ty; // Drop leftmost bit
         // buf =      00000000_00000000_10000000_00000000
         // num =      00000000_00000000_00000000_00000001
         // num << 7 = 00000000_00000000_00000000_10000000
@@ -36,15 +35,7 @@ macro_rules! impl_decode_leb128 {
           break;
         }
       }
-      let (signed_bits, overflowed) = (1 as $buf_size).overflowing_shl(shift - 1);
-      if overflowed {
-        return Ok(buf as $t)
-      }
-      let is_buf_signed = buf & signed_bits != 0;
-      if is_buf_signed {
-        buf |= !0 << shift;
-      };
-      Ok(buf as $t)
+      Ok((buf, shift))
     }
   };
 }
@@ -57,25 +48,37 @@ macro_rules! impl_decodable {
     }
 
     impl $name {
-      impl_decode_leb128!(i32, u32, decode_leb128_i32);
-      impl_decode_leb128!(i64, u64, decode_leb128_i64);
+      impl_decode_leb128!(u32, decode_leb128_u32_internal);
+      impl_decode_leb128!(u64, decode_leb128_u64_internal);
 
-      // FIXME: Generalize with macro decoding signed integer.
-      #[allow(dead_code)]
-      fn decode_leb128_u32(&mut self) -> Result<u32> {
-        let mut buf: u32 = 0;
-        let mut shift = 0;
-        while (self.peek()? & 0b10000000) != 0 {
-          let num = (self.next()? ^ (0b10000000)) as u32;
-          buf = buf ^ (num << shift);
-          shift += 7;
+      pub fn decode_leb128_i32(&mut self) -> Result<i32> {
+        let (mut buf, shift) = self.decode_leb128_u32_internal()?;
+        let (signed_bits, overflowed) = (1 as u32).overflowing_shl(shift - 1);
+        if overflowed {
+          return Ok(buf as i32);
         }
-        let num = (self.next()?) as u32;
-        let (shifted, is_overflowed) = num.overflowing_shl(shift);
-        if is_overflowed {
-          return Err(Trap::IntegerRepresentationTooLong);
+        let is_buf_signed = buf & signed_bits != 0;
+        if is_buf_signed {
+          buf |= !0 << shift;
+        };
+        Ok(buf as i32)
+      }
+
+      pub fn decode_leb128_i64(&mut self) -> Result<i64> {
+        let (mut buf, shift) = self.decode_leb128_u64_internal()?;
+        let (signed_bits, overflowed) = (1 as u64).overflowing_shl(shift - 1);
+        if overflowed {
+          return Ok(buf as i64);
         }
-        buf = buf ^ shifted;
+        let is_buf_signed = buf & signed_bits != 0;
+        if is_buf_signed {
+          buf |= !0 << shift;
+        };
+        Ok(buf as i64)
+      }
+
+      pub fn decode_leb128_u32(&mut self) -> Result<u32> {
+        let (buf, _) = self.decode_leb128_u32_internal()?;
         Ok(buf)
       }
 
@@ -151,10 +154,6 @@ mod tests {
   use trap::Trap;
 
   impl_decodable!(TestDecodable);
-
-  impl TestDecodable {
-    impl_decode_leb128!(i8, u8, decode_leb128_i8);
-  }
 
   #[test]
   fn decode_i32_positive() {
