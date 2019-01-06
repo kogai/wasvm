@@ -10,7 +10,6 @@ use inst::Inst;
 use stack::StackEntry;
 use store::Store;
 use trap::Result;
-use value::Values;
 use value_type::ValueTypes;
 
 #[derive(PartialEq)]
@@ -27,7 +26,7 @@ impl Frame {
     store: &mut Store,
     return_ptr: usize,
     function_idx: usize,
-    arguments: Vec<Values>,
+    arguments: Vec<Rc<StackEntry>>,
   ) -> Result<Self> {
     let function_instance = store.get_function_instance(function_idx)?;
     let last_ptr = function_instance.get_expressions_count() as u32;
@@ -46,7 +45,7 @@ impl Frame {
   pub fn from_function_instance(
     return_ptr: usize,
     function_instance: Rc<FunctionInstance>,
-    arguments: Vec<Values>,
+    arguments: Vec<Rc<StackEntry>>,
   ) -> Self {
     let last_ptr = function_instance.get_expressions_count() as u32;
     Frame {
@@ -73,13 +72,13 @@ impl Frame {
     self.local_variables.borrow_mut()
   }
 
+  // From: args[2,1]; locals[4,3]
+  // To [4,3,2,1]
   fn derive_local_variables(
-    arguments: Vec<Values>,
+    mut arguments: Vec<Rc<StackEntry>>,
     mut local_variables: Vec<Rc<StackEntry>>,
   ) -> RefCell<Vec<Rc<StackEntry>>> {
-    for arg in arguments.into_iter() {
-      local_variables.push(StackEntry::new_value(arg));
-    }
+    local_variables.append(&mut arguments);
     RefCell::new(local_variables)
   }
 

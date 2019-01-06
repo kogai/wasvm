@@ -305,7 +305,7 @@ impl Vm {
                     let arity = self.store.get_function_instance(*idx)?.get_arity();
                     let mut arguments = vec![];
                     for _ in 0..arity {
-                        arguments.push(self.stack.pop_value_ext());
+                        arguments.push(self.stack.pop()?);
                     }
                     self.stack.push_frame(&mut self.store, *idx, arguments)?;
                     break;
@@ -327,7 +327,7 @@ impl Vm {
                         }
                         let mut arg = vec![];
                         for _ in 0..actual_fn_ty.get_arity() {
-                            arg.push(self.stack.pop_value_ext());
+                            arg.push(self.stack.pop()?);
                         }
                         arg
                     };
@@ -550,7 +550,7 @@ impl Vm {
         Ok(())
     }
 
-    fn run_internal(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    fn run_internal(&mut self, invoke: &str, mut arguments: Vec<Values>) -> String {
         match self
             .internal_module
             .get_export_by_key(invoke)
@@ -560,11 +560,13 @@ impl Vm {
                 descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(idx)),
                 ..
             }) => {
-                let mut arguments = arguments.to_owned();
-                arguments.reverse();
+                let mut argument_entries = vec![];
+                while let Some(argument) = arguments.pop() {
+                    argument_entries.push(StackEntry::new_value(argument));
+                }
                 let _ = self
                     .stack
-                    .push_frame(&mut self.store, idx as usize, arguments);
+                    .push_frame(&mut self.store, idx as usize, argument_entries);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
                         Ok(v) => String::from(v),

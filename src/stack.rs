@@ -219,7 +219,7 @@ impl Stack {
     &self,
     store: &mut Store,
     function_idx: usize,
-    arguments: Vec<Values>,
+    arguments: Vec<Rc<StackEntry>>,
   ) -> Result<()> {
     let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
     let mut calls = self.call_stack.borrow_mut();
@@ -230,7 +230,7 @@ impl Stack {
   pub fn push_frame_from_function_instance(
     &self,
     function_instance: Rc<FunctionInstance>,
-    arguments: Vec<Values>,
+    arguments: Vec<Rc<StackEntry>>,
   ) -> Result<()> {
     let frame = Frame::from_function_instance(self.stack_ptr, function_instance, arguments);
     let mut calls = self.call_stack.borrow_mut();
