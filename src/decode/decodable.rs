@@ -40,6 +40,23 @@ macro_rules! impl_decode_leb128 {
   };
 }
 
+macro_rules! impl_decode_signed_integer {
+  ($fn_name: ident, $decode_name: ident, $dist_ty: ty, $buf_ty: ty) => {
+      fn $fn_name(&mut self) -> Result<$dist_ty> {
+        let (mut buf, shift) = self.$decode_name()?;
+        let (signed_bits, overflowed) = (1 as $buf_ty).overflowing_shl(shift - 1);
+        if overflowed {
+          return Ok(buf as $dist_ty);
+        }
+        let is_buf_signed = buf & signed_bits != 0;
+        if is_buf_signed {
+          buf |= !0 << shift;
+        };
+        Ok(buf as $dist_ty)
+      }
+  };
+}
+
 pub trait AbstractDecodable {
   fn bytes(&self) -> &Vec<u8>;
   fn byte_ptr(&self) -> usize;
@@ -72,6 +89,11 @@ pub trait U32Decodable: Leb128Decodable {
   }
 }
 
+pub trait SignedIntegerDecodable: Leb128Decodable {
+  impl_decode_signed_integer!(decode_leb128_i32, decode_leb128_u32_internal, i32, u32);
+  impl_decode_signed_integer!(decode_leb128_i64, decode_leb128_u64_internal, i64, u64);
+}
+
 macro_rules! impl_decodable {
   ($name: ident) => {
     use decode::{Leb128Decodable, U8Iterator};
@@ -97,32 +119,6 @@ macro_rules! impl_decodable {
     impl $crate::decode::Leb128Decodable for $name {}
 
     impl $name {
-      pub fn decode_leb128_i32(&mut self) -> Result<i32> {
-        let (mut buf, shift) = self.decode_leb128_u32_internal()?;
-        let (signed_bits, overflowed) = (1 as u32).overflowing_shl(shift - 1);
-        if overflowed {
-          return Ok(buf as i32);
-        }
-        let is_buf_signed = buf & signed_bits != 0;
-        if is_buf_signed {
-          buf |= !0 << shift;
-        };
-        Ok(buf as i32)
-      }
-
-      pub fn decode_leb128_i64(&mut self) -> Result<i64> {
-        let (mut buf, shift) = self.decode_leb128_u64_internal()?;
-        let (signed_bits, overflowed) = (1 as u64).overflowing_shl(shift - 1);
-        if overflowed {
-          return Ok(buf as i64);
-        }
-        let is_buf_signed = buf & signed_bits != 0;
-        if is_buf_signed {
-          buf |= !0 << shift;
-        };
-        Ok(buf as i64)
-      }
-
       pub fn new(bytes: Vec<u8>) -> Self {
         $name {
           bytes: bytes,
@@ -184,6 +180,7 @@ mod tests {
   use super::*;
 
   impl_decodable!(TestDecodable);
+  impl SignedIntegerDecodable for TestDecodable {}
 
   #[test]
   fn decode_i32_positive() {
