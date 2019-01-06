@@ -4,11 +4,12 @@ use alloc::vec::Vec;
 use decode::Byte;
 use frame::Frame;
 use inst::Inst;
+use label::{Label, LabelKind};
 use module::{
     ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
     ModuleDescriptor,
 };
-use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
+use stack::{Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;

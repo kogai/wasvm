@@ -16,6 +16,7 @@ mod frame;
 mod function;
 mod global;
 mod inst;
+mod label;
 mod memory;
 mod module;
 mod spectest;
@@ -29,9 +30,9 @@ mod vm;
 
 pub use self::module::{ExternalModule, ExternalModules};
 pub use self::spectest::create_spectest;
+pub use self::trap::Trap;
 pub use self::value::Values;
 pub use self::vm::Vm;
-pub use self::trap::Trap;
 
 #[cfg(test)]
 mod tests {

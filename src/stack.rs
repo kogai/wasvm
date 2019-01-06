@@ -5,26 +5,10 @@ use core::cell::RefCell;
 use core::fmt;
 use frame::Frame;
 use function::FunctionInstance;
+use label::{Label, LabelKind};
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum LabelKind {
-  If,
-  Else,
-  Loop,
-  Block,
-  Frame,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub struct Label {
-  pub source_instruction: LabelKind,
-  // FIXME: To Vec type
-  return_type: ValueTypes,
-  pub continuation: u32,
-}
 
 #[derive(PartialEq)]
 pub enum StackEntry {
