@@ -23,7 +23,7 @@ impl Frame {
   pub fn new(
     return_ptr: usize,
     function_instance: Rc<FunctionInstance>,
-    arguments: Vec<Rc<StackEntry>>,
+    arguments: &mut Vec<Rc<StackEntry>>,
   ) -> Self {
     let last_ptr = function_instance.get_expressions_count() as u32;
     Frame {
@@ -53,10 +53,10 @@ impl Frame {
   // From: args[2,1]; locals[4,3]
   // To [4,3,2,1]
   fn derive_local_variables(
-    mut arguments: Vec<Rc<StackEntry>>,
+    arguments: &mut Vec<Rc<StackEntry>>,
     mut local_variables: Vec<Rc<StackEntry>>,
   ) -> RefCell<Vec<Rc<StackEntry>>> {
-    local_variables.append(&mut arguments);
+    local_variables.append(arguments);
     RefCell::new(local_variables)
   }
 

@@ -148,7 +148,7 @@ impl Vm {
                 };
                 if let Some(idx) = vm.internal_module.start {
                     let function_instance = vm.store.get_function_instance(idx as usize)?;
-                    vm.stack.push_frame(function_instance, vec![])?;
+                    vm.stack.push_frame(function_instance, &mut vec![])?;
                     vm.evaluate()?;
                     vm.stack = Stack::new(65536);
                 };
@@ -309,7 +309,7 @@ impl Vm {
                         arguments.push(self.stack.pop()?);
                     }
                     let function_instance = self.store.get_function_instance(*idx as usize)?;
-                    self.stack.push_frame(function_instance, arguments)?;
+                    self.stack.push_frame(function_instance, &mut arguments)?;
                     break;
                 }
                 CallIndirect(idx) => {
@@ -333,7 +333,7 @@ impl Vm {
                         }
                         arg
                     };
-                    self.stack.push_frame(function_instance, arguments)?;
+                    self.stack.push_frame(function_instance, &mut arguments)?;
                     break;
                 }
                 GetLocal(idx) => self.get_local(*idx)?,
@@ -566,7 +566,9 @@ impl Vm {
                     argument_entries.push(StackEntry::new_value(argument));
                 }
                 let function_instance = self.store.get_function_instance(idx as usize).unwrap();
-                let _ = self.stack.push_frame(function_instance, argument_entries);
+                let _ = self
+                    .stack
+                    .push_frame(function_instance, &mut argument_entries);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
                         Ok(v) => String::from(v),

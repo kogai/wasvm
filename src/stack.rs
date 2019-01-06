@@ -217,7 +217,7 @@ impl Stack {
   pub fn push_frame(
     &self,
     function_instance: Rc<FunctionInstance>,
-    arguments: Vec<Rc<StackEntry>>,
+    arguments: &mut Vec<Rc<StackEntry>>,
   ) -> Result<()> {
     let frame = Frame::new(self.stack_ptr, function_instance, arguments);
     let mut calls = self.call_stack.borrow_mut();
