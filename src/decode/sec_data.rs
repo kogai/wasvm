@@ -1,8 +1,10 @@
-use super::decodable::Decodable;
+use super::decodable::{
+  Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
+};
+use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
-use core::{f32, f64};
 use inst::Inst;
-use trap::{Result, Trap};
+use trap::Result;
 
 #[derive(Debug)]
 pub struct Data {
@@ -28,7 +30,11 @@ impl Data {
 }
 
 impl_decodable!(Section);
-impl_decode_code!(Section);
+impl Peekable for Section {}
+impl Leb128Decodable for Section {}
+impl U32Decodable for Section {}
+impl SignedIntegerDecodable for Section {}
+impl InstructionDecodable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<Data>;

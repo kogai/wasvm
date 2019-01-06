@@ -1,9 +1,8 @@
-use super::decodable::Decodable;
+use super::decodable::{Decodable, Leb128Decodable, LimitDecodable, U32Decodable, U8Iterator};
 use super::sec_element::ElementType;
 use alloc::vec::Vec;
-use core::{f32, f64};
 use memory::Limit;
-use trap::{Result, Trap};
+use trap::Result;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct TableType {
@@ -21,7 +20,9 @@ impl TableType {
 }
 
 impl_decodable!(Section);
-impl_decode_limit!(Section);
+impl Leb128Decodable for Section {}
+impl U32Decodable for Section {}
+impl LimitDecodable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<TableType>;

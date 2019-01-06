@@ -4,11 +4,12 @@ use alloc::vec::Vec;
 use decode::Byte;
 use frame::Frame;
 use inst::Inst;
+use label::{Label, LabelKind};
 use module::{
     ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
     ModuleDescriptor,
 };
-use stack::{Label, LabelKind, Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
+use stack::{Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -147,7 +148,8 @@ impl Vm {
                     stack: Stack::new(65536),
                 };
                 if let Some(idx) = vm.internal_module.start {
-                    vm.stack.push_frame(&mut vm.store, idx as usize, vec![])?;
+                    let function_instance = vm.store.get_function_instance(idx as usize)?;
+                    vm.stack.push_frame(function_instance, &mut vec![])?;
                     vm.evaluate()?;
                     vm.stack = Stack::new(65536);
                 };
@@ -305,9 +307,10 @@ impl Vm {
                     let arity = self.store.get_function_instance(*idx)?.get_arity();
                     let mut arguments = vec![];
                     for _ in 0..arity {
-                        arguments.push(self.stack.pop_value_ext());
+                        arguments.push(self.stack.pop()?);
                     }
-                    self.stack.push_frame(&mut self.store, *idx, arguments)?;
+                    let function_instance = self.store.get_function_instance(*idx as usize)?;
+                    self.stack.push_frame(function_instance, &mut arguments)?;
                     break;
                 }
                 CallIndirect(idx) => {
@@ -327,12 +330,11 @@ impl Vm {
                         }
                         let mut arg = vec![];
                         for _ in 0..actual_fn_ty.get_arity() {
-                            arg.push(self.stack.pop_value_ext());
+                            arg.push(self.stack.pop()?);
                         }
                         arg
                     };
-                    self.stack
-                        .push_frame_from_function_instance(function_instance, arguments)?;
+                    self.stack.push_frame(function_instance, &mut arguments)?;
                     break;
                 }
                 GetLocal(idx) => self.get_local(*idx)?,
@@ -550,7 +552,7 @@ impl Vm {
         Ok(())
     }
 
-    fn run_internal(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    fn run_internal(&mut self, invoke: &str, mut arguments: Vec<Values>) -> String {
         match self
             .internal_module
             .get_export_by_key(invoke)
@@ -560,11 +562,14 @@ impl Vm {
                 descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(idx)),
                 ..
             }) => {
-                let mut arguments = arguments.to_owned();
-                arguments.reverse();
+                let mut argument_entries = vec![];
+                while let Some(argument) = arguments.pop() {
+                    argument_entries.push(StackEntry::new_value(argument));
+                }
+                let function_instance = self.store.get_function_instance(idx as usize).unwrap();
                 let _ = self
                     .stack
-                    .push_frame(&mut self.store, idx as usize, arguments);
+                    .push_frame(function_instance, &mut argument_entries);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
                         Ok(v) => String::from(v),

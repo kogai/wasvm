@@ -8,12 +8,9 @@ use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
 use inst::Inst;
 use stack::StackEntry;
-use store::Store;
-use trap::Result;
-use value::Values;
 use value_type::ValueTypes;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq)]
 pub struct Frame {
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
   function_instance: Rc<FunctionInstance>,
@@ -24,30 +21,16 @@ pub struct Frame {
 
 impl Frame {
   pub fn new(
-    store: &mut Store,
-    return_ptr: usize,
-    function_idx: usize,
-    arguments: Vec<Values>,
-  ) -> Result<Self> {
-    let function_instance = store.get_function_instance(function_idx)?;
-    let last_ptr = function_instance.get_expressions_count() as u32;
-    Ok(Frame {
-      local_variables: Frame::derive_local_variables(arguments, function_instance.clone()),
-      function_instance,
-      last_ptr,
-      return_ptr,
-      ptr: RefCell::new(0),
-    })
-  }
-
-  pub fn from_function_instance(
     return_ptr: usize,
     function_instance: Rc<FunctionInstance>,
-    arguments: Vec<Values>,
+    arguments: &mut Vec<Rc<StackEntry>>,
   ) -> Self {
     let last_ptr = function_instance.get_expressions_count() as u32;
     Frame {
-      local_variables: Frame::derive_local_variables(arguments, function_instance.clone()),
+      local_variables: Frame::derive_local_variables(
+        arguments,
+        function_instance.local_variables.clone(),
+      ),
       function_instance,
       last_ptr,
       return_ptr,
@@ -67,23 +50,13 @@ impl Frame {
     self.local_variables.borrow_mut()
   }
 
-  // From: args[2,1]; locals[3,4]
-  // TO: [4,3,2,1]
+  // From: args[2,1]; locals[4,3]
+  // To [4,3,2,1]
   fn derive_local_variables(
-    arguments: Vec<Values>,
-    function_instance: Rc<FunctionInstance>,
+    arguments: &mut Vec<Rc<StackEntry>>,
+    mut local_variables: Vec<Rc<StackEntry>>,
   ) -> RefCell<Vec<Rc<StackEntry>>> {
-    let mut local_variables: Vec<Rc<StackEntry>> = vec![];
-
-    // NOTE: To iterate from tail of locals, it should clone local-type-defs.
-    let mut locals = function_instance.locals.clone();
-    while let Some(local) = locals.pop() {
-      local_variables.push(StackEntry::new_value(Values::from(local)));
-    }
-
-    for arg in arguments.into_iter() {
-      local_variables.push(StackEntry::new_value(arg));
-    }
+    local_variables.append(arguments);
     RefCell::new(local_variables)
   }
 

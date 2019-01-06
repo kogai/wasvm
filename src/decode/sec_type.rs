@@ -1,13 +1,14 @@
 use super::code::Code;
-use super::decodable::Decodable;
+use super::decodable::{Decodable, Leb128Decodable, U32Decodable, U8Iterator};
 use alloc::vec::Vec;
 use core::convert::From;
-use core::{f32, f64};
 use function::FunctionType;
-use trap::{Result, Trap};
+use trap::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);
+impl Leb128Decodable for Section {}
+impl U32Decodable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<FunctionType>;

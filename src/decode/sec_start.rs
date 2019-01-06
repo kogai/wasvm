@@ -1,9 +1,10 @@
-use super::decodable::Decodable;
+use super::decodable::{Decodable, Leb128Decodable, U32Decodable};
 use alloc::vec::Vec;
-use core::{f32, f64};
-use trap::{Result, Trap};
+use trap::Result;
 
 impl_decodable!(Section);
+impl Leb128Decodable for Section {}
+impl U32Decodable for Section {}
 
 impl Decodable for Section {
   type Item = u32;

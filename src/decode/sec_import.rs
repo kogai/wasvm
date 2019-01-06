@@ -1,19 +1,21 @@
-use super::decodable::{Decodable, NameDecodable};
+use super::decodable::{
+  Decodable, Leb128Decodable, LimitDecodable, NameDecodable, U32Decodable, U8Iterator,
+};
 use super::sec_element::ElementType;
 use super::sec_table::TableType;
-use alloc::string::String;
 use alloc::vec::Vec;
-use core::{f32, f64};
 use global::GlobalType;
 use module::{
   ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, ModuleDescriptorKind,
 };
-use trap::{Result, Trap};
+use trap::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);
-impl_name_decodable!(Section);
-impl_decode_limit!(Section);
+impl Leb128Decodable for Section {}
+impl U32Decodable for Section {}
+impl LimitDecodable for Section {}
+impl NameDecodable for Section {}
 
 impl Decodable for Section {
   type Item = ExternalInterfaces;
