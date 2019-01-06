@@ -4,7 +4,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::fmt;
 use inst::Inst;
+use stack::StackEntry;
 use trap::{Result, Trap};
+use value::Values;
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
@@ -60,7 +62,7 @@ impl FunctionType {
 pub struct FunctionInstance {
   pub export_name: Option<String>,
   pub(crate) function_type: FunctionType,
-  pub locals: Vec<ValueTypes>,
+  pub(crate) local_variables: Vec<Rc<StackEntry>>,
   body: Vec<Inst>,
 }
 
@@ -83,13 +85,20 @@ impl FunctionInstance {
   pub fn new(
     export_name: Option<String>,
     function_type: FunctionType,
-    locals: Vec<ValueTypes>,
+    mut locals: Vec<ValueTypes>,
     body: Vec<Inst>,
   ) -> Rc<Self> {
+    let locals: &mut Vec<_> = locals.as_mut();
+    locals.reverse();
+    let local_variables = locals
+      .iter()
+      .map(|local| StackEntry::new_value(Values::from(local)))
+      .collect::<Vec<_>>();
+
     Rc::new(FunctionInstance {
       export_name,
       function_type,
-      locals,
+      local_variables,
       body,
     })
   }

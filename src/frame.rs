@@ -13,7 +13,7 @@ use trap::Result;
 use value::Values;
 use value_type::ValueTypes;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq)]
 pub struct Frame {
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
   function_instance: Rc<FunctionInstance>,
@@ -67,20 +67,11 @@ impl Frame {
     self.local_variables.borrow_mut()
   }
 
-  // From: args[2,1]; locals[3,4]
-  // TO: [4,3,2,1]
   fn derive_local_variables(
     arguments: Vec<Values>,
     function_instance: Rc<FunctionInstance>,
   ) -> RefCell<Vec<Rc<StackEntry>>> {
-    let mut local_variables: Vec<Rc<StackEntry>> = vec![];
-
-    // NOTE: To iterate from tail of locals, it should clone local-type-defs.
-    let mut locals = function_instance.locals.clone();
-    while let Some(local) = locals.pop() {
-      local_variables.push(StackEntry::new_value(Values::from(local)));
-    }
-
+    let mut local_variables = function_instance.local_variables.clone();
     for arg in arguments.into_iter() {
       local_variables.push(StackEntry::new_value(arg));
     }
