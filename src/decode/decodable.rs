@@ -40,11 +40,35 @@ macro_rules! impl_decode_leb128 {
   };
 }
 
+pub trait AbstractDecodable {
+  fn bytes(&self) -> &Vec<u8>;
+  fn byte_ptr(&self) -> usize;
+  fn increment_ptr(&mut self);
+}
+
+pub trait Peekable: AbstractDecodable {
+  fn peek(&self) -> Option<u8> {
+    self.bytes().get(self.byte_ptr()).map(|x| *x)
+  }
+}
+
 macro_rules! impl_decodable {
   ($name: ident) => {
     pub struct $name {
       bytes: Vec<u8>,
       byte_ptr: usize,
+    }
+
+    impl $crate::decode::AbstractDecodable for $name {
+      fn bytes(&self) -> &Vec<u8> {
+        &self.bytes
+      }
+      fn byte_ptr(&self) -> usize {
+        self.byte_ptr
+      }
+      fn increment_ptr(&mut self) {
+        unimplemented!();
+      }
     }
 
     impl $name {
@@ -87,10 +111,6 @@ macro_rules! impl_decodable {
           bytes: bytes,
           byte_ptr: 0,
         }
-      }
-
-      fn peek(&self) -> Option<u8> {
-        self.bytes.get(self.byte_ptr).map(|&x| x)
       }
 
       fn next(&mut self) -> Option<u8> {

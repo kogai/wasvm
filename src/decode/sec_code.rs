@@ -1,4 +1,4 @@
-use super::decodable::Decodable;
+use super::decodable::{Decodable, Peekable};
 use alloc::vec::Vec;
 use core::convert::From;
 use inst::Inst;
@@ -7,6 +7,7 @@ use value_type::ValueTypes;
 
 impl_decodable!(Section);
 impl_decode_code!(Section);
+impl Peekable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>;
