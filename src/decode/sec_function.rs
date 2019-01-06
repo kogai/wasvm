@@ -1,4 +1,4 @@
-use super::decodable::{Decodable, Leb128Decodable, U32Decodable, U8Iterator};
+use super::decodable::{Decodable, Leb128Decodable, U32Decodable};
 use alloc::vec::Vec;
 use trap::Result;
 
@@ -11,7 +11,7 @@ impl Decodable for Section {
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
     (0..count_of_section)
-      .map(|_| Ok(self.next()? as u32))
+      .map(|_| Ok(self.decode_leb128_u32()? as u32))
       .collect::<Result<Vec<_>>>()
   }
 }

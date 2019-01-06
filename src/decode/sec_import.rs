@@ -3,20 +3,19 @@ use super::decodable::{
 };
 use super::sec_element::ElementType;
 use super::sec_table::TableType;
-use alloc::string::String;
 use alloc::vec::Vec;
 use global::GlobalType;
 use module::{
   ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, ModuleDescriptorKind,
 };
-use trap::{Result, Trap};
+use trap::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);
-impl_name_decodable!(Section);
 impl Leb128Decodable for Section {}
 impl U32Decodable for Section {}
 impl LimitDecodable for Section {}
+impl NameDecodable for Section {}
 
 impl Decodable for Section {
   type Item = ExternalInterfaces;

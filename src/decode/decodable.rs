@@ -1,6 +1,6 @@
 use alloc::string::String;
 use memory::Limit;
-use trap::Result;
+use trap::{Result, Trap};
 
 #[macro_export]
 macro_rules! impl_decode_leb128 {
@@ -64,17 +64,17 @@ pub trait AbstractDecodable {
   fn increment_ptr(&mut self);
 }
 
-pub trait Peekable: AbstractDecodable {
-  fn peek(&self) -> Option<u8> {
-    self.bytes().get(self.byte_ptr()).map(|x| *x)
-  }
-}
-
 pub trait U8Iterator: AbstractDecodable {
   fn next(&mut self) -> Option<u8> {
     let el = self.bytes().get(self.byte_ptr()).map(|x| *x);
     self.increment_ptr();
     el
+  }
+}
+
+pub trait Peekable: AbstractDecodable {
+  fn peek(&self) -> Option<u8> {
+    self.bytes().get(self.byte_ptr()).map(|x| *x)
   }
 }
 
@@ -93,6 +93,35 @@ pub trait U32Decodable: Leb128Decodable {
 pub trait SignedIntegerDecodable: Leb128Decodable {
   impl_decode_signed_integer!(decode_leb128_i32, decode_leb128_u32_internal, i32, u32);
   impl_decode_signed_integer!(decode_leb128_i64, decode_leb128_u64_internal, i64, u64);
+}
+
+pub trait LimitDecodable: U32Decodable {
+  fn decode_limit(&mut self) -> Result<Limit> {
+    use self::Limit::*;
+    match self.next() {
+      Some(0x0) => {
+        let min = self.decode_leb128_u32()?;
+        Ok(NoUpperLimit(min))
+      }
+      Some(0x1) => {
+        let min = self.decode_leb128_u32()?;
+        let max = self.decode_leb128_u32()?;
+        Ok(HasUpperLimit(min, max))
+      }
+      x => unreachable!("Expected limit code, got {:?}", x),
+    }
+  }
+}
+
+pub trait NameDecodable: U32Decodable {
+  fn decode_name(&mut self) -> Result<String> {
+    let size_of_name = self.decode_leb128_u32()?;
+    let mut buf = vec![];
+    for _ in 0..size_of_name {
+      buf.push(self.next()?);
+    }
+    String::from_utf8(buf).map_err(|_| Trap::InvalidUTF8Encoding)
+  }
 }
 
 macro_rules! impl_decodable {
@@ -122,43 +151,6 @@ macro_rules! impl_decodable {
           bytes: bytes,
           byte_ptr: 0,
         }
-      }
-    }
-  };
-}
-
-pub trait LimitDecodable: U32Decodable {
-  fn decode_limit(&mut self) -> Result<Limit> {
-    use self::Limit::*;
-    match self.next() {
-      Some(0x0) => {
-        let min = self.decode_leb128_u32()?;
-        Ok(NoUpperLimit(min))
-      }
-      Some(0x1) => {
-        let min = self.decode_leb128_u32()?;
-        let max = self.decode_leb128_u32()?;
-        Ok(HasUpperLimit(min, max))
-      }
-      x => unreachable!("Expected limit code, got {:?}", x),
-    }
-  }
-}
-
-pub trait NameDecodable: U32Decodable {
-  fn decode_name(&mut self) -> Result<String>;
-}
-
-macro_rules! impl_name_decodable {
-  ($name: ident) => {
-    impl NameDecodable for $name {
-      fn decode_name(&mut self) -> Result<String> {
-        let size_of_name = self.decode_leb128_u32()?;
-        let mut buf = vec![];
-        for _ in 0..size_of_name {
-          buf.push(self.next()?);
-        }
-        String::from_utf8(buf).map_err(|_| Trap::InvalidUTF8Encoding)
       }
     }
   };
