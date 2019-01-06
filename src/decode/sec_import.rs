@@ -1,4 +1,4 @@
-use super::decodable::{Decodable, NameDecodable};
+use super::decodable::{Decodable, NameDecodable, U32Decodable};
 use super::sec_element::ElementType;
 use super::sec_table::TableType;
 use alloc::string::String;
@@ -13,6 +13,7 @@ use value_type::ValueTypes;
 impl_decodable!(Section);
 impl_name_decodable!(Section);
 impl_decode_limit!(Section);
+impl U32Decodable for Section {}
 
 impl Decodable for Section {
   type Item = ExternalInterfaces;

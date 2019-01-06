@@ -1,4 +1,4 @@
-use super::decodable::{Decodable, Peekable};
+use super::decodable::{Decodable, Peekable, U32Decodable};
 use alloc::vec::Vec;
 use inst::Inst;
 use trap::{Result, Trap};
@@ -29,6 +29,7 @@ impl Data {
 impl_decodable!(Section);
 impl_decode_code!(Section);
 impl Peekable for Section {}
+impl U32Decodable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<Data>;

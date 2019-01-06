@@ -1,4 +1,4 @@
-use super::decodable::{Decodable, Peekable};
+use super::decodable::{Decodable, Peekable, U32Decodable};
 use alloc::vec::Vec;
 use global::GlobalType;
 use trap::{Result, Trap};
@@ -8,6 +8,7 @@ use value_type::ValueTypes;
 impl_decodable!(Section);
 impl_decode_code!(Section);
 impl Peekable for Section {}
+impl U32Decodable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<(GlobalType, Values)>;

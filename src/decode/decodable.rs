@@ -27,7 +27,7 @@ macro_rules! impl_decode_leb128 {
         // buf | num  00000000_00000000_10000000_10000000
         let (shifted, is_overflowed) = num.overflowing_shl(shift);
         if is_overflowed {
-          return Err(Trap::IntegerRepresentationTooLong);
+          return Err($crate::trap::Trap::IntegerRepresentationTooLong);
         }
         buf |= shifted;
         shift += 7;
@@ -52,8 +52,30 @@ pub trait Peekable: AbstractDecodable {
   }
 }
 
+pub trait U8Iterator: AbstractDecodable {
+  fn next(&mut self) -> Option<u8> {
+    let el = self.bytes().get(self.byte_ptr()).map(|x| *x);
+    self.increment_ptr();
+    el
+  }
+}
+
+pub trait Leb128Decodable: U8Iterator {
+  impl_decode_leb128!(u32, decode_leb128_u32_internal);
+  impl_decode_leb128!(u64, decode_leb128_u64_internal);
+}
+
+pub trait U32Decodable: Leb128Decodable {
+  fn decode_leb128_u32(&mut self) -> Result<u32> {
+    let (buf, _) = self.decode_leb128_u32_internal()?;
+    Ok(buf)
+  }
+}
+
 macro_rules! impl_decodable {
   ($name: ident) => {
+    use decode::{Leb128Decodable, U8Iterator};
+
     pub struct $name {
       bytes: Vec<u8>,
       byte_ptr: usize,
@@ -67,14 +89,14 @@ macro_rules! impl_decodable {
         self.byte_ptr
       }
       fn increment_ptr(&mut self) {
-        unimplemented!();
+        self.byte_ptr += 1;
       }
     }
 
-    impl $name {
-      impl_decode_leb128!(u32, decode_leb128_u32_internal);
-      impl_decode_leb128!(u64, decode_leb128_u64_internal);
+    impl $crate::decode::U8Iterator for $name {}
+    impl $crate::decode::Leb128Decodable for $name {}
 
+    impl $name {
       pub fn decode_leb128_i32(&mut self) -> Result<i32> {
         let (mut buf, shift) = self.decode_leb128_u32_internal()?;
         let (signed_bits, overflowed) = (1 as u32).overflowing_shl(shift - 1);
@@ -101,22 +123,11 @@ macro_rules! impl_decodable {
         Ok(buf as i64)
       }
 
-      pub fn decode_leb128_u32(&mut self) -> Result<u32> {
-        let (buf, _) = self.decode_leb128_u32_internal()?;
-        Ok(buf)
-      }
-
       pub fn new(bytes: Vec<u8>) -> Self {
         $name {
           bytes: bytes,
           byte_ptr: 0,
         }
-      }
-
-      fn next(&mut self) -> Option<u8> {
-        let el = self.bytes.get(self.byte_ptr);
-        self.byte_ptr += 1;
-        el.map(|&x| x)
       }
     }
   };
@@ -144,7 +155,7 @@ macro_rules! impl_decode_limit {
   };
 }
 
-pub trait NameDecodable {
+pub trait NameDecodable: U32Decodable {
   fn decode_name(&mut self) -> Result<String>;
 }
 
@@ -171,7 +182,6 @@ pub trait Decodable {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use trap::Trap;
 
   impl_decodable!(TestDecodable);
 

@@ -1,4 +1,4 @@
-use super::decodable::{Decodable, Peekable};
+use super::decodable::{Decodable, Peekable, U32Decodable};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use function::FunctionInstance;
@@ -60,6 +60,7 @@ impl From<Option<u8>> for ElementType {
 impl_decodable!(Section);
 impl_decode_code!(Section);
 impl Peekable for Section {}
+impl U32Decodable for Section {}
 
 impl Section {
   fn decode_function_idx(&mut self) -> Result<Vec<u32>> {

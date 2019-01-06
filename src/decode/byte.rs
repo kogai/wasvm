@@ -1,4 +1,4 @@
-use super::decodable::Decodable;
+use super::decodable::{Decodable, U32Decodable};
 use super::section::{Section, SectionCode};
 use super::*;
 use alloc::vec::Vec;
@@ -7,6 +7,7 @@ use core::default::Default;
 use trap::{Result, Trap};
 
 impl_decodable!(Byte);
+impl U32Decodable for Byte {}
 
 impl Byte {
   pub fn new_with_drop(bytes: Vec<u8>) -> Result<Self> {

@@ -1,10 +1,11 @@
-use super::decodable::{Decodable, NameDecodable};
+use super::decodable::{Decodable, NameDecodable, U32Decodable};
 use alloc::string::String;
 use alloc::vec::Vec;
 use trap::{Result, Trap};
 
 impl_decodable!(Section);
 impl_name_decodable!(Section);
+impl U32Decodable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<(String, Vec<u8>)>;
