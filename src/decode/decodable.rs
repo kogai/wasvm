@@ -152,7 +152,7 @@ macro_rules! impl_name_decodable {
         for _ in 0..size_of_name {
           buf.push(self.next()?);
         }
-        Ok(String::from_utf8(buf).expect("To encode export name has been failured."))
+        String::from_utf8(buf).map_err(|_| Trap::InvalidUTF8Encoding)
       }
     }
   };

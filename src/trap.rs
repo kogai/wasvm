@@ -34,6 +34,7 @@ pub enum Trap {
   UnsupportedTextform,
   IntegerRepresentationTooLong,
   FunctionAndCodeInconsitent,
+  InvalidUTF8Encoding,
 }
 
 impl From<Trap> for NoneError {
@@ -80,6 +81,7 @@ impl From<Trap> for String {
       MagicHeaderNotDetected => "magic header not detected",
       IntegerRepresentationTooLong => "integer representation too long",
       FunctionAndCodeInconsitent => "function and code section have inconsistent lengths",
+      InvalidUTF8Encoding => "invalid UTF-8 encoding",
     }
     .to_owned()
   }

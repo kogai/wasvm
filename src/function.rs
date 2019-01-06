@@ -71,7 +71,11 @@ impl fmt::Debug for FunctionInstance {
       Some(ref n) => n,
       _ => "_",
     };
-    write!(f, "{}: {}", name, format!("{:?}", self.function_type))
+    f.debug_struct("FunctionInstance")
+      .field("export_name", &name)
+      .field("function_type", &self.function_type)
+      .field("instructions", &format_args!("{:?}", self.body))
+      .finish()
   }
 }
 
