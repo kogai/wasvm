@@ -1,15 +1,19 @@
-use super::decodable::{Decodable, Peekable, SignedIntegerDecodable, U32Decodable};
+use super::decodable::{
+  Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
+};
+use super::decode_code::InstructionDecodable;
 use alloc::vec::Vec;
 use global::GlobalType;
-use trap::{Result, Trap};
+use trap::Result;
 use value::Values;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);
-impl_decode_code!(Section);
 impl Peekable for Section {}
+impl Leb128Decodable for Section {}
 impl U32Decodable for Section {}
 impl SignedIntegerDecodable for Section {}
+impl InstructionDecodable for Section {}
 
 impl Decodable for Section {
   type Item = Vec<(GlobalType, Values)>;

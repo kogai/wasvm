@@ -1,9 +1,12 @@
-use super::decodable::{Decodable, Peekable, SignedIntegerDecodable, U32Decodable};
+use super::decodable::{
+  Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable,
+};
+use super::decode_code::InstructionDecodable;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use function::FunctionInstance;
 use inst::Inst;
-use trap::{Result, Trap};
+use trap::Result;
 
 #[derive(Debug, Clone)]
 pub struct Element {
@@ -58,10 +61,11 @@ impl From<Option<u8>> for ElementType {
 }
 
 impl_decodable!(Section);
-impl_decode_code!(Section);
 impl Peekable for Section {}
+impl Leb128Decodable for Section {}
 impl U32Decodable for Section {}
 impl SignedIntegerDecodable for Section {}
+impl InstructionDecodable for Section {}
 
 impl Section {
   fn decode_function_idx(&mut self) -> Result<Vec<u32>> {

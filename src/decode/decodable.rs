@@ -1,4 +1,5 @@
 use alloc::string::String;
+use memory::Limit;
 use trap::Result;
 
 #[macro_export]
@@ -96,8 +97,6 @@ pub trait SignedIntegerDecodable: Leb128Decodable {
 
 macro_rules! impl_decodable {
   ($name: ident) => {
-    use decode::{Leb128Decodable, U8Iterator};
-
     pub struct $name {
       bytes: Vec<u8>,
       byte_ptr: usize,
@@ -116,7 +115,6 @@ macro_rules! impl_decodable {
     }
 
     impl $crate::decode::U8Iterator for $name {}
-    impl $crate::decode::Leb128Decodable for $name {}
 
     impl $name {
       pub fn new(bytes: Vec<u8>) -> Self {
@@ -129,26 +127,22 @@ macro_rules! impl_decodable {
   };
 }
 
-macro_rules! impl_decode_limit {
-  ($name: ident) => {
-    impl $name {
-      fn decode_limit(&mut self) -> $crate::trap::Result<$crate::memory::Limit> {
-        use $crate::memory::Limit::*;
-        match self.next() {
-          Some(0x0) => {
-            let min = self.decode_leb128_u32()?;
-            Ok(NoUpperLimit(min))
-          }
-          Some(0x1) => {
-            let min = self.decode_leb128_u32()?;
-            let max = self.decode_leb128_u32()?;
-            Ok(HasUpperLimit(min, max))
-          }
-          x => unreachable!("Expected limit code, got {:?}", x),
-        }
+pub trait LimitDecodable: U32Decodable {
+  fn decode_limit(&mut self) -> Result<Limit> {
+    use self::Limit::*;
+    match self.next() {
+      Some(0x0) => {
+        let min = self.decode_leb128_u32()?;
+        Ok(NoUpperLimit(min))
       }
+      Some(0x1) => {
+        let min = self.decode_leb128_u32()?;
+        let max = self.decode_leb128_u32()?;
+        Ok(HasUpperLimit(min, max))
+      }
+      x => unreachable!("Expected limit code, got {:?}", x),
     }
-  };
+  }
 }
 
 pub trait NameDecodable: U32Decodable {
@@ -180,6 +174,7 @@ mod tests {
   use super::*;
 
   impl_decodable!(TestDecodable);
+  impl Leb128Decodable for TestDecodable {}
   impl SignedIntegerDecodable for TestDecodable {}
 
   #[test]

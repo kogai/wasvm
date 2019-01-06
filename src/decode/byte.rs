@@ -7,6 +7,7 @@ use core::default::Default;
 use trap::{Result, Trap};
 
 impl_decodable!(Byte);
+impl Leb128Decodable for Byte {}
 impl U32Decodable for Byte {}
 
 impl Byte {

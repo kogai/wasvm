@@ -1,10 +1,11 @@
-use super::decodable::{Decodable, NameDecodable, U32Decodable};
+use super::decodable::{Decodable, Leb128Decodable, NameDecodable, U32Decodable, U8Iterator};
 use alloc::string::String;
 use alloc::vec::Vec;
 use trap::{Result, Trap};
 
 impl_decodable!(Section);
 impl_name_decodable!(Section);
+impl Leb128Decodable for Section {}
 impl U32Decodable for Section {}
 
 impl Decodable for Section {
