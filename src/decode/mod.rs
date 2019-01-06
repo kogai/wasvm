@@ -1,10 +1,9 @@
 #[macro_use]
 mod decodable;
-#[macro_use]
-mod decode_code;
 mod byte;
 mod code;
 mod context;
+mod instruction;
 mod sec_code;
 mod sec_custom;
 mod sec_data;
@@ -20,7 +19,7 @@ mod sec_type;
 mod section;
 
 pub use self::byte::Byte;
-pub use self::decodable::{AbstractDecodable, Leb128Decodable, U8Iterator};
+pub use self::decodable::{AbstractDecodable, U8Iterator};
 pub use self::sec_data::Data;
 pub use self::sec_element::{Element, ElementType};
 pub use self::sec_table::TableType;

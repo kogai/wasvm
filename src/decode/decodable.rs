@@ -2,7 +2,6 @@ use alloc::string::String;
 use memory::Limit;
 use trap::{Result, Trap};
 
-#[macro_export]
 macro_rules! impl_decode_leb128 {
   ($ty: ty, $fn_name: ident) => {
     fn $fn_name(&mut self) -> $crate::trap::Result<($ty, u32)> {

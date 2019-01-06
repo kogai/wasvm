@@ -1,7 +1,7 @@
 use super::decodable::{
   Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
 };
-use super::decode_code::InstructionDecodable;
+use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use global::GlobalType;
 use trap::Result;
