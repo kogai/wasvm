@@ -32,7 +32,10 @@ impl Frame {
     let function_instance = store.get_function_instance(function_idx)?;
     let last_ptr = function_instance.get_expressions_count() as u32;
     Ok(Frame {
-      local_variables: Frame::derive_local_variables(arguments, function_instance.clone()),
+      local_variables: Frame::derive_local_variables(
+        arguments,
+        function_instance.local_variables.clone(),
+      ),
       function_instance,
       last_ptr,
       return_ptr,
@@ -47,7 +50,10 @@ impl Frame {
   ) -> Self {
     let last_ptr = function_instance.get_expressions_count() as u32;
     Frame {
-      local_variables: Frame::derive_local_variables(arguments, function_instance.clone()),
+      local_variables: Frame::derive_local_variables(
+        arguments,
+        function_instance.local_variables.clone(),
+      ),
       function_instance,
       last_ptr,
       return_ptr,
@@ -69,9 +75,8 @@ impl Frame {
 
   fn derive_local_variables(
     arguments: Vec<Values>,
-    function_instance: Rc<FunctionInstance>,
+    mut local_variables: Vec<Rc<StackEntry>>,
   ) -> RefCell<Vec<Rc<StackEntry>>> {
-    let mut local_variables = function_instance.local_variables.clone();
     for arg in arguments.into_iter() {
       local_variables.push(StackEntry::new_value(arg));
     }
