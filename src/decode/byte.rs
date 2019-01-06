@@ -34,6 +34,7 @@ impl Byte {
     self.byte_ptr < self.bytes.len()
   }
 
+  // FIXME: It isn't guranteed whether bin_size_of_section actually can trusted or not.
   fn decode_section(&mut self) -> Result<Vec<u8>> {
     let bin_size_of_section = self.decode_leb128_u32()?;
     let start = self.byte_ptr;
