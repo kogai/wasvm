@@ -5,7 +5,6 @@ use core::cell::RefCell;
 use core::fmt;
 use frame::Frame;
 use function::FunctionInstance;
-use store::Store;
 use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
@@ -217,22 +216,10 @@ impl Stack {
 
   pub fn push_frame(
     &self,
-    store: &mut Store,
-    function_idx: usize,
-    arguments: Vec<Rc<StackEntry>>,
-  ) -> Result<()> {
-    let frame = Frame::new(store, self.stack_ptr, function_idx, arguments)?;
-    let mut calls = self.call_stack.borrow_mut();
-    calls.push(frame);
-    Ok(())
-  }
-
-  pub fn push_frame_from_function_instance(
-    &self,
     function_instance: Rc<FunctionInstance>,
     arguments: Vec<Rc<StackEntry>>,
   ) -> Result<()> {
-    let frame = Frame::from_function_instance(self.stack_ptr, function_instance, arguments);
+    let frame = Frame::new(self.stack_ptr, function_instance, arguments);
     let mut calls = self.call_stack.borrow_mut();
     calls.push(frame);
     Ok(())

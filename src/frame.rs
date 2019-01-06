@@ -8,8 +8,6 @@ use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
 use inst::Inst;
 use stack::StackEntry;
-use store::Store;
-use trap::Result;
 use value_type::ValueTypes;
 
 #[derive(PartialEq)]
@@ -23,26 +21,6 @@ pub struct Frame {
 
 impl Frame {
   pub fn new(
-    store: &mut Store,
-    return_ptr: usize,
-    function_idx: usize,
-    arguments: Vec<Rc<StackEntry>>,
-  ) -> Result<Self> {
-    let function_instance = store.get_function_instance(function_idx)?;
-    let last_ptr = function_instance.get_expressions_count() as u32;
-    Ok(Frame {
-      local_variables: Frame::derive_local_variables(
-        arguments,
-        function_instance.local_variables.clone(),
-      ),
-      function_instance,
-      last_ptr,
-      return_ptr,
-      ptr: RefCell::new(0),
-    })
-  }
-
-  pub fn from_function_instance(
     return_ptr: usize,
     function_instance: Rc<FunctionInstance>,
     arguments: Vec<Rc<StackEntry>>,

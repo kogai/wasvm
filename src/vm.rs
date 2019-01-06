@@ -147,7 +147,8 @@ impl Vm {
                     stack: Stack::new(65536),
                 };
                 if let Some(idx) = vm.internal_module.start {
-                    vm.stack.push_frame(&mut vm.store, idx as usize, vec![])?;
+                    let function_instance = vm.store.get_function_instance(idx as usize)?;
+                    vm.stack.push_frame(function_instance, vec![])?;
                     vm.evaluate()?;
                     vm.stack = Stack::new(65536);
                 };
@@ -307,7 +308,8 @@ impl Vm {
                     for _ in 0..arity {
                         arguments.push(self.stack.pop()?);
                     }
-                    self.stack.push_frame(&mut self.store, *idx, arguments)?;
+                    let function_instance = self.store.get_function_instance(*idx as usize)?;
+                    self.stack.push_frame(function_instance, arguments)?;
                     break;
                 }
                 CallIndirect(idx) => {
@@ -331,8 +333,7 @@ impl Vm {
                         }
                         arg
                     };
-                    self.stack
-                        .push_frame_from_function_instance(function_instance, arguments)?;
+                    self.stack.push_frame(function_instance, arguments)?;
                     break;
                 }
                 GetLocal(idx) => self.get_local(*idx)?,
@@ -564,9 +565,8 @@ impl Vm {
                 while let Some(argument) = arguments.pop() {
                     argument_entries.push(StackEntry::new_value(argument));
                 }
-                let _ = self
-                    .stack
-                    .push_frame(&mut self.store, idx as usize, argument_entries);
+                let function_instance = self.store.get_function_instance(idx as usize).unwrap();
+                let _ = self.stack.push_frame(function_instance, argument_entries);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
                         Ok(v) => String::from(v),
