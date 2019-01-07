@@ -65,6 +65,30 @@ macro_rules! impl_e2e {
             current_modules.insert(None, vm_ref.clone());
             current_modules.insert(name.clone(), vm_ref.clone());
           }
+          CommandKind::PerformAction(Action::Invoke {
+            ref field,
+            ref args,
+            ref module,
+          }) => {
+            println!("Perform action at {}:{}.", field, line);
+            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
+            let mut vm = vm_ref.borrow_mut();
+            vm.run(field.as_ref(), get_args(args));
+          }
+          CommandKind::Register {
+            ref name,
+            ref as_name,
+            ..
+          } => {
+            println!(
+              "Register importable module, key={:?} import_name={}.",
+              name, as_name
+            );
+            let mut vm_ref: Rc<RefCell<Vm>> = current_modules.get(name).unwrap().clone();
+            let vm = vm_ref.borrow();
+            let importable_module = vm.export_module();
+            importable_modules.register_module(Some(as_name.clone()), importable_module);
+          }
 
           CommandKind::AssertReturn {
             ref action,
@@ -125,18 +149,6 @@ macro_rules! impl_e2e {
               }
             }
           }
-          CommandKind::AssertExhaustion {
-            action: Action::Invoke {
-              ref field, args: _, ..
-            },
-          } => {
-            println!("Skip exhaustion line:{}:{}.", field, line);
-            // FIXME: Enable specs
-            // println!("Assert exhaustion at {}:{}.", field, line,);
-            // let mut vm = Vm::new(current_module.clone()).unwrap();
-            // let actual = vm.run(field.as_ref(), get_args(args));
-            // assert_eq!(actual, "call stack exhaused".to_owned());
-          }
           CommandKind::AssertMalformed {
             ref module,
             ref message,
@@ -176,21 +188,6 @@ macro_rules! impl_e2e {
               }
             }
           }
-          CommandKind::AssertInvalid {
-            ref message,
-            module: _,
-          } => {
-            println!("Skip assert invalid at '{}:{}'.", message, line);
-            /*
-            println!("Assert invalid at '{}:{}'.", message, line);
-            match wasvm::Vm::new(module.clone().into_vec()) {
-              Ok(_) => unreachable!("Expect to trap decoding, but decoded normally."),
-              Err(err) => {
-                assert_eq!(&String::from(err), message);
-              }
-            }
-            */
-          }
           CommandKind::AssertReturnCanonicalNan {
             action:
               Action::Invoke {
@@ -219,30 +216,6 @@ macro_rules! impl_e2e {
             let actual = vm.run(field.as_ref(), get_args(args));
             assert_eq!(&actual, "NaN");
           }
-          CommandKind::PerformAction(Action::Invoke {
-            ref field,
-            ref args,
-            ref module,
-          }) => {
-            println!("Perform action at {}:{}.", field, line);
-            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
-            let mut vm = vm_ref.borrow_mut();
-            vm.run(field.as_ref(), get_args(args));
-          }
-          CommandKind::Register {
-            ref name,
-            ref as_name,
-            ..
-          } => {
-            println!(
-              "Register importable module, key={:?} import_name={}.",
-              name, as_name
-            );
-            let mut vm_ref: Rc<RefCell<Vm>> = current_modules.get(name).unwrap().clone();
-            let vm = vm_ref.borrow();
-            let importable_module = vm.export_module();
-            importable_modules.register_module(Some(as_name.clone()), importable_module);
-          }
           CommandKind::AssertUnlinkable {
             ref module,
             ref message,
@@ -267,6 +240,13 @@ macro_rules! impl_e2e {
             } else {
               println!("Skip unlinkable text form at line:{}.", line);
             };
+          }
+          // FIXME: Enable specs
+          CommandKind::AssertExhaustion {
+            action: Action::Invoke { ref field, .. },
+          } => println!("Skip exhaustion line:{}:{}.", field, line),
+          CommandKind::AssertInvalid { ref message, .. } => {
+            println!("Skip assert invalid at '{}:{}'.", message, line)
           }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",
