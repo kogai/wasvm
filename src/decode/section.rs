@@ -145,12 +145,7 @@ impl Section {
 
     let external_memory_types = imports
       .iter()
-      .map(|value| {
-        external_modules
-          .get(&value.module_name)
-          .ok_or(Trap::UnknownImport)?
-          .find_memory_instance(value)
-      })
+      .map(|value| external_modules.find_memory_instance(value))
       .collect::<Result<Vec<MemoryInstance>>>()?;
 
     if let Some(limit) = limits.get(memory_idx as usize) {
@@ -202,11 +197,8 @@ impl Section {
       // NOTE: Only one table instance allowed.
       match imports.first() {
         Some(import) => external_modules
-          .get(&import.module_name)
-          .map(|em| em.find_table_instance(import))
-          .ok_or(Trap::UnknownImport)
+          .find_table_instance(import)
           .map(|table_instances| {
-            let table_instances = table_instances?;
             table_instances.update(elements.clone(), global_instances, function_instances)?;
             Ok(table_instances)
           })?,
@@ -258,12 +250,7 @@ impl Section {
   ) -> Result<Vec<Rc<FunctionInstance>>> {
     imports
       .iter()
-      .map(|value| {
-        external_modules
-          .get(&value.module_name)
-          .ok_or(Trap::UnknownImport)?
-          .find_function_instance(value, function_types)
-      })
+      .map(|value| external_modules.find_function_instances(value, function_types))
       .collect::<Result<Vec<_>>>()
   }
 
@@ -290,12 +277,7 @@ impl Section {
   ) -> Result<Vec<GlobalInstance>> {
     imports
       .iter()
-      .map(|value| {
-        external_modules
-          .get(&value.module_name)
-          .ok_or(Trap::UnknownImport)?
-          .find_global_instance(value)
-      })
+      .map(|value| external_modules.find_global_instance(value))
       .collect::<Result<Vec<_>>>()
   }
 

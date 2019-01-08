@@ -13,7 +13,7 @@ use value_type::ValueTypes;
 #[derive(PartialEq)]
 pub struct Frame {
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
-  function_instance: Rc<FunctionInstance>,
+  pub(crate) function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,
   pub last_ptr: u32,
   pub return_ptr: usize,

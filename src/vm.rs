@@ -122,6 +122,7 @@ pub struct Vm {
     store: Store,
     stack: Stack,
     internal_module: InternalModule,
+    external_modules: ExternalModules,
 }
 
 impl Vm {
@@ -141,11 +142,12 @@ impl Vm {
         let mut bytes = Byte::new_with_drop(bytes)?;
         match bytes.decode() {
             Ok(section) => {
-                let (store, internal_module) = section.complete(external_modules)?;
+                let (store, internal_module) = section.complete(external_modules.clone())?;
                 let mut vm = Vm {
                     store,
                     internal_module: internal_module,
                     stack: Stack::new(65536),
+                    external_modules,
                 };
                 if let Some(idx) = vm.internal_module.start {
                     let function_instance = vm.store.get_function_instance(idx as usize)?;
@@ -304,12 +306,18 @@ impl Vm {
                     frame.jump_to(continuation);
                 }
                 Call(idx) => {
-                    let arity = self.store.get_function_instance(*idx)?.get_arity();
+                    let function_instance = match frame.function_instance.get_source_module_name() {
+                        Some(module_name) => self
+                            .external_modules
+                            .get_function_instance(&Some(module_name), *idx)
+                            .map(|x| x.clone())?,
+                        None => self.store.get_function_instance(*idx)?,
+                    };
+                    let arity = function_instance.get_arity();
                     let mut arguments = vec![];
                     for _ in 0..arity {
                         arguments.push(self.stack.pop()?);
                     }
-                    let function_instance = self.store.get_function_instance(*idx as usize)?;
                     self.stack.push_frame(function_instance, &mut arguments)?;
                     break;
                 }
