@@ -1,4 +1,6 @@
 use alloc::string::String;
+use core::cell::RefCell;
+use module::ModuleName;
 use value::Values;
 use value_type::ValueTypes;
 
@@ -23,6 +25,7 @@ pub struct GlobalInstance {
   global_type: GlobalType,
   pub value: Values,
   pub export_name: Option<String>,
+  source_module_name: RefCell<Option<String>>,
 }
 
 impl GlobalInstance {
@@ -31,6 +34,7 @@ impl GlobalInstance {
       global_type,
       value,
       export_name,
+      source_module_name: RefCell::new(None),
     }
   }
   pub fn get_value(&self) -> &Values {
@@ -38,5 +42,16 @@ impl GlobalInstance {
   }
   pub fn set_value(&mut self, value: Values) {
     self.value = value;
+  }
+
+  pub fn set_source_module_name(&self, name: &ModuleName) {
+    if let Some(name) = name {
+      let mut source_module_name = self.source_module_name.borrow_mut();
+      source_module_name.replace(name.to_owned());
+    };
+  }
+
+  pub fn get_source_module_name(&self) -> Option<String> {
+    self.source_module_name.borrow().to_owned()
   }
 }

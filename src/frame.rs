@@ -12,6 +12,7 @@ use value_type::ValueTypes;
 
 #[derive(PartialEq)]
 pub struct Frame {
+  // FIXME: No need to hold local_variables in frame.
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
   pub(crate) function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,

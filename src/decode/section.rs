@@ -305,14 +305,14 @@ impl Section {
 
         let mut internal_function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
-        let mut global_instances = Section::global_instances(globals, &exports);
+        let mut internal_global_instances = Section::global_instances(globals, &exports);
 
         let mut function_instances = Section::external_function_instances(
           &function_types,
           &imports_function,
           &external_modules,
         )?;
-        let mut external_global_instances =
+        let mut global_instances =
           Section::external_global_instances(&imports_global, &external_modules)?;
 
         function_instances.append(&mut internal_function_instances);
