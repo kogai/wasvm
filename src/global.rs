@@ -1,6 +1,9 @@
+use alloc::rc::Rc;
 use alloc::string::String;
+use alloc::vec::Vec;
 use core::cell::RefCell;
 use module::ModuleName;
+use trap::Result;
 use value::Values;
 use value_type::ValueTypes;
 

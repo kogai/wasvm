@@ -2,7 +2,7 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use frame::Frame;
 use function::{FunctionInstance, FunctionType};
-use global::GlobalInstance;
+use global::GlobalInstances;
 use inst::TypeKind;
 use memory::MemoryInstance;
 use module::{ExternalInterfaces, InternalModule};
@@ -16,7 +16,7 @@ pub struct Context {
   function_types: Vec<FunctionType>,
   memory_instances: Vec<MemoryInstance>,
   table_instances: TableInstances,
-  global_instances: Vec<GlobalInstance>,
+  global_instances: GlobalInstances,
   exports: ExternalInterfaces,
   imports: ExternalInterfaces,
   start: Option<u32>,
@@ -29,7 +29,7 @@ impl Context {
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: TableInstances,
-    global_instances: Vec<GlobalInstance>,
+    global_instances: GlobalInstances,
     exports: ExternalInterfaces,
     imports: ExternalInterfaces,
     start: Option<u32>,

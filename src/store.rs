@@ -1,7 +1,7 @@
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use function::{FunctionInstance, FunctionType};
-use global::GlobalInstance;
+use global::{GlobalInstance, GlobalInstances};
 use memory::MemoryInstance;
 use table::{TableInstance, TableInstances};
 use trap::Result;
@@ -13,7 +13,7 @@ pub struct Store {
   pub function_types: Vec<FunctionType>,
   pub memory_instances: Vec<MemoryInstance>,
   pub table_instances: TableInstances,
-  pub global_instances: Vec<GlobalInstance>,
+  pub global_instances: GlobalInstances,
 }
 
 impl Store {
@@ -22,7 +22,7 @@ impl Store {
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: TableInstances,
-    global_instances: Vec<GlobalInstance>,
+    global_instances: GlobalInstances,
   ) -> Self {
     Store {
       function_instances,
@@ -37,10 +37,6 @@ impl Store {
     self.function_instances.get(fn_idx).map(|x| x.clone())
   }
 
-  pub fn get_global_instance(&self, idx: usize) -> Option<&GlobalInstance> {
-    self.global_instances.get(idx)
-  }
-
   pub fn get_function_type(&self, idx: u32) -> Option<&FunctionType> {
     self.function_types.get(idx as usize)
   }
@@ -51,19 +47,16 @@ impl Store {
       .map(|x| x.get_function_type())
   }
 
+  pub fn get_global_instance(&self, idx: usize) -> Option<&GlobalInstance> {
+    self.global_instances.get_global_instance(idx)
+  }
+
   pub fn get_global(&mut self, idx: u32) -> Result<&Values> {
-    let result = self
-      .global_instances
-      .get(idx as usize)
-      .map(|g| g.get_value())?;
-    Ok(result)
+    self.global_instances.get_global(idx)
   }
 
   pub fn set_global(&mut self, idx: u32, value: Values) {
-    self
-      .global_instances
-      .get_mut(idx as usize)
-      .map(|g| g.set_value(value));
+    self.global_instances.set_global(idx, value)
   }
 
   pub fn get_table_at(&self, idx: u32) -> Option<TableInstance> {

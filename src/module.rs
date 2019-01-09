@@ -9,7 +9,7 @@ use core::iter::Iterator;
 use core::slice::Iter;
 use decode::TableType;
 use function::{FunctionInstance, FunctionType};
-use global::{GlobalInstance, GlobalType};
+use global::{GlobalInstance, GlobalInstances, GlobalType};
 use hashbrown::HashMap;
 use memory::{Limit, MemoryInstance};
 use store::Store;
@@ -194,8 +194,7 @@ pub struct ExternalModule {
   // FIXME: Change to MemoryType(Limit)?
   memory_instances: Vec<MemoryInstance>,
   table_instances: TableInstances,
-  // FIXME: Change to GlobalType?
-  global_instances: Vec<GlobalInstance>,
+  global_instances: GlobalInstances,
 }
 
 impl ExternalModule {
@@ -212,7 +211,7 @@ impl ExternalModule {
       function_types,
       memory_instances,
       table_instances: TableInstances::new(table_instances),
-      global_instances,
+      global_instances: GlobalInstances::new(global_instances),
     }
   }
 
@@ -321,7 +320,7 @@ impl Default for ExternalModule {
       function_types: vec![],
       memory_instances: vec![],
       table_instances: TableInstances::empty(),
-      global_instances: vec![],
+      global_instances: GlobalInstances::empty(),
     }
   }
 }

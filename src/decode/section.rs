@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
 use function::{FunctionInstance, FunctionType};
-use global::{GlobalInstance, GlobalType};
+use global::{GlobalInstances, GlobalType};
 use inst::Inst;
 use memory::{Limit, MemoryInstance};
 use module::{
@@ -135,7 +135,7 @@ impl Section {
     exports: &ExternalInterfaces,
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
-    global_instances: &Vec<GlobalInstance>,
+    global_instances: &GlobalInstances,
   ) -> Result<Vec<MemoryInstance>> {
     // NOTE: Currently WASM specification assumed only one memory instance;
     let memory_idx = 0;
@@ -173,7 +173,7 @@ impl Section {
     exports: &ExternalInterfaces,
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
-    global_instances: &Vec<GlobalInstance>,
+    global_instances: &GlobalInstances,
     function_instances: &Vec<Rc<FunctionInstance>>,
   ) -> Result<TableInstances> {
     if tables.len() > 0 {
@@ -305,18 +305,18 @@ impl Section {
 
         let mut internal_function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
-        let mut internal_global_instances = Section::global_instances(globals, &exports);
 
         let mut function_instances = Section::external_function_instances(
           &function_types,
           &imports_function,
           &external_modules,
         )?;
-        let mut global_instances =
-          Section::external_global_instances(&imports_global, &external_modules)?;
 
         function_instances.append(&mut internal_function_instances);
-        global_instances.append(&mut external_global_instances);
+
+        let global_instances =
+          Section::global_instances(globals, &exports, &imports_global, &external_modules);
+        // println!("{:#?}", global_instances);
 
         let memory_instances = Section::memory_instances(
           datas,

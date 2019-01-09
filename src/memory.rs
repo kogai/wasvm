@@ -6,7 +6,7 @@ use core::fmt;
 use core::mem::transmute;
 use core::u32;
 use decode::Data;
-use global::GlobalInstance;
+use global::GlobalInstances;
 use inst::Inst;
 use trap::{Result, Trap};
 use value::Values;
@@ -125,7 +125,7 @@ impl MemoryInstance {
     datas: Vec<Data>,
     limit: Limit,
     export_name: Option<String>,
-    global_instances: &Vec<GlobalInstance>,
+    global_instances: &GlobalInstances,
   ) -> Result<Self> {
     let min_size = match limit {
       Limit::NoUpperLimit(min) => min,
@@ -141,16 +141,7 @@ impl MemoryInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances
-          .get(*idx as usize)
-          .map(|g| match &g.value {
-            Values::I32(ref v) => *v,
-            x => unreachable!("Expect I32, got {:?}", x),
-          })
-          .expect(&format!(
-            "Expect to get {:?} of {:?}, got None",
-            idx, global_instances,
-          )),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let size = offset + init.len();
