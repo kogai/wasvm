@@ -268,27 +268,6 @@ impl ExternalModule {
     }
   }
 
-  // FIXME: Consider to rename import-function-instance
-  fn find_global_instance(&self, key: &ExternalInterface) -> Result<GlobalInstance> {
-    match key {
-      ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_)),
-        name,
-        module_name,
-      } => {
-        let instance = self
-          .global_instances
-          .iter()
-          .find(|instance| instance.export_name == Some(name.to_owned()))
-          .ok_or(Trap::UnknownImport)
-          .map(|x| x.clone())?;
-        instance.set_source_module_name(module_name);
-        Ok(instance)
-      }
-      x => unreachable!("Expected global descriptor, got {:?}", x),
-    }
-  }
-
   fn find_memory_instance(&self, key: &ExternalInterface) -> Result<MemoryInstance> {
     match key {
       ExternalInterface {
@@ -396,12 +375,12 @@ impl ExternalModules {
       .find_table_instance(import)
   }
 
-  pub fn find_global_instance(&self, import: &ExternalInterface) -> Result<GlobalInstance> {
+  pub fn find_global_instances(&self, module_name: &ModuleName) -> Result<GlobalInstances> {
     self
       .0
       .borrow()
-      .get(&import.module_name)
-      .ok_or(Trap::UnknownImport)?
-      .find_global_instance(import)
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)
+      .map(|x| (&x).global_instances.clone())
   }
 }

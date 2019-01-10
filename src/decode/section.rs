@@ -254,33 +254,6 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
-  // NOTE: Might be reasonable some future.
-  fn global_instances(
-    globals: Vec<(GlobalType, Values)>,
-    exports: &ExternalInterfaces,
-  ) -> Vec<GlobalInstance> {
-    globals
-      .into_iter()
-      .enumerate()
-      .map(|(idx, (global_type, value))| {
-        let export_name = exports
-          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Global)
-          .map(|x| x.name.to_owned());
-        GlobalInstance::new(global_type, value, export_name)
-      })
-      .collect::<Vec<_>>()
-  }
-
-  fn external_global_instances(
-    imports: &Vec<ExternalInterface>,
-    external_modules: &ExternalModules,
-  ) -> Result<Vec<GlobalInstance>> {
-    imports
-      .iter()
-      .map(|value| external_modules.find_global_instance(value))
-      .collect::<Result<Vec<_>>>()
-  }
-
   pub fn complete(self, external_modules: ExternalModules) -> Result<(Store, InternalModule)> {
     match self {
       Section {
@@ -314,9 +287,12 @@ impl Section {
 
         function_instances.append(&mut internal_function_instances);
 
-        let global_instances =
-          Section::global_instances(globals, &exports, &imports_global, &external_modules);
-        // println!("{:#?}", global_instances);
+        let global_instances = GlobalInstances::new_with_external(
+          globals,
+          &exports,
+          &imports_global,
+          &external_modules,
+        )?;
 
         let memory_instances = Section::memory_instances(
           datas,

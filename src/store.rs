@@ -1,7 +1,7 @@
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use function::{FunctionInstance, FunctionType};
-use global::{GlobalInstance, GlobalInstances};
+use global::GlobalInstances;
 use memory::MemoryInstance;
 use table::{TableInstance, TableInstances};
 use trap::Result;
@@ -47,11 +47,7 @@ impl Store {
       .map(|x| x.get_function_type())
   }
 
-  pub fn get_global_instance(&self, idx: usize) -> Option<&GlobalInstance> {
-    self.global_instances.get_global_instance(idx)
-  }
-
-  pub fn get_global(&mut self, idx: u32) -> Result<&Values> {
+  pub fn get_global(&mut self, idx: u32) -> Result<Values> {
     self.global_instances.get_global(idx)
   }
 

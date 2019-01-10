@@ -189,7 +189,7 @@ impl Vm {
     }
 
     fn get_global(&mut self, idx: u32) -> Result<()> {
-        let value = self.store.get_global(idx)?.to_owned();
+        let value = self.store.get_global(idx)?;
         self.stack.push(StackEntry::new_value(value))?;
         Ok(())
     }
@@ -589,9 +589,9 @@ impl Vm {
             Some(ExternalInterface {
                 descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(idx)),
                 ..
-            }) => match self.store.get_global_instance(idx as usize) {
-                Some(global) => String::from(global.get_value()),
-                None => "".to_owned(),
+            }) => match self.store.get_global(idx) {
+                Ok(v) => String::from(v),
+                Err(_) => "".to_owned(),
             },
             None => format!("Invoke or Get key [{}] not found.", invoke),
             x => unimplemented!("{:?}", x),
