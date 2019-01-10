@@ -324,8 +324,35 @@ impl ExternalModules {
     ExternalModules(Rc::new(RefCell::new(HashMap::new())))
   }
 
+  pub fn get(&self, module_name: &ModuleName) -> Option<ExternalModule> {
+    self.0.borrow().get(module_name).map(|x| x.clone())
+  }
+
   pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) {
     self.0.borrow_mut().insert(key, value);
+  }
+
+  pub fn get_table_instance(&self, module_name: &ModuleName, idx: u32) -> Result<TableInstance> {
+    self
+      .0
+      .borrow()
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)?
+      .table_instances
+      .get_table_at(idx)
+      .ok_or(Trap::Notfound)
+  }
+
+  pub fn get_function_type(&self, module_name: &ModuleName, idx: u32) -> Result<FunctionType> {
+    self
+      .0
+      .borrow()
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)?
+      .function_types
+      .get(idx as usize)
+      .ok_or(Trap::Notfound)
+      .map(|x| x.clone())
   }
 
   pub fn get_function_instance(
@@ -333,17 +360,17 @@ impl ExternalModules {
     module_name: &ModuleName,
     idx: usize,
   ) -> Result<Rc<FunctionInstance>> {
-    Ok(
-      self
-        .0
-        .borrow()
-        .get(module_name)
-        .ok_or(Trap::UnknownImport)?
-        .function_instances
-        .get(idx)
-        .map(|x| x.clone())?,
-    )
+    self
+      .0
+      .borrow()
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)?
+      .function_instances
+      .get(idx)
+      .map(|x| x.clone())
+      .ok_or(Trap::Notfound)
   }
+
   pub fn find_function_instances(
     &self,
     import: &ExternalInterface,

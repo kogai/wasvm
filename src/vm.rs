@@ -324,7 +324,13 @@ impl Vm {
                 CallIndirect(idx) => {
                     // FIXME: Due to only single table instance allowed, `ta` always equal to 0.
                     let ta = frame.get_table_address();
-                    let table = self.store.get_table_at(ta)?.clone();
+                    let source_of_frame = frame.function_instance.get_source_module_name();
+                    let table = match &source_of_frame {
+                        Some(module_name) => self
+                            .external_modules
+                            .get_table_instance(&Some(module_name.to_owned()), ta)?,
+                        None => self.store.get_table_at(ta)?,
+                    };
                     let i = self.stack.pop_value_ext_i32();
                     if i > table.len() as i32 {
                         return Err(Trap::UndefinedElement);
@@ -332,7 +338,12 @@ impl Vm {
                     let function_instance = table.get_function_instance(i as u32)?;
                     let mut arguments = {
                         let actual_fn_ty = &function_instance.function_type;
-                        let expect_fn_ty = self.store.get_function_type(*idx)?;
+                        let expect_fn_ty = &match &source_of_frame {
+                            Some(module_name) => self
+                                .external_modules
+                                .get_function_type(&Some(module_name.to_owned()), *idx)?,
+                            None => self.store.get_function_type(*idx)?.clone(),
+                        };
                         if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
                         }
