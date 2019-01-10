@@ -10,7 +10,7 @@ use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum GlobalType {
   Const(ValueTypes),
   Var(ValueTypes),
@@ -54,7 +54,11 @@ impl GlobalInstance {
   }
 
   fn is_same_name(&self, name: &String) -> bool {
-    &self.0.borrow().export_name == &Some(name.to_owned())
+    self.0.borrow().export_name == Some(name.to_owned())
+  }
+
+  fn is_same_type(&self, ty: &GlobalType) -> bool {
+    &self.0.borrow().global_type == ty
   }
 }
 
@@ -80,7 +84,7 @@ impl GlobalInstances {
     for import in imports.iter() {
       match import {
         ExternalInterface {
-          descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_)),
+          descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(ty)),
           name,
           module_name,
         } => {
@@ -88,6 +92,9 @@ impl GlobalInstances {
             .find_global_instances(module_name)?
             .find(name)
             .ok_or(Trap::UnknownImport)?;
+          if !global_instance.is_same_type(ty) {
+            return Err(Trap::IncompatibleImportType);
+          }
           global_instances.push(global_instance);
         }
         x => unreachable!("Expected global descriptor, got {:?}", x),
