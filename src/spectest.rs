@@ -76,17 +76,17 @@ pub fn create_spectest() -> ExternalModule {
     // GlobalInstances
     vec![
       GlobalInstance::new(
-        GlobalType::Var(ValueTypes::I32),
+        GlobalType::Const(ValueTypes::I32),
         Values::I32(666),
         Some("global_i32".to_owned()),
       ),
       GlobalInstance::new(
-        GlobalType::Var(ValueTypes::F32),
+        GlobalType::Const(ValueTypes::F32),
         Values::F32(666.6),
         Some("global_f32".to_owned()),
       ),
       GlobalInstance::new(
-        GlobalType::Var(ValueTypes::F64),
+        GlobalType::Const(ValueTypes::F64),
         Values::F64(666.6),
         Some("global_f64".to_owned()),
       ),
