@@ -2,6 +2,7 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
+use inst::Inst;
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
   ModuleDescriptorKind,
@@ -29,8 +30,8 @@ impl GlobalType {
 #[derive(Debug)]
 struct GlobalInstanceImpl {
   global_type: GlobalType,
-  pub value: Values,
-  pub export_name: Option<String>,
+  value: Values,
+  export_name: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -75,7 +76,7 @@ impl GlobalInstances {
   }
 
   pub fn new_with_external(
-    globals: Vec<(GlobalType, Values)>,
+    globals: Vec<(GlobalType, Vec<Inst>)>,
     exports: &ExternalInterfaces,
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
@@ -100,10 +101,19 @@ impl GlobalInstances {
         x => unreachable!("Expected global descriptor, got {:?}", x),
       };
     }
-    for (idx, (global_type, value)) in globals.into_iter().enumerate() {
+    for (idx, (global_type, init)) in globals.into_iter().enumerate() {
       let export_name = exports
         .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Global)
         .map(|x| x.name.to_owned());
+      let init_first = init.first();
+      let value = match &init_first {
+        Some(Inst::I32Const(_))
+        | Some(Inst::I64Const(_))
+        | Some(Inst::F32Const(_))
+        | Some(Inst::F64Const(_)) => init_first?.get_value_ext(),
+        Some(Inst::GetGlobal(idx)) => global_instances.get(*idx as usize)?.get_value(),
+        x => unreachable!("Expected initial value of global, got {:?}", x),
+      };
       global_instances.push(GlobalInstance::new(global_type, value, export_name));
     }
     Ok(GlobalInstances::new(global_instances))

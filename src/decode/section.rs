@@ -18,7 +18,6 @@ use module::{
 use store::Store;
 use table::{TableInstance, TableInstances};
 use trap::{Result, Trap};
-use value::Values;
 use value_type::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -68,7 +67,7 @@ pub struct Section {
   datas: Vec<Data>,
   limits: Vec<Limit>,
   tables: Vec<TableType>,
-  globals: Vec<(GlobalType, Values)>,
+  globals: Vec<(GlobalType, Vec<Inst>)>,
   elements: Vec<Element>,
   customs: Vec<(String, Vec<u8>)>,
   imports: ExternalInterfaces,
@@ -110,7 +109,7 @@ impl Section {
   impl_builder!(datas, datas, Data);
   impl_builder!(limits, limits, Limit);
   impl_builder!(tables, tables, TableType);
-  impl_builder!(globals, globals, (GlobalType, Values));
+  impl_builder!(globals, globals, (GlobalType, Vec<Inst>));
   impl_builder!(elements, elements, Element);
   impl_builder!(customs, customs, (String, Vec<u8>));
 
