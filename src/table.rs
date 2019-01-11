@@ -109,9 +109,9 @@ impl TableInstances {
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
     let function_elements = &mut table_instance.function_elements;
+    let mut swappable_function_address = vec![];
 
     for el in elements.iter() {
-      // FIXME: Commonize
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => {
           if offset < &0 {
@@ -127,6 +127,9 @@ impl TableInstances {
       if end > function_elements.len() {
         return Err(Trap::ElementSegmentDoesNotFit);
       }
+      swappable_function_address.push((function_addresses, offset, end));
+    }
+    for (mut function_addresses, offset, end) in swappable_function_address.into_iter() {
       function_addresses.swap_with_slice(&mut function_elements[offset..end]);
     }
     Ok(())
