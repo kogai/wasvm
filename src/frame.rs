@@ -12,8 +12,9 @@ use value_type::ValueTypes;
 
 #[derive(PartialEq)]
 pub struct Frame {
+  // FIXME: No need to hold local_variables in frame.
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
-  function_instance: Rc<FunctionInstance>,
+  pub(crate) function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,
   pub last_ptr: u32,
   pub return_ptr: usize,
@@ -97,25 +98,6 @@ impl Frame {
     }
   }
 
-  pub fn is_next_end(&self) -> bool {
-    match self.peek() {
-      Some(Inst::End) | None => true,
-      _ => false,
-    }
-  }
-
-  pub fn is_next_else(&self) -> bool {
-    match self.peek() {
-      Some(Inst::Else) => true,
-      _ => false,
-    }
-  }
-
-  pub fn is_next_end_or_else(&self) -> bool {
-    self.is_next_end() || self.is_next_else()
-  }
-
-  // TODO: Prefert to define as private function
   pub fn jump_to(&self, ptr_of_label: u32) {
     self.ptr.replace(ptr_of_label);
   }

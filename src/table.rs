@@ -5,11 +5,10 @@ use core::cell::RefCell;
 use core::clone::Clone;
 use decode::{Element, TableType};
 use function::FunctionInstance;
-use global::GlobalInstance;
+use global::GlobalInstances;
 use inst::Inst;
 use memory::Limit;
 use trap::{Result, Trap};
-use value::Values;
 
 #[derive(Debug, Clone)]
 pub struct TableInstance {
@@ -23,7 +22,7 @@ impl TableInstance {
     elements: Vec<Element>,
     table_type: TableType,
     export_name: Option<String>,
-    global_instances: &Vec<GlobalInstance>,
+    global_instances: &GlobalInstances,
     function_instances: &Vec<Rc<FunctionInstance>>,
   ) -> Result<Self> {
     let table_size = match table_type.limit {
@@ -38,16 +37,7 @@ impl TableInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances
-          .get(*idx as usize)
-          .map(|g| match &g.value {
-            Values::I32(ref v) => *v,
-            x => unreachable!("Expect I32, got {:?}", x),
-          })
-          .expect(&format!(
-            "Expect to get {:?} of {:?}, got None",
-            idx, global_instances,
-          )),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -62,6 +52,35 @@ impl TableInstance {
       export_name,
       table_type,
     })
+  }
+
+  pub fn validate(
+    elements: &Vec<Element>,
+    table_type: &TableType,
+    global_instances: &GlobalInstances,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> Result<()> {
+    let table_size = match table_type.limit {
+      Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
+    } as usize;
+    for el in elements.into_iter() {
+      let offset = match el.offset.first() {
+        Some(Inst::I32Const(offset)) => {
+          if offset < &0 {
+            return Err(Trap::ElementSegmentDoesNotFit);
+          }
+          *offset
+        }
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        x => unreachable!("Expected offset value of memory, got {:?}", x),
+      } as usize;
+      let mut function_addresses = el.wrap_by_option(function_instances);
+      let end = offset + function_addresses.len();
+      if end > table_size {
+        return Err(Trap::ElementSegmentDoesNotFit);
+      }
+    }
+    Ok(())
   }
 
   pub fn len(&self) -> usize {
@@ -86,7 +105,7 @@ impl TableInstances {
   }
 
   pub fn empty() -> Self {
-    TableInstances(Rc::new(RefCell::new(vec![])))
+    TableInstances::new(vec![])
   }
 
   pub fn find_by_name(&self, name: &String) -> bool {
@@ -110,18 +129,19 @@ impl TableInstances {
     table_instance.map(|x| x.clone())
   }
 
+  // FIXME: Rename to `link`
   pub fn update(
     &self,
     elements: Vec<Element>,
-    global_instances: &Vec<GlobalInstance>,
+    global_instances: &GlobalInstances,
     function_instances: &Vec<Rc<FunctionInstance>>,
   ) -> Result<()> {
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
     let function_elements = &mut table_instance.function_elements;
+    let mut swappable_function_address = vec![];
 
     for el in elements.iter() {
-      // FIXME: Commonize
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => {
           if offset < &0 {
@@ -129,16 +149,7 @@ impl TableInstances {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances
-          .get(*idx as usize)
-          .map(|g| match &g.value {
-            Values::I32(ref v) => *v,
-            x => unreachable!("Expect I32, got {:?}", x),
-          })
-          .expect(&format!(
-            "Expect to get {:?} of {:?}, got None",
-            idx, global_instances,
-          )),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -146,7 +157,40 @@ impl TableInstances {
       if end > function_elements.len() {
         return Err(Trap::ElementSegmentDoesNotFit);
       }
+      swappable_function_address.push((function_addresses, offset, end));
+    }
+    for (mut function_addresses, offset, end) in swappable_function_address.into_iter() {
       function_addresses.swap_with_slice(&mut function_elements[offset..end]);
+    }
+    Ok(())
+  }
+
+  pub fn validate(
+    &self,
+    elements: &Vec<Element>,
+    global_instances: &GlobalInstances,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> Result<()> {
+    let mut table_instances = self.0.borrow_mut();
+    let table_instance = table_instances.first_mut()?;
+    let function_elements = &mut table_instance.function_elements;
+
+    for el in elements.iter() {
+      let offset = match el.offset.first() {
+        Some(Inst::I32Const(offset)) => {
+          if offset < &0 {
+            return Err(Trap::ElementSegmentDoesNotFit);
+          }
+          *offset
+        }
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        x => unreachable!("Expected offset value of memory, got {:?}", x),
+      } as usize;
+      let mut function_addresses = el.wrap_by_option(function_instances);
+      let end = offset + function_addresses.len();
+      if end > function_elements.len() {
+        return Err(Trap::ElementSegmentDoesNotFit);
+      }
     }
     Ok(())
   }

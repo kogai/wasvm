@@ -31,15 +31,11 @@ impl fmt::Debug for StackEntry {
   }
 }
 
-#[allow(dead_code)]
+// FIXME: Remove this enum definition completely.
 pub enum StackEntryKind {
-  Empty,
-  Value,
   Label,
 }
 
-// pub const STACK_ENTRY_KIND_EMPTY: StackEntryKind = StackEntryKind::Empty;
-// pub const STACK_ENTRY_KIND_VALUE: StackEntryKind = StackEntryKind::Value;
 pub const STACK_ENTRY_KIND_LABEL: StackEntryKind = StackEntryKind::Label;
 
 impl StackEntry {
@@ -68,9 +64,7 @@ impl StackEntry {
   fn is_same_kind(&self, other: &StackEntryKind) -> bool {
     use self::StackEntry::*;
     match (self, other) {
-      (Empty, StackEntryKind::Empty)
-      | (Value(_), StackEntryKind::Value)
-      | (Label(_), StackEntryKind::Label) => true,
+      (Label(_), StackEntryKind::Label) => true,
       _ => false,
     }
   }

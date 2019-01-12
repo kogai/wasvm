@@ -1,7 +1,7 @@
 use alloc::prelude::*;
 use decode::{ElementType, TableType};
 use function::{FunctionInstance, FunctionType};
-use global::{GlobalInstance, GlobalType};
+use global::{GlobalInstance, GlobalInstances, GlobalType};
 use inst::Inst;
 use memory::{Limit, MemoryInstance};
 use module::ExternalModule;
@@ -60,33 +60,32 @@ pub fn create_spectest() -> ExternalModule {
       vec![],
       Limit::HasUpperLimit(1, 2),
       Some("memory".to_owned()),
-      &vec![],
+      &GlobalInstances::empty(),
     )
     .unwrap()],
     // TableInstances
     vec![TableInstance::new(
-      // vec![Element::new(0, vec![Inst::I32Const(10)], vec![10])],
       vec![],
       TableType::new(ElementType::AnyFunc, Limit::HasUpperLimit(10, 20)),
       Some("table".to_owned()),
-      &vec![],
+      &GlobalInstances::empty(),
       &vec![],
     )
     .unwrap()],
     // GlobalInstances
     vec![
       GlobalInstance::new(
-        GlobalType::Var(ValueTypes::I32),
+        GlobalType::Const(ValueTypes::I32),
         Values::I32(666),
         Some("global_i32".to_owned()),
       ),
       GlobalInstance::new(
-        GlobalType::Var(ValueTypes::F32),
+        GlobalType::Const(ValueTypes::F32),
         Values::F32(666.6),
         Some("global_f32".to_owned()),
       ),
       GlobalInstance::new(
-        GlobalType::Var(ValueTypes::F64),
+        GlobalType::Const(ValueTypes::F64),
         Values::F64(666.6),
         Some("global_f64".to_owned()),
       ),

@@ -9,16 +9,15 @@ use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
 use function::{FunctionInstance, FunctionType};
-use global::{GlobalInstance, GlobalType};
+use global::{GlobalInstances, GlobalType};
 use inst::Inst;
-use memory::{Limit, MemoryInstance};
+use memory::{Limit, MemoryInstance, MemoryInstances};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
 };
 use store::Store;
 use table::{TableInstance, TableInstances};
 use trap::{Result, Trap};
-use value::Values;
 use value_type::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -68,7 +67,7 @@ pub struct Section {
   datas: Vec<Data>,
   limits: Vec<Limit>,
   tables: Vec<TableType>,
-  globals: Vec<(GlobalType, Values)>,
+  globals: Vec<(GlobalType, Vec<Inst>)>,
   elements: Vec<Element>,
   customs: Vec<(String, Vec<u8>)>,
   imports: ExternalInterfaces,
@@ -110,7 +109,7 @@ impl Section {
   impl_builder!(datas, datas, Data);
   impl_builder!(limits, limits, Limit);
   impl_builder!(tables, tables, TableType);
-  impl_builder!(globals, globals, (GlobalType, Values));
+  impl_builder!(globals, globals, (GlobalType, Vec<Inst>));
   impl_builder!(elements, elements, Element);
   impl_builder!(customs, customs, (String, Vec<u8>));
 
@@ -129,46 +128,136 @@ impl Section {
     self
   }
 
+  fn validate(
+    elements: &Vec<Element>,
+    tables: &Vec<TableType>,
+    datas: &Vec<Data>,
+    limits: &Vec<Limit>,
+    imports_memory: &Vec<ExternalInterface>,
+    imports_table: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+    global_instances: &GlobalInstances,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> (Result<()>, Result<()>) {
+    (
+      Section::validate_memory(
+        datas,
+        limits,
+        imports_memory,
+        external_modules,
+        global_instances,
+      ),
+      Section::validate_table(
+        elements,
+        tables,
+        imports_table,
+        external_modules,
+        global_instances,
+        function_instances,
+      ),
+    )
+  }
+
+  fn validate_memory(
+    datas: &Vec<Data>,
+    limits: &Vec<Limit>,
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+    global_instances: &GlobalInstances,
+  ) -> Result<()> {
+    let memory_idx = 0;
+    let external_memory_instances = imports
+      .get(memory_idx as usize)
+      .map(|key| external_modules.find_memory_instances(key));
+
+    if let Some(_) = limits.get(memory_idx as usize) {
+      if external_memory_instances.is_none() {
+        return Ok(());
+      }
+    }
+    if external_memory_instances.is_some() {
+      MemoryInstances::validate(
+        &external_memory_instances??,
+        &limits
+          .get(memory_idx as usize)
+          .map(|limit| limit.to_owned()),
+        imports.get(memory_idx as usize)?,
+        datas,
+        global_instances,
+      )
+    } else {
+      Ok(())
+    }
+  }
+
+  fn validate_table(
+    elements: &Vec<Element>,
+    tables: &Vec<TableType>,
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+    global_instances: &GlobalInstances,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> Result<()> {
+    if tables.len() > 0 {
+      tables
+        .into_iter()
+        .map(|table_type| {
+          TableInstance::validate(elements, table_type, global_instances, function_instances)
+        })
+        .collect::<Result<Vec<_>>>()
+        .and_then(|_| Ok(()))
+    } else {
+      match imports.first() {
+        Some(import) => external_modules
+          .find_table_instances(import)
+          .and_then(|table_instances| {
+            table_instances.validate(elements, global_instances, function_instances)
+          }),
+        None => Ok(()),
+      }
+    }
+  }
+
   fn memory_instances(
     datas: Vec<Data>,
     limits: Vec<Limit>,
     exports: &ExternalInterfaces,
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
-    global_instances: &Vec<GlobalInstance>,
-  ) -> Result<Vec<MemoryInstance>> {
+    global_instances: &GlobalInstances,
+  ) -> Result<MemoryInstances> {
     // NOTE: Currently WASM specification assumed only one memory instance;
     let memory_idx = 0;
     let export_name = exports
       .find_kind_by_idx(memory_idx, ModuleDescriptorKind::Memory)
       .map(|x| x.name.to_owned());
 
-    let external_memory_types = imports
-      .iter()
-      .map(|value| {
-        external_modules
-          .get(&value.module_name)
-          .ok_or(Trap::UnknownImport)?
-          .find_memory_instance(value)
-      })
-      .collect::<Result<Vec<MemoryInstance>>>()?;
+    let external_memory_instances = imports
+      .get(memory_idx as usize)
+      .map(|key| external_modules.find_memory_instances(key));
 
     if let Some(limit) = limits.get(memory_idx as usize) {
-      Ok(vec![MemoryInstance::new(
+      if external_memory_instances.is_none() {
+        return Ok(MemoryInstances::new(vec![MemoryInstance::new(
+          datas,
+          limit.to_owned(),
+          export_name,
+          global_instances,
+        )?]));
+      }
+    }
+    if external_memory_instances.is_some() {
+      MemoryInstances::from(
+        external_memory_instances??,
+        limits
+          .get(memory_idx as usize)
+          .map(|limit| limit.to_owned()),
+        imports.get(memory_idx as usize)?,
         datas,
-        limit.to_owned(),
-        export_name,
         global_instances,
-      )?])
-    } else if let Some(memory_instance) = external_memory_types.get(memory_idx as usize) {
-      Ok(vec![MemoryInstance::new(
-        datas,
-        memory_instance.limit.to_owned(),
-        export_name,
-        global_instances,
-      )?])
+      )
     } else {
-      Ok(vec![])
+      Ok(MemoryInstances::empty())
     }
   }
 
@@ -178,7 +267,7 @@ impl Section {
     exports: &ExternalInterfaces,
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
-    global_instances: &Vec<GlobalInstance>,
+    global_instances: &GlobalInstances,
     function_instances: &Vec<Rc<FunctionInstance>>,
   ) -> Result<TableInstances> {
     if tables.len() > 0 {
@@ -202,11 +291,8 @@ impl Section {
       // NOTE: Only one table instance allowed.
       match imports.first() {
         Some(import) => external_modules
-          .get(&import.module_name)
-          .map(|em| em.find_table_instance(import))
-          .ok_or(Trap::UnknownImport)
+          .find_table_instances(import)
           .map(|table_instances| {
-            let table_instances = table_instances?;
             table_instances.update(elements.clone(), global_instances, function_instances)?;
             Ok(table_instances)
           })?,
@@ -258,44 +344,7 @@ impl Section {
   ) -> Result<Vec<Rc<FunctionInstance>>> {
     imports
       .iter()
-      .map(|value| {
-        external_modules
-          .get(&value.module_name)
-          .ok_or(Trap::UnknownImport)?
-          .find_function_instance(value, function_types)
-      })
-      .collect::<Result<Vec<_>>>()
-  }
-
-  // NOTE: Might be reasonable some future.
-  fn global_instances(
-    globals: Vec<(GlobalType, Values)>,
-    exports: &ExternalInterfaces,
-  ) -> Vec<GlobalInstance> {
-    globals
-      .into_iter()
-      .enumerate()
-      .map(|(idx, (global_type, value))| {
-        let export_name = exports
-          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Global)
-          .map(|x| x.name.to_owned());
-        GlobalInstance::new(global_type, value, export_name)
-      })
-      .collect::<Vec<_>>()
-  }
-
-  fn external_global_instances(
-    imports: &Vec<ExternalInterface>,
-    external_modules: &ExternalModules,
-  ) -> Result<Vec<GlobalInstance>> {
-    imports
-      .iter()
-      .map(|value| {
-        external_modules
-          .get(&value.module_name)
-          .ok_or(Trap::UnknownImport)?
-          .find_global_instance(value)
-      })
+      .map(|value| external_modules.find_function_instances(value, function_types))
       .collect::<Result<Vec<_>>>()
   }
 
@@ -323,18 +372,35 @@ impl Section {
 
         let mut internal_function_instances =
           Section::function_instances(&function_types, functions, &exports, codes)?;
-        let mut global_instances = Section::global_instances(globals, &exports);
 
         let mut function_instances = Section::external_function_instances(
           &function_types,
           &imports_function,
           &external_modules,
         )?;
-        let mut external_global_instances =
-          Section::external_global_instances(&imports_global, &external_modules)?;
 
         function_instances.append(&mut internal_function_instances);
-        global_instances.append(&mut external_global_instances);
+
+        let global_instances = GlobalInstances::new_with_external(
+          globals,
+          &exports,
+          &imports_global,
+          &external_modules,
+        )?;
+
+        let (validate_memory, validate_table) = Section::validate(
+          &elements,
+          &tables,
+          &datas,
+          &limits,
+          &imports_memory,
+          &imports_table,
+          &external_modules,
+          &global_instances,
+          &function_instances,
+        );
+        validate_memory?;
+        validate_table?;
 
         let memory_instances = Section::memory_instances(
           datas,
@@ -344,6 +410,7 @@ impl Section {
           &external_modules,
           &global_instances,
         )?;
+
         let mut table_instances = Section::table_instances(
           elements,
           tables,
@@ -362,7 +429,6 @@ impl Section {
             table_instances,
             global_instances,
             exports,
-            imports,
             start,
           )
           .without_validate()?,

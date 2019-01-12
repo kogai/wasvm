@@ -2,15 +2,16 @@ use alloc::prelude::*;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::cell::RefCell;
 use core::convert::From;
 use core::default::Default;
 use core::iter::Iterator;
 use core::slice::Iter;
 use decode::TableType;
 use function::{FunctionInstance, FunctionType};
-use global::{GlobalInstance, GlobalType};
+use global::{GlobalInstance, GlobalInstances, GlobalType};
 use hashbrown::HashMap;
-use memory::{Limit, MemoryInstance};
+use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
 use table::{TableInstance, TableInstances};
 use trap::{Result, Trap};
@@ -71,7 +72,7 @@ impl From<Option<u8>> for ModuleDescriptorKind {
   }
 }
 
-type ModuleName = Option<String>;
+pub type ModuleName = Option<String>;
 type Name = String;
 
 #[derive(Debug, Clone)]
@@ -167,18 +168,12 @@ impl ExternalInterfaces {
 
 pub struct InternalModule {
   exports: ExternalInterfaces,
-  #[allow(dead_code)]
-  imports: ExternalInterfaces,
   pub start: Option<u32>,
 }
 
 impl InternalModule {
-  pub fn new(exports: ExternalInterfaces, imports: ExternalInterfaces, start: Option<u32>) -> Self {
-    InternalModule {
-      exports,
-      imports,
-      start,
-    }
+  pub fn new(exports: ExternalInterfaces, start: Option<u32>) -> Self {
+    InternalModule { exports, start }
   }
 
   pub fn get_export_by_key(&self, invoke: &str) -> Option<&ExternalInterface> {
@@ -190,11 +185,9 @@ impl InternalModule {
 pub struct ExternalModule {
   pub function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
-  // FIXME: Change to MemoryType(Limit)?
-  memory_instances: Vec<MemoryInstance>,
+  pub(crate) memory_instances: MemoryInstances,
   table_instances: TableInstances,
-  // FIXME: Change to GlobalType?
-  global_instances: Vec<GlobalInstance>,
+  global_instances: GlobalInstances,
 }
 
 impl ExternalModule {
@@ -209,13 +202,14 @@ impl ExternalModule {
     ExternalModule {
       function_instances,
       function_types,
-      memory_instances,
+      memory_instances: MemoryInstances::new(memory_instances),
       table_instances: TableInstances::new(table_instances),
-      global_instances,
+      global_instances: GlobalInstances::new(global_instances),
     }
   }
 
-  pub fn find_function_instance(
+  // FIXME: Consider to rename import-function-instance
+  fn find_function_instance(
     &self,
     key: &ExternalInterface,
     function_types: &Vec<FunctionType>,
@@ -224,7 +218,7 @@ impl ExternalModule {
       ExternalInterface {
         descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(idx)),
         name,
-        ..
+        module_name,
       } => {
         let expected_type = function_types.get(*idx as usize)?;
         let instance = self
@@ -237,13 +231,15 @@ impl ExternalModule {
         instance
           .validate_type(expected_type)
           .map_err(|_| Trap::IncompatibleImportType)?;
+
+        instance.set_source_module_name(module_name);
         Ok(instance)
       }
       x => unreachable!("Expected function descriptor, got {:?}", x),
     }
   }
 
-  pub fn find_table_instance(
+  fn find_table_instance(
     &self,
     key: &ExternalInterface, // import section of table
   ) -> Result<TableInstances> {
@@ -264,48 +260,6 @@ impl ExternalModule {
       x => unreachable!("Expected table descriptor, got {:?}", x),
     }
   }
-
-  pub fn find_global_instance(&self, key: &ExternalInterface) -> Result<GlobalInstance> {
-    match key {
-      ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_)),
-        name,
-        ..
-      } => {
-        let instance = self
-          .global_instances
-          .iter()
-          .find(|instance| instance.export_name == Some(name.to_owned()))
-          .ok_or(Trap::UnknownImport)
-          .map(|x| x.clone())?;
-        Ok(instance)
-      }
-      x => unreachable!("Expected global descriptor, got {:?}", x),
-    }
-  }
-
-  pub fn find_memory_instance(&self, key: &ExternalInterface) -> Result<MemoryInstance> {
-    match key {
-      ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)),
-        name,
-        ..
-      } => {
-        let instance = self
-          .memory_instances
-          .iter()
-          .find(|instance| instance.export_name == Some(name.to_owned()))
-          .ok_or(Trap::UnknownImport)
-          .map(|x| x.clone())?;
-        if &instance.limit > limit {
-          Err(Trap::IncompatibleImportType)
-        } else {
-          Ok(instance)
-        }
-      }
-      x => unreachable!("Expected global descriptor, got {:?}", x),
-    }
-  }
 }
 
 impl Default for ExternalModule {
@@ -313,9 +267,9 @@ impl Default for ExternalModule {
     ExternalModule {
       function_instances: vec![],
       function_types: vec![],
-      memory_instances: vec![],
+      memory_instances: MemoryInstances::empty(),
       table_instances: TableInstances::empty(),
-      global_instances: vec![],
+      global_instances: GlobalInstances::empty(),
     }
   }
 }
@@ -333,18 +287,97 @@ impl From<&Store> for ExternalModule {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExternalModules(HashMap<ModuleName, ExternalModule>);
+pub struct ExternalModules(Rc<RefCell<HashMap<ModuleName, ExternalModule>>>);
 
 impl ExternalModules {
   pub fn new() -> Self {
-    ExternalModules(HashMap::new())
+    ExternalModules(Rc::new(RefCell::new(HashMap::new())))
+  }
+
+  pub fn get(&self, module_name: &ModuleName) -> Option<ExternalModule> {
+    self.0.borrow().get(module_name).map(|x| x.clone())
   }
 
   pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) {
-    self.0.insert(key, value);
+    self.0.borrow_mut().insert(key, value);
   }
 
-  pub fn get(&self, key: &ModuleName) -> Option<&ExternalModule> {
-    self.0.get(key)
+  pub fn get_table_instance(&self, module_name: &ModuleName, idx: u32) -> Result<TableInstance> {
+    self
+      .0
+      .borrow()
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)?
+      .table_instances
+      .get_table_at(idx)
+      .ok_or(Trap::Notfound)
+  }
+
+  pub fn get_function_type(&self, module_name: &ModuleName, idx: u32) -> Result<FunctionType> {
+    self
+      .0
+      .borrow()
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)?
+      .function_types
+      .get(idx as usize)
+      .ok_or(Trap::Notfound)
+      .map(|x| x.clone())
+  }
+
+  pub fn get_function_instance(
+    &self,
+    module_name: &ModuleName,
+    idx: usize,
+  ) -> Result<Rc<FunctionInstance>> {
+    self
+      .0
+      .borrow()
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)?
+      .function_instances
+      .get(idx)
+      .map(|x| x.clone())
+      .ok_or(Trap::Notfound)
+  }
+
+  pub fn find_function_instances(
+    &self,
+    import: &ExternalInterface,
+    function_types: &Vec<FunctionType>,
+  ) -> Result<Rc<FunctionInstance>> {
+    self
+      .0
+      .borrow()
+      .get(&import.module_name)
+      .ok_or(Trap::UnknownImport)?
+      .find_function_instance(import, function_types)
+  }
+
+  pub fn find_memory_instances(&self, import: &ExternalInterface) -> Result<MemoryInstances> {
+    self
+      .0
+      .borrow()
+      .get(&import.module_name)
+      .ok_or(Trap::UnknownImport)
+      .map(|x| x.memory_instances.clone())
+  }
+
+  pub fn find_table_instances(&self, import: &ExternalInterface) -> Result<TableInstances> {
+    self
+      .0
+      .borrow()
+      .get(&import.module_name)
+      .ok_or(Trap::UnknownImport)?
+      .find_table_instance(import)
+  }
+
+  pub fn find_global_instances(&self, module_name: &ModuleName) -> Result<GlobalInstances> {
+    self
+      .0
+      .borrow()
+      .get(module_name)
+      .ok_or(Trap::UnknownImport)
+      .map(|x| (&x).global_instances.clone())
   }
 }

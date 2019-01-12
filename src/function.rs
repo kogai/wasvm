@@ -2,8 +2,10 @@ use alloc::prelude::*;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::cell::RefCell;
 use core::fmt;
 use inst::Inst;
+use module::ModuleName;
 use stack::StackEntry;
 use trap::{Result, Trap};
 use value::Values;
@@ -44,7 +46,6 @@ impl FunctionType {
     }
   }
 
-  #[allow(dead_code)]
   pub fn get_parameter_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
     &self.parameters
   }
@@ -64,6 +65,7 @@ pub struct FunctionInstance {
   pub(crate) function_type: FunctionType,
   pub(crate) local_variables: Vec<Rc<StackEntry>>,
   body: Vec<Inst>,
+  source_module_name: RefCell<Option<String>>,
 }
 
 impl fmt::Debug for FunctionInstance {
@@ -100,7 +102,19 @@ impl FunctionInstance {
       function_type,
       local_variables,
       body,
+      source_module_name: RefCell::new(None),
     })
+  }
+
+  pub fn set_source_module_name(&self, name: &ModuleName) {
+    if let Some(name) = name {
+      let mut source_module_name = self.source_module_name.borrow_mut();
+      source_module_name.replace(name.to_owned());
+    };
+  }
+
+  pub fn get_source_module_name(&self) -> Option<String> {
+    self.source_module_name.borrow().to_owned()
   }
 
   pub fn get(&self, idx: usize) -> Option<&Inst> {
