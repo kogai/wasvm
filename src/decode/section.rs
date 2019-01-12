@@ -319,7 +319,6 @@ impl Section {
             table_instances,
             global_instances,
             exports,
-            imports,
             start,
           )
           .without_validate()?,

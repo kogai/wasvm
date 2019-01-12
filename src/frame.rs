@@ -98,25 +98,6 @@ impl Frame {
     }
   }
 
-  pub fn is_next_end(&self) -> bool {
-    match self.peek() {
-      Some(Inst::End) | None => true,
-      _ => false,
-    }
-  }
-
-  pub fn is_next_else(&self) -> bool {
-    match self.peek() {
-      Some(Inst::Else) => true,
-      _ => false,
-    }
-  }
-
-  pub fn is_next_end_or_else(&self) -> bool {
-    self.is_next_end() || self.is_next_else()
-  }
-
-  // TODO: Prefert to define as private function
   pub fn jump_to(&self, ptr_of_label: u32) {
     self.ptr.replace(ptr_of_label);
   }

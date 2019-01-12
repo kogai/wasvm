@@ -168,18 +168,12 @@ impl ExternalInterfaces {
 
 pub struct InternalModule {
   exports: ExternalInterfaces,
-  #[allow(dead_code)]
-  imports: ExternalInterfaces,
   pub start: Option<u32>,
 }
 
 impl InternalModule {
-  pub fn new(exports: ExternalInterfaces, imports: ExternalInterfaces, start: Option<u32>) -> Self {
-    InternalModule {
-      exports,
-      imports,
-      start,
-    }
+  pub fn new(exports: ExternalInterfaces, start: Option<u32>) -> Self {
+    InternalModule { exports, start }
   }
 
   pub fn get_export_by_key(&self, invoke: &str) -> Option<&ExternalInterface> {

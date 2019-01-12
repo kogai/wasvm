@@ -46,7 +46,6 @@ impl FunctionType {
     }
   }
 
-  #[allow(dead_code)]
   pub fn get_parameter_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
     &self.parameters
   }
