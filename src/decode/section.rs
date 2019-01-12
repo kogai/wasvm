@@ -128,6 +128,96 @@ impl Section {
     self
   }
 
+  fn validate(
+    elements: &Vec<Element>,
+    tables: &Vec<TableType>,
+    datas: &Vec<Data>,
+    limits: &Vec<Limit>,
+    imports_memory: &Vec<ExternalInterface>,
+    imports_table: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+    global_instances: &GlobalInstances,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> (Result<()>, Result<()>) {
+    (
+      Section::validate_memory(
+        datas,
+        limits,
+        imports_memory,
+        external_modules,
+        global_instances,
+      ),
+      Section::validate_table(
+        elements,
+        tables,
+        imports_table,
+        external_modules,
+        global_instances,
+        function_instances,
+      ),
+    )
+  }
+
+  fn validate_memory(
+    datas: &Vec<Data>,
+    limits: &Vec<Limit>,
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+    global_instances: &GlobalInstances,
+  ) -> Result<()> {
+    let memory_idx = 0;
+    let external_memory_instances = imports
+      .get(memory_idx as usize)
+      .map(|key| external_modules.find_memory_instances(key));
+
+    if let Some(_) = limits.get(memory_idx as usize) {
+      if external_memory_instances.is_none() {
+        return Ok(());
+      }
+    }
+    if external_memory_instances.is_some() {
+      MemoryInstances::validate(
+        &external_memory_instances??,
+        &limits
+          .get(memory_idx as usize)
+          .map(|limit| limit.to_owned()),
+        imports.get(memory_idx as usize)?,
+        datas,
+        global_instances,
+      )
+    } else {
+      Ok(())
+    }
+  }
+
+  fn validate_table(
+    elements: &Vec<Element>,
+    tables: &Vec<TableType>,
+    imports: &Vec<ExternalInterface>,
+    external_modules: &ExternalModules,
+    global_instances: &GlobalInstances,
+    function_instances: &Vec<Rc<FunctionInstance>>,
+  ) -> Result<()> {
+    if tables.len() > 0 {
+      tables
+        .into_iter()
+        .map(|table_type| {
+          TableInstance::validate(elements, table_type, global_instances, function_instances)
+        })
+        .collect::<Result<Vec<_>>>()
+        .and_then(|_| Ok(()))
+    } else {
+      match imports.first() {
+        Some(import) => external_modules
+          .find_table_instances(import)
+          .and_then(|table_instances| {
+            table_instances.validate(elements, global_instances, function_instances)
+          }),
+        None => Ok(()),
+      }
+    }
+  }
+
   fn memory_instances(
     datas: Vec<Data>,
     limits: Vec<Limit>,
@@ -157,16 +247,15 @@ impl Section {
       }
     }
     if external_memory_instances.is_some() {
-      Ok(MemoryInstances::from(
+      MemoryInstances::from(
         external_memory_instances??,
         limits
           .get(memory_idx as usize)
           .map(|limit| limit.to_owned()),
-        export_name,
         imports.get(memory_idx as usize)?,
         datas,
         global_instances,
-      )?)
+      )
     } else {
       Ok(MemoryInstances::empty())
     }
@@ -299,6 +388,20 @@ impl Section {
           &external_modules,
         )?;
 
+        let (validate_memory, validate_table) = Section::validate(
+          &elements,
+          &tables,
+          &datas,
+          &limits,
+          &imports_memory,
+          &imports_table,
+          &external_modules,
+          &global_instances,
+          &function_instances,
+        );
+        validate_memory?;
+        validate_table?;
+
         let memory_instances = Section::memory_instances(
           datas,
           limits,
@@ -307,6 +410,7 @@ impl Section {
           &external_modules,
           &global_instances,
         )?;
+
         let mut table_instances = Section::table_instances(
           elements,
           tables,

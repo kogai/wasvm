@@ -309,7 +309,7 @@ impl_e2e!(test_int_exprs, "int_exprs");
 impl_e2e!(test_int_literals, "int_literals");
 impl_e2e!(test_labels, "labels");
 impl_e2e!(test_left_to_right, "left-to-right");
-// impl_e2e!(test_linking, "linking");
+impl_e2e!(test_linking, "linking");
 impl_e2e!(test_loop, "loop");
 impl_e2e!(test_memory_grow, "memory_grow");
 impl_e2e!(test_memory_redundancy, "memory_redundancy");
