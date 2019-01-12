@@ -142,25 +142,31 @@ impl Section {
       .find_kind_by_idx(memory_idx, ModuleDescriptorKind::Memory)
       .map(|x| x.name.to_owned());
 
-    let external_memory_types = imports
-      .iter()
-      .map(|value| external_modules.find_memory_instance(value))
-      .collect::<Result<Vec<MemoryInstance>>>()?;
+    let external_memory_instances = imports
+      .get(memory_idx as usize)
+      .map(|key| external_modules.find_memory_instances(key));
 
     if let Some(limit) = limits.get(memory_idx as usize) {
-      Ok(MemoryInstances::new(vec![MemoryInstance::new(
-        datas,
-        limit.to_owned(),
+      if external_memory_instances.is_none() {
+        return Ok(MemoryInstances::new(vec![MemoryInstance::new(
+          datas,
+          limit.to_owned(),
+          export_name,
+          global_instances,
+        )?]));
+      }
+    }
+    if external_memory_instances.is_some() {
+      Ok(MemoryInstances::from(
+        external_memory_instances??,
+        limits
+          .get(memory_idx as usize)
+          .map(|limit| limit.to_owned()),
         export_name,
-        global_instances,
-      )?]))
-    } else if let Some(memory_instance) = external_memory_types.get(memory_idx as usize) {
-      Ok(MemoryInstances::new(vec![MemoryInstance::new(
+        imports.get(memory_idx as usize)?,
         datas,
-        memory_instance.limit.to_owned(),
-        export_name,
         global_instances,
-      )?]))
+      )?)
     } else {
       Ok(MemoryInstances::empty())
     }
@@ -196,7 +202,7 @@ impl Section {
       // NOTE: Only one table instance allowed.
       match imports.first() {
         Some(import) => external_modules
-          .find_table_instance(import)
+          .find_table_instances(import)
           .map(|table_instances| {
             table_instances.update(elements.clone(), global_instances, function_instances)?;
             Ok(table_instances)

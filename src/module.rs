@@ -260,27 +260,6 @@ impl ExternalModule {
       x => unreachable!("Expected table descriptor, got {:?}", x),
     }
   }
-
-  fn find_memory_instance(&self, key: &ExternalInterface) -> Result<MemoryInstance> {
-    match key {
-      ExternalInterface {
-        descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)),
-        name,
-        ..
-      } => {
-        let instance = self
-          .memory_instances
-          .clone_instance_by_name(name)
-          .ok_or(Trap::UnknownImport)?;
-        if &instance.limit > limit {
-          Err(Trap::IncompatibleImportType)
-        } else {
-          Ok(instance)
-        }
-      }
-      x => unreachable!("Expected global descriptor, got {:?}", x),
-    }
-  }
 }
 
 impl Default for ExternalModule {
@@ -375,16 +354,16 @@ impl ExternalModules {
       .find_function_instance(import, function_types)
   }
 
-  pub fn find_memory_instance(&self, import: &ExternalInterface) -> Result<MemoryInstance> {
+  pub fn find_memory_instances(&self, import: &ExternalInterface) -> Result<MemoryInstances> {
     self
       .0
       .borrow()
       .get(&import.module_name)
-      .ok_or(Trap::UnknownImport)?
-      .find_memory_instance(import)
+      .ok_or(Trap::UnknownImport)
+      .map(|x| x.memory_instances.clone())
   }
 
-  pub fn find_table_instance(&self, import: &ExternalInterface) -> Result<TableInstances> {
+  pub fn find_table_instances(&self, import: &ExternalInterface) -> Result<TableInstances> {
     self
       .0
       .borrow()

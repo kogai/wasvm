@@ -10,6 +10,7 @@ use core::u32;
 use decode::Data;
 use global::GlobalInstances;
 use inst::Inst;
+use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
 use trap::{Result, Trap};
 use value::Values;
 
@@ -25,6 +26,15 @@ pub enum Limit {
   HasUpperLimit(u32, u32),
 }
 
+impl Limit {
+  fn initial_min_size(&self) -> usize {
+    let min_size = match self {
+      Limit::NoUpperLimit(min) => min,
+      Limit::HasUpperLimit(min, _) => min,
+    };
+    (PAGE_SIZE * min_size) as usize
+  }
+}
 impl PartialOrd for Limit {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     use self::Limit::*;
@@ -92,8 +102,8 @@ impl fmt::Debug for Limit {
 #[derive(Clone)]
 pub struct MemoryInstance {
   data: Vec<u8>,
-  pub limit: Limit,
-  pub export_name: Option<String>,
+  limit: Limit,
+  export_name: Option<String>,
 }
 
 macro_rules! impl_load_data {
@@ -129,11 +139,7 @@ impl MemoryInstance {
     export_name: Option<String>,
     global_instances: &GlobalInstances,
   ) -> Result<Self> {
-    let min_size = match limit {
-      Limit::NoUpperLimit(min) => min,
-      Limit::HasUpperLimit(min, _) => min,
-    };
-    let initial_size = (PAGE_SIZE * min_size) as usize;
+    let initial_size = limit.initial_min_size();
     let mut data = vec![0; initial_size];
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = match offset.first() {
@@ -160,6 +166,44 @@ impl MemoryInstance {
       limit,
       export_name,
     })
+  }
+
+  fn update(
+    &mut self,
+    datas: Vec<Data>,
+    limit: Option<Limit>,
+    export_name: Option<String>,
+    global_instances: &GlobalInstances,
+  ) -> Result<()> {
+    let initial_size = match limit {
+      Some(limit) => {
+        let initial_size = limit.initial_min_size();
+        self.limit = limit;
+        initial_size
+      }
+      None => self.limit.initial_min_size(),
+    };
+    let data: &mut Vec<u8> = self.data.as_mut();
+    for Data { offset, init, .. } in datas.into_iter() {
+      let offset = match offset.first() {
+        Some(Inst::I32Const(offset)) => {
+          if offset < &0 {
+            return Err(Trap::DataSegmentDoesNotFit);
+          }
+          *offset
+        }
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        x => unreachable!("Expected offset value of memory, got {:?}", x),
+      } as usize;
+      let size = offset + init.len();
+      if size > initial_size {
+        return Err(Trap::DataSegmentDoesNotFit);
+      }
+      for (i, d) in init.into_iter().enumerate() {
+        data[i + offset] = d;
+      }
+    }
+    Ok(())
   }
 
   fn data_size(&self) -> u32 {
@@ -219,23 +263,29 @@ impl MemoryInstance {
       Values::F64(v) => self.store_data_f64(v, from, to),
     };
   }
+
+  pub fn limit_gt(&self, other_limit: &Limit) -> bool {
+    &self.limit > other_limit
+  }
 }
 
 impl fmt::Debug for MemoryInstance {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(
-      f,
-      "[{}]:{} {:?}",
-      self
-        .data
-        .iter()
-        .filter(|d| d != &&0)
-        .map(|d| format!("{}", d))
-        .collect::<Vec<String>>()
-        .join(", "),
-      self.data.len(),
-      self.limit
-    )
+    f.debug_struct("MemoryInstance")
+      .field("export_name", &self.export_name)
+      .field(
+        "data",
+        &self
+          .data
+          .iter()
+          .filter(|d| d != &&0)
+          .map(|d| format!("{}", d))
+          .collect::<Vec<String>>()
+          .join(", "),
+      )
+      .field("data.len()", &self.data.len())
+      .field("limit", &self.limit)
+      .finish()
   }
 }
 
@@ -249,6 +299,43 @@ impl MemoryInstances {
 
   pub fn empty() -> Self {
     MemoryInstances(Rc::new(RefCell::new(vec![])))
+  }
+
+  pub fn from(
+    that: MemoryInstances,
+    limit: Option<Limit>,
+    export_name: Option<String>,
+    import: &ExternalInterface,
+    datas: Vec<Data>,
+    global_instances: &GlobalInstances,
+  ) -> Result<Self> {
+    that
+      .0
+      .borrow_mut()
+      .get_mut(0)
+      .ok_or(Trap::UnknownImport)
+      .and_then(|instance| {
+        if instance.export_name.as_ref() != Some(&import.name) {
+          Err(Trap::UnknownImport)
+        } else {
+          Ok(instance)
+        }
+      })
+      .and_then(|instance| match import {
+        ExternalInterface {
+          descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)),
+          ..
+        } => {
+          if instance.limit_gt(limit) {
+            Err(Trap::IncompatibleImportType)
+          } else {
+            Ok(instance)
+          }
+        }
+        x => unreachable!("Expected memory descriptor, got {:?}", x),
+      })?
+      .update(datas, limit, export_name, global_instances)?;
+    Ok(that.clone())
   }
 
   pub fn data_size_small_than(&self, ptr: u32) -> bool {
