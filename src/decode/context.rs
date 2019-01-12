@@ -4,7 +4,7 @@ use frame::Frame;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstances;
 use inst::TypeKind;
-use memory::MemoryInstance;
+use memory::MemoryInstances;
 use module::{ExternalInterfaces, InternalModule};
 use store::Store;
 use table::TableInstances;
@@ -14,7 +14,7 @@ use value_type::ValueTypes;
 pub struct Context {
   function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
-  memory_instances: Vec<MemoryInstance>,
+  memory_instances: MemoryInstances,
   table_instances: TableInstances,
   global_instances: GlobalInstances,
   exports: ExternalInterfaces,
@@ -27,7 +27,7 @@ impl Context {
   pub fn new(
     function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
-    memory_instances: Vec<MemoryInstance>,
+    memory_instances: MemoryInstances,
     table_instances: TableInstances,
     global_instances: GlobalInstances,
     exports: ExternalInterfaces,

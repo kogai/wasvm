@@ -2,7 +2,7 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstances;
-use memory::MemoryInstance;
+use memory::MemoryInstances;
 use table::{TableInstance, TableInstances};
 use trap::Result;
 use value::Values;
@@ -11,7 +11,7 @@ use value::Values;
 pub struct Store {
   pub function_instances: Vec<Rc<FunctionInstance>>,
   pub function_types: Vec<FunctionType>,
-  pub memory_instances: Vec<MemoryInstance>,
+  pub memory_instances: MemoryInstances,
   pub table_instances: TableInstances,
   pub global_instances: GlobalInstances,
 }
@@ -20,7 +20,7 @@ impl Store {
   pub fn new(
     function_instances: Vec<Rc<FunctionInstance>>,
     function_types: Vec<FunctionType>,
-    memory_instances: Vec<MemoryInstance>,
+    memory_instances: MemoryInstances,
     table_instances: TableInstances,
     global_instances: GlobalInstances,
   ) -> Self {
@@ -57,51 +57,5 @@ impl Store {
 
   pub fn get_table_at(&self, idx: u32) -> Option<TableInstance> {
     self.table_instances.get_table_at(idx)
-  }
-
-  fn get_memory_instance(&self) -> &MemoryInstance {
-    self
-      .memory_instances
-      .get(0)
-      .expect("At least one memory instance expected")
-  }
-
-  fn get_mut_memory_instance(&mut self) -> &mut MemoryInstance {
-    self
-      .memory_instances
-      .get_mut(0)
-      .expect("At least one memory instance expected")
-  }
-
-  pub fn data_size_small_than(&self, ptr: u32) -> bool {
-    self.get_memory_instance().data_size_smaller_than(ptr)
-  }
-
-  pub fn load_data_32(&self, from: u32, to: u32) -> u32 {
-    self.get_memory_instance().load_data_32(from, to)
-  }
-
-  pub fn load_data_64(&self, from: u32, to: u32) -> u64 {
-    self.get_memory_instance().load_data_64(from, to)
-  }
-
-  pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
-    self.get_memory_instance().load_data_f32(from, to)
-  }
-
-  pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
-    self.get_memory_instance().load_data_f64(from, to)
-  }
-
-  pub fn store_data(&mut self, from: u32, to: u32, value: Values) {
-    self.get_mut_memory_instance().store_data(from, to, value)
-  }
-
-  pub fn size_by_pages(&self) -> u32 {
-    self.get_memory_instance().size_by_pages()
-  }
-
-  pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
-    self.get_mut_memory_instance().memory_grow(increase_page)
   }
 }

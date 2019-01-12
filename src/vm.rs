@@ -5,9 +5,10 @@ use decode::Byte;
 use frame::Frame;
 use inst::Inst;
 use label::{Label, LabelKind};
+use memory::MemoryInstances;
 use module::{
     ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
-    ModuleDescriptor,
+    ModuleDescriptor, ModuleName,
 };
 use stack::{Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
 use store::Store;
@@ -17,7 +18,8 @@ use value_type::ValueTypes;
 
 macro_rules! impl_load_inst {
     ($fn_name: ident, $load_fn: ident, $ty: ty) => {
-        fn $fn_name(&mut self, offset: u32, load_data_width: u32) -> Result<$ty> {
+        fn $fn_name(&mut self, offset: u32, load_data_width: u32, source_of_frame: &ModuleName) -> Result<$ty> {
+            let memory_instances = self.get_memory_instances(source_of_frame)?;
             let width = load_data_width / 8;
             let i = self.stack.pop_value_ext_i32() as u32;
             let (effective_address, overflowed) = i.overflowing_add(offset);
@@ -25,11 +27,10 @@ macro_rules! impl_load_inst {
                 return Err(Trap::MemoryAccessOutOfBounds);
             };
             let (ptr, overflowed) = effective_address.overflowing_add(width);
-            if overflowed || self.store.data_size_small_than(ptr) {
+            if overflowed || memory_instances.data_size_small_than(ptr) {
                 return Err(Trap::MemoryAccessOutOfBounds);
             };
-            let data = self
-                .store
+            let data = memory_instances
                 .$load_fn(effective_address, ptr);
             Ok(data)
         }
@@ -38,8 +39,8 @@ macro_rules! impl_load_inst {
 
 macro_rules! impl_load_to {
     ($fn_name: ident, $load_fn: ident, $path: path, $ty: ty) => {
-        fn $fn_name(&mut self, offset: u32, width: u32, sign: bool) -> Result<()> {
-            let mut value = self.$load_fn(offset, width)?;
+        fn $fn_name(&mut self, offset: u32, width: u32, sign: bool, source_of_frame: &ModuleName) -> Result<()> {
+            let mut value = self.$load_fn(offset, width, source_of_frame)?;
             if sign {
                 let is_msb_one = value & (1 << (width - 1)) != 0;
                 if is_msb_one {
@@ -54,7 +55,8 @@ macro_rules! impl_load_to {
 }
 
 macro_rules! impl_store_inst {
-    ($data_width: expr, $self: ident, $offset: ident) => {{
+    ($data_width: expr, $self: ident, $offset: ident, $source_of_frame: expr) => {{
+        let mut memory_instances = $self.get_memory_instances($source_of_frame)?;
         let c = $self.stack.pop_value_ext();
         let width = $data_width / 8;
         let i = $self.stack.pop_value_ext_i32() as u32;
@@ -63,10 +65,10 @@ macro_rules! impl_store_inst {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
         let (ptr, overflowed) = effective_address.overflowing_add(width);
-        if overflowed || $self.store.data_size_small_than(ptr) {
+        if overflowed || memory_instances.data_size_small_than(ptr) {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        $self.store.store_data(effective_address, ptr, c);
+        memory_instances.store_data(effective_address, ptr, c);
     }};
 }
 
@@ -200,11 +202,23 @@ impl Vm {
         Ok(())
     }
 
+    fn get_memory_instances(&self, source_of_frame: &ModuleName) -> Result<MemoryInstances> {
+        Ok(match source_of_frame {
+            Some(module_name) => {
+                self.external_modules
+                    .get(&Some(module_name.to_string()))?
+                    .memory_instances
+            }
+            None => self.store.memory_instances.clone(),
+        })
+    }
+
     fn evaluate_instructions(
         &mut self,
         frame: &Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
         use self::Inst::*;
+        let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
             match expression {
                 Unreachable => return Err(Trap::Unreachable),
@@ -306,10 +320,11 @@ impl Vm {
                     frame.jump_to(continuation);
                 }
                 Call(idx) => {
-                    let function_instance = match frame.function_instance.get_source_module_name() {
+                    let function_instance = match &source_of_frame {
                         Some(module_name) => self
                             .external_modules
-                            .get_function_instance(&Some(module_name), *idx)
+                            // FIXME: Drop owning of name to search something.
+                            .get_function_instance(&Some(module_name.to_owned()), *idx)
                             .map(|x| x.clone())?,
                         None => self.store.get_function_instance(*idx)?,
                     };
@@ -324,7 +339,6 @@ impl Vm {
                 CallIndirect(idx) => {
                     // FIXME: Due to only single table instance allowed, `ta` always equal to 0.
                     let ta = frame.get_table_address();
-                    let source_of_frame = frame.function_instance.get_source_module_name();
                     let table = match &source_of_frame {
                         Some(module_name) => self
                             .external_modules
@@ -449,54 +463,76 @@ impl Vm {
                 I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
                 I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
 
-                I32Load(_, offset) => self.load_data_to_i32(*offset, 32, true)?,
-                I32Load8Unsign(_, offset) => self.load_data_to_i32(*offset, 8, false)?,
-                I32Load8Sign(_, offset) => self.load_data_to_i32(*offset, 8, true)?,
-                I32Load16Unsign(_, offset) => self.load_data_to_i32(*offset, 16, false)?,
-                I32Load16Sign(_, offset) => self.load_data_to_i32(*offset, 16, true)?,
+                I32Load(_, offset) => self.load_data_to_i32(*offset, 32, true, &source_of_frame)?,
+                I32Load8Unsign(_, offset) => {
+                    self.load_data_to_i32(*offset, 8, false, &source_of_frame)?
+                }
+                I32Load8Sign(_, offset) => {
+                    self.load_data_to_i32(*offset, 8, true, &source_of_frame)?
+                }
+                I32Load16Unsign(_, offset) => {
+                    self.load_data_to_i32(*offset, 16, false, &source_of_frame)?
+                }
+                I32Load16Sign(_, offset) => {
+                    self.load_data_to_i32(*offset, 16, true, &source_of_frame)?
+                }
 
-                I64Load(_, offset) => self.load_data_to_i64(*offset, 64, true)?,
-                I64Load8Unsign(_, offset) => self.load_data_to_i64(*offset, 8, false)?,
-                I64Load8Sign(_, offset) => self.load_data_to_i64(*offset, 8, true)?,
-                I64Load16Unsign(_, offset) => self.load_data_to_i64(*offset, 16, false)?,
-                I64Load16Sign(_, offset) => self.load_data_to_i64(*offset, 16, true)?,
-                I64Load32Unsign(_, offset) => self.load_data_to_i64(*offset, 32, false)?,
-                I64Load32Sign(_, offset) => self.load_data_to_i64(*offset, 32, true)?,
+                I64Load(_, offset) => self.load_data_to_i64(*offset, 64, true, &source_of_frame)?,
+                I64Load8Unsign(_, offset) => {
+                    self.load_data_to_i64(*offset, 8, false, &source_of_frame)?
+                }
+                I64Load8Sign(_, offset) => {
+                    self.load_data_to_i64(*offset, 8, true, &source_of_frame)?
+                }
+                I64Load16Unsign(_, offset) => {
+                    self.load_data_to_i64(*offset, 16, false, &source_of_frame)?
+                }
+                I64Load16Sign(_, offset) => {
+                    self.load_data_to_i64(*offset, 16, true, &source_of_frame)?
+                }
+                I64Load32Unsign(_, offset) => {
+                    self.load_data_to_i64(*offset, 32, false, &source_of_frame)?
+                }
+                I64Load32Sign(_, offset) => {
+                    self.load_data_to_i64(*offset, 32, true, &source_of_frame)?
+                }
 
                 F32Load(_, offset) => {
-                    let value = self.load_data_f32(*offset, 32)?;
+                    let value = self.load_data_f32(*offset, 32, &source_of_frame)?;
                     self.stack
                         .push(StackEntry::new_value(Values::F32(value as f32)))?;
                 }
 
                 F64Load(_, offset) => {
-                    let value = self.load_data_f64(*offset, 64)?;
+                    let value = self.load_data_f64(*offset, 64, &source_of_frame)?;
                     self.stack
                         .push(StackEntry::new_value(Values::F64(value as f64)))?;
                 }
 
-                I32Store(_, offset) => impl_store_inst!(32, self, offset),
-                F32Store(_, offset) => impl_store_inst!(32, self, offset),
-                I64Store(_, offset) => impl_store_inst!(64, self, offset),
-                F64Store(_, offset) => impl_store_inst!(64, self, offset),
-                I32Store8(_, offset) => impl_store_inst!(8, self, offset),
-                I32Store16(_, offset) => impl_store_inst!(16, self, offset),
-                I64Store8(_, offset) => impl_store_inst!(8, self, offset),
-                I64Store16(_, offset) => impl_store_inst!(16, self, offset),
-                I64Store32(_, offset) => impl_store_inst!(32, self, offset),
+                I32Store(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
+                F32Store(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
+                I64Store(_, offset) => impl_store_inst!(64, self, offset, &source_of_frame),
+                F64Store(_, offset) => impl_store_inst!(64, self, offset, &source_of_frame),
+                I32Store8(_, offset) => impl_store_inst!(8, self, offset, &source_of_frame),
+                I32Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
+                I64Store8(_, offset) => impl_store_inst!(8, self, offset, &source_of_frame),
+                I64Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
+                I64Store32(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
 
                 F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
                 F32Abs | F64Abs => impl_unary_inst!(self, abs),
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 MemorySize => {
-                    let page_size = self.store.size_by_pages();
+                    let memory_instances = self.get_memory_instances(&source_of_frame)?;
+                    let page_size = memory_instances.size_by_pages();
                     self.stack
                         .push(StackEntry::new_value(Values::I32(page_size as i32)))?;
                 }
                 MemoryGrow => {
-                    let page_size = self.store.size_by_pages();
+                    let memory_instances = self.get_memory_instances(&source_of_frame)?;
+                    let page_size = memory_instances.size_by_pages();
                     let n = self.stack.pop_value_ext_i32() as u32;
-                    let result = match self.store.memory_grow(n) {
+                    let result = match memory_instances.memory_grow(n) {
                         Ok(()) => (page_size as i32),
                         Err(Trap::FailToGrow) => -1,
                         _ => unreachable!(),

@@ -11,7 +11,7 @@ use core::default::Default;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstances, GlobalType};
 use inst::Inst;
-use memory::{Limit, MemoryInstance};
+use memory::{Limit, MemoryInstance, MemoryInstances};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
 };
@@ -135,7 +135,7 @@ impl Section {
     imports: &Vec<ExternalInterface>,
     external_modules: &ExternalModules,
     global_instances: &GlobalInstances,
-  ) -> Result<Vec<MemoryInstance>> {
+  ) -> Result<MemoryInstances> {
     // NOTE: Currently WASM specification assumed only one memory instance;
     let memory_idx = 0;
     let export_name = exports
@@ -148,21 +148,21 @@ impl Section {
       .collect::<Result<Vec<MemoryInstance>>>()?;
 
     if let Some(limit) = limits.get(memory_idx as usize) {
-      Ok(vec![MemoryInstance::new(
+      Ok(MemoryInstances::new(vec![MemoryInstance::new(
         datas,
         limit.to_owned(),
         export_name,
         global_instances,
-      )?])
+      )?]))
     } else if let Some(memory_instance) = external_memory_types.get(memory_idx as usize) {
-      Ok(vec![MemoryInstance::new(
+      Ok(MemoryInstances::new(vec![MemoryInstance::new(
         datas,
         memory_instance.limit.to_owned(),
         export_name,
         global_instances,
-      )?])
+      )?]))
     } else {
-      Ok(vec![])
+      Ok(MemoryInstances::empty())
     }
   }
 

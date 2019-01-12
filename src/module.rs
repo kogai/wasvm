@@ -11,7 +11,7 @@ use decode::TableType;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
 use hashbrown::HashMap;
-use memory::{Limit, MemoryInstance};
+use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
 use table::{TableInstance, TableInstances};
 use trap::{Result, Trap};
@@ -191,8 +191,7 @@ impl InternalModule {
 pub struct ExternalModule {
   pub function_instances: Vec<Rc<FunctionInstance>>,
   function_types: Vec<FunctionType>,
-  // FIXME: Change to MemoryType(Limit)?
-  memory_instances: Vec<MemoryInstance>,
+  pub(crate) memory_instances: MemoryInstances,
   table_instances: TableInstances,
   global_instances: GlobalInstances,
 }
@@ -209,7 +208,7 @@ impl ExternalModule {
     ExternalModule {
       function_instances,
       function_types,
-      memory_instances,
+      memory_instances: MemoryInstances::new(memory_instances),
       table_instances: TableInstances::new(table_instances),
       global_instances: GlobalInstances::new(global_instances),
     }
@@ -277,10 +276,8 @@ impl ExternalModule {
       } => {
         let instance = self
           .memory_instances
-          .iter()
-          .find(|instance| instance.export_name == Some(name.to_owned()))
-          .ok_or(Trap::UnknownImport)
-          .map(|x| x.clone())?;
+          .clone_instance_by_name(name)
+          .ok_or(Trap::UnknownImport)?;
         if &instance.limit > limit {
           Err(Trap::IncompatibleImportType)
         } else {
@@ -297,7 +294,7 @@ impl Default for ExternalModule {
     ExternalModule {
       function_instances: vec![],
       function_types: vec![],
-      memory_instances: vec![],
+      memory_instances: MemoryInstances::empty(),
       table_instances: TableInstances::empty(),
       global_instances: GlobalInstances::empty(),
     }

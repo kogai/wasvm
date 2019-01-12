@@ -1,6 +1,8 @@
 use alloc::prelude::*;
+use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::cell::RefCell;
 use core::cmp::{Ordering, PartialOrd};
 use core::fmt;
 use core::mem::transmute;
@@ -234,5 +236,101 @@ impl fmt::Debug for MemoryInstance {
       self.data.len(),
       self.limit
     )
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct MemoryInstances(Rc<RefCell<Vec<MemoryInstance>>>);
+
+impl MemoryInstances {
+  pub fn new(memory_instances: Vec<MemoryInstance>) -> Self {
+    MemoryInstances(Rc::new(RefCell::new(memory_instances)))
+  }
+
+  pub fn empty() -> Self {
+    MemoryInstances(Rc::new(RefCell::new(vec![])))
+  }
+
+  pub fn data_size_small_than(&self, ptr: u32) -> bool {
+    // FIXME: Use macro for commonize same borrowing procedure.
+    self
+      .0
+      .borrow()
+      .get(0)
+      .expect("At least one memory instance expected")
+      .data_size_smaller_than(ptr)
+  }
+
+  pub fn load_data_32(&self, from: u32, to: u32) -> u32 {
+    self
+      .0
+      .borrow()
+      .get(0)
+      .expect("At least one memory instance expected")
+      .load_data_32(from, to)
+  }
+
+  pub fn load_data_64(&self, from: u32, to: u32) -> u64 {
+    self
+      .0
+      .borrow()
+      .get(0)
+      .expect("At least one memory instance expected")
+      .load_data_64(from, to)
+  }
+
+  pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
+    self
+      .0
+      .borrow()
+      .get(0)
+      .expect("At least one memory instance expected")
+      .load_data_f32(from, to)
+  }
+
+  pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
+    self
+      .0
+      .borrow()
+      .get(0)
+      .expect("At least one memory instance expected")
+      .load_data_f64(from, to)
+  }
+
+  pub fn size_by_pages(&self) -> u32 {
+    self
+      .0
+      .borrow()
+      .get(0)
+      .expect("At least one memory instance expected")
+      .size_by_pages()
+  }
+
+  pub fn store_data(&self, from: u32, to: u32, value: Values) {
+    self
+      .0
+      .borrow_mut()
+      .get_mut(0)
+      .expect("At least one memory instance expected")
+      .store_data(from, to, value)
+  }
+
+  pub fn memory_grow(&self, increase_page: u32) -> Result<()> {
+    self
+      .0
+      .borrow_mut()
+      .get_mut(0)
+      .expect("At least one memory instance expected")
+      .memory_grow(increase_page)
+  }
+
+  pub fn clone_instance_by_name(&self, name: &String) -> Option<MemoryInstance> {
+    let instance = self.0.borrow().get(0)?.clone();
+
+    if instance.export_name == Some(name.to_owned()) {
+      Some(instance)
+    } else {
+      None
+    }
   }
 }

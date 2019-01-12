@@ -100,6 +100,7 @@ impl TableInstances {
     table_instance.map(|x| x.clone())
   }
 
+  // FIXME: Rename to `link`
   pub fn update(
     &self,
     elements: Vec<Element>,
