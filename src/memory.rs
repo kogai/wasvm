@@ -109,12 +109,12 @@ pub struct MemoryInstance {
 }
 
 macro_rules! impl_load_data {
-  ($name: ident, $ty: ty) => {
+  ($name: ident, $ty: ty, $conv_fn: path) => {
     pub fn $name(&self, from: u32, to: u32) -> $ty {
       let data = &self.data[(from as usize)..(to as usize)];
       let mut bit_buf: $ty = 0;
       for (idx, d) in data.iter().enumerate() {
-        let bits = (*d as $ty) << idx * 8;
+        let bits = $conv_fn(*d) << idx * 8;
         bit_buf ^= bits;
       }
       bit_buf
@@ -135,6 +135,9 @@ macro_rules! impl_store_data {
 }
 
 impl MemoryInstance {
+  impl_load_data!(load_data_32, u32, u32::from);
+  impl_load_data!(load_data_64, u64, u64::from);
+
   pub fn new(
     datas: Vec<Data>,
     limit: Limit,
@@ -254,9 +257,6 @@ impl MemoryInstance {
       }
     }
   }
-
-  impl_load_data!(load_data_32, u32);
-  impl_load_data!(load_data_64, u64);
 
   pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
     f32::from_bits(self.load_data_32(from, to))
