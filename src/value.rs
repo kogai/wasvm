@@ -141,12 +141,15 @@ macro_rules! impl_integer_traits {
         }
       }
       fn count_leading_zero(&self) -> Self {
+        #![allow(clippy::cast_lossless)]
         self.leading_zeros() as $ty
       }
       fn count_trailing_zero(&self) -> Self {
+        #![allow(clippy::cast_lossless)]
         self.trailing_zeros() as $ty
       }
       fn pop_count(&self) -> Self {
+        #![allow(clippy::cast_lossless)]
         self.count_ones() as $ty
       }
 
@@ -477,6 +480,7 @@ trait TruncFloat<T> {
 macro_rules! impl_try_trunc {
   ($from: ty, $to: ty) => {
     impl TruncFloat<$to> for $from {
+      #![allow(clippy::cast_lossless)]
       fn try_trunc_to(&self) -> Result<$to> {
         if self.is_nan() {
           return Err(Trap::InvalidConversionToInt);
