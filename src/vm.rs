@@ -226,7 +226,6 @@ impl Vm {
         use self::Inst::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
-            println!("{:?}", expression);
             match expression {
                 Unreachable => return Err(Trap::Unreachable),
                 Return => {

@@ -7,7 +7,7 @@ authors = ["Shinichi Kogai <kogai0121@gmail.com>"]
 hashbrown = "0.1"
 
 [dev-dependencies]
-wabt = "0.7.1"
+wabt = "0.7.3"
 flame = "0.2.2"
 
 [[bin]]
