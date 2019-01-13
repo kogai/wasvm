@@ -4,7 +4,6 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
 use frame::Frame;
-use function::FunctionInstance;
 use label::{Label, LabelKind};
 use trap::{Result, Trap};
 use value::Values;
@@ -129,8 +128,8 @@ pub struct Stack {
   stack_size: usize,
   operand_stack: RefCell<Vec<Rc<StackEntry>>>,
   call_stack: RefCell<Vec<Frame>>,
-  stack_ptr: usize,
-  pub frame_ptr: usize,
+  pub(crate) stack_ptr: usize,
+  pub(crate) frame_ptr: usize,
 }
 
 impl Stack {
@@ -192,14 +191,8 @@ impl Stack {
     }
   }
 
-  pub fn push_frame(
-    &self,
-    function_instance: Rc<FunctionInstance>,
-    arguments: &mut Vec<Rc<StackEntry>>,
-  ) -> Result<()> {
-    let frame = Frame::new(self.stack_ptr, function_instance, arguments);
-    let mut calls = self.call_stack.borrow_mut();
-    calls.push(frame);
+  pub fn push_frame(&self, frame: Frame) -> Result<()> {
+    self.call_stack.borrow_mut().push(frame);
     Ok(())
   }
 
@@ -309,10 +302,6 @@ impl Stack {
   }
 
   impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);
-  // NOTE: May not needed?
-  // impl_pop_value_ext!(pop_value_ext_i64, Values::I64, i64);
-  // impl_pop_value_ext!(pop_value_ext_f32, Values::F32, f32);
-  // impl_pop_value_ext!(pop_value_ext_f64, Values::F64, f64);
 
   pub fn get_frame_ptr(&mut self) -> usize {
     self.frame_ptr

@@ -153,7 +153,8 @@ impl Vm {
                 };
                 if let Some(idx) = vm.internal_module.start {
                     let function_instance = vm.store.get_function_instance(idx as usize)?;
-                    vm.stack.push_frame(function_instance, &mut vec![])?;
+                    let frame = Frame::new(vm.stack.stack_ptr, function_instance, &mut vec![]);
+                    vm.stack.push_frame(frame)?;
                     vm.evaluate()?;
                     vm.stack = Stack::new(65536);
                 };
@@ -333,7 +334,8 @@ impl Vm {
                     for _ in 0..arity {
                         arguments.push(self.stack.pop()?);
                     }
-                    self.stack.push_frame(function_instance, &mut arguments)?;
+                    let frame = Frame::new(self.stack.stack_ptr, function_instance, &mut arguments);
+                    self.stack.push_frame(frame)?;
                     break;
                 }
                 CallIndirect(idx) => {
@@ -367,7 +369,8 @@ impl Vm {
                         }
                         arg
                     };
-                    self.stack.push_frame(function_instance, &mut arguments)?;
+                    let frame = Frame::new(self.stack.stack_ptr, function_instance, &mut arguments);
+                    self.stack.push_frame(frame)?;
                     break;
                 }
                 GetLocal(idx) => self.get_local(*idx)?,
@@ -622,9 +625,12 @@ impl Vm {
                     argument_entries.push(StackEntry::new_value(argument));
                 }
                 let function_instance = self.store.get_function_instance(idx as usize).unwrap();
-                let _ = self
-                    .stack
-                    .push_frame(function_instance, &mut argument_entries);
+                let frame = Frame::new(
+                    self.stack.stack_ptr,
+                    function_instance,
+                    &mut argument_entries,
+                );
+                let _ = self.stack.push_frame(frame);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
                         Ok(v) => String::from(v),
