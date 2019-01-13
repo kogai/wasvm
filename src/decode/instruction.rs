@@ -1,6 +1,6 @@
 use super::decodable::{Peekable, SignedIntegerDecodable, U32Decodable};
 use alloc::vec::Vec;
-use inst::Inst;
+use inst::{Indice, Inst};
 use trap::{Result, Trap};
 
 macro_rules! impl_decode_float {
@@ -92,9 +92,9 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           expressions.push(Inst::BrTable(tables, idx))
         }
         Code::Return => expressions.push(Inst::Return),
-        Code::Call => expressions.push(Inst::Call(self.decode_leb128_u32()? as usize)),
+        Code::Call => expressions.push(Inst::Call(Indice::from(self.decode_leb128_u32()?))),
         Code::CallIndirect => {
-          expressions.push(Inst::CallIndirect(self.decode_leb128_u32()?));
+          expressions.push(Inst::CallIndirect(Indice::from(self.decode_leb128_u32()?)));
           self.next(); // Drop code 0x00.
         }
 

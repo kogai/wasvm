@@ -1,6 +1,5 @@
 use alloc::prelude::*;
 use alloc::rc::Rc;
-use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::{RefCell, RefMut};
 use core::fmt;
@@ -16,13 +15,15 @@ pub struct Frame {
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
   pub(crate) function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,
-  pub last_ptr: u32,
+  pub last_ptr: u32, // Indices of instructions.
   pub return_ptr: usize,
+  pub prev_return_ptr: usize,
 }
 
 impl Frame {
   pub fn new(
     return_ptr: usize,
+    prev_return_ptr: usize,
     function_instance: Rc<FunctionInstance>,
     arguments: &mut Vec<Rc<StackEntry>>,
   ) -> Self {
@@ -35,6 +36,7 @@ impl Frame {
       function_instance,
       last_ptr,
       return_ptr,
+      prev_return_ptr,
       ptr: RefCell::new(0),
     }
   }
@@ -114,21 +116,13 @@ impl Frame {
 
 impl fmt::Debug for Frame {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    // NOTE: Omit to present expressions and types would be worth :thinking: .
-    let locals = self
-      .local_variables
-      .borrow()
-      .iter()
-      .map(|x| format!("{:?}", x))
-      .collect::<Vec<String>>()
-      .join(", ");
-    write!(
-      f,
-      "{:?} locals: ({}) ptr: {} return:{}",
-      self.function_instance.get_function_type(),
-      locals,
-      self.ptr.borrow(),
-      self.return_ptr,
-    )
+    f.debug_struct("Frame")
+      .field(
+        "type",
+        &format!("{:?}", self.function_instance.get_function_type()),
+      )
+      .field("ptr", &self.ptr)
+      .field("return_ptr", &self.return_ptr)
+      .finish()
   }
 }

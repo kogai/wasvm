@@ -1,7 +1,33 @@
 use alloc::vec::Vec;
+use core::convert::From;
 use core::convert::Into;
 use value::Values;
 use value_type::ValueTypes;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Indice(u32);
+
+impl From<u32> for Indice {
+  fn from(n: u32) -> Self {
+    Indice(n)
+  }
+}
+
+impl From<usize> for Indice {
+  fn from(n: usize) -> Self {
+    Indice(n as u32)
+  }
+}
+
+impl Indice {
+  pub fn into_usize(&self) -> usize {
+    self.0 as usize
+  }
+
+  pub fn into_u32(&self) -> u32 {
+    self.0
+  }
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Inst {
@@ -16,8 +42,8 @@ pub enum Inst {
   BrIf(u32),
   BrTable(Vec<u32>, u32),
   Return,
-  Call(usize), // FIXME: Change to u32
-  CallIndirect(u32),
+  Call(Indice),
+  CallIndirect(Indice),
 
   I32Const(i32),
   I64Const(i64),

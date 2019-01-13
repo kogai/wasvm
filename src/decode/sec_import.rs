@@ -38,7 +38,7 @@ impl Decodable for Section {
           ImportDescriptor::Global(global_type)
         }
       };
-      imports.insert(ExternalInterface::new(
+      imports.push(ExternalInterface::new(
         Some(module_name),
         name,
         ModuleDescriptor::ImportDescriptor(import_descriptor),

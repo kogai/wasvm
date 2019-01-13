@@ -252,7 +252,6 @@ impl Section {
         limits
           .get(memory_idx as usize)
           .map(|limit| limit.to_owned()),
-        imports.get(memory_idx as usize)?,
         datas,
         global_instances,
       )
@@ -293,7 +292,7 @@ impl Section {
         Some(import) => external_modules
           .find_table_instances(import)
           .map(|table_instances| {
-            table_instances.update(elements.clone(), global_instances, function_instances)?;
+            table_instances.link(elements.clone(), global_instances, function_instances)?;
             Ok(table_instances)
           })?,
         None => Ok(TableInstances::empty()),
