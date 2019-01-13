@@ -378,20 +378,20 @@ macro_rules! impl_float_traits {
   ($ty: ty) => {
     impl ArithmeticFloat for $ty {
       fn equal_zero(&self) -> i32 {
-        if self == &0.0 {
+        if *self == 0.0 {
           1
         } else {
           0
         }
       }
       fn count_leading_zero(&self) -> Self {
-        unimplemented!()
+        unreachable!();
       }
       fn count_trailing_zero(&self) -> Self {
-        unimplemented!()
+        unreachable!();
       }
       fn pop_count(&self) -> Self {
-        unimplemented!()
+        unreachable!();
       }
       fn wrapping_add(&self, x: Self) -> Self {
         self + x
@@ -445,19 +445,19 @@ macro_rules! impl_float_traits {
         }
       }
       fn shift_left(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn shift_right_sign(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn shift_right_unsign(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn wasm_rotate_left(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn wasm_rotate_right(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn copy_sign(&self, other: Self) -> Self {
         if (self.is_sign_positive() == other.is_sign_positive())

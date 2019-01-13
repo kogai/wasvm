@@ -209,18 +209,18 @@ impl Stack {
     if self.stack_ptr >= self.stack_size {
       return None;
     }
-    if self.stack_ptr <= 0 {
+    if self.stack_ptr == 0 {
       return None;
     }
     self
       .operand_stack
       .borrow_mut()
       .get(self.stack_ptr - 1)
-      .map(|x| x.clone())
+      .cloned()
   }
 
   pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
-    if self.stack_ptr <= 0 {
+    if self.stack_ptr == 0 {
       return Err(Trap::StackUnderflow);
     }
     self.stack_ptr -= 1;

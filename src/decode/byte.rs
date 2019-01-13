@@ -300,7 +300,7 @@ mod tests {
         I32Add,
         I64ExtendUnsignI32,
         I64Mul,
-        I64Const(8589934591),
+        I64Const(8_589_934_591),
         I64And,
         I64Const(1),
         I64ShiftRightUnsign,

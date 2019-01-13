@@ -19,8 +19,8 @@ macro_rules! impl_decode_leb128 {
       //        +------------+------------+
       loop {
         let raw_code = self.next()?;
-        let is_msb_zero = raw_code & 0b10000000 == 0;
-        let num = (raw_code & 0b01111111) as $ty; // Drop leftmost bit
+        let is_msb_zero = raw_code & 0b1000_0000 == 0;
+        let num = (raw_code & 0b0111_1111) as $ty; // Drop leftmost bit
         // buf =      00000000_00000000_10000000_00000000
         // num =      00000000_00000000_00000000_00000001
         // num << 7 = 00000000_00000000_00000000_10000000

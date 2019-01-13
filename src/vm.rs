@@ -238,15 +238,13 @@ impl Vm {
                     } else {
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
                         let label = self.stack.pop_label_ext();
-                        match &label {
-                            Label {
-                                source_instruction: LabelKind::If,
-                                continuation,
-                                ..
-                            } => {
-                                frame.jump_to(*continuation);
-                            }
-                            _ => {}
+                        if let Label {
+                            source_instruction: LabelKind::If,
+                            continuation,
+                            ..
+                        } = &label
+                        {
+                            frame.jump_to(*continuation);
                         };
                         self.stack.push_entries(&mut buf_values)?;
                     }

@@ -359,9 +359,9 @@ impl Section {
         tables,
         elements,
         globals,
-        customs: _,
         imports,
         start,
+        ..
       } => {
         let grouped_imports = imports.group_by_kind();
         let imports_function = grouped_imports.get(&ModuleDescriptorKind::Function)?;
