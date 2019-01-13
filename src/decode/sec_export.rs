@@ -17,7 +17,7 @@ impl Decodable for Section {
     for _ in 0..count_of_section {
       let name = self.decode_name()?;
       let export_descriptor = ExportDescriptor::from((self.next(), self.decode_leb128_u32()?));
-      exports.insert(ExternalInterface::new(
+      exports.push(ExternalInterface::new(
         None,
         name,
         ModuleDescriptor::ExportDescriptor(export_descriptor),

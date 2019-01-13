@@ -330,9 +330,9 @@ impl Vm {
                         Some(module_name) => self
                             .external_modules
                             // FIXME: Drop owning of name to search something.
-                            .get_function_instance(&Some(module_name.to_owned()), *idx)
+                            .get_function_instance(&Some(module_name.to_owned()), idx.into_usize())
                             .map(|x| x.clone())?,
-                        None => self.store.get_function_instance(*idx)?,
+                        None => self.store.get_function_instance(idx.into_usize())?,
                     };
                     let arity = function_instance.get_arity();
                     let mut arguments = vec![];
@@ -349,7 +349,7 @@ impl Vm {
                     break;
                 }
                 CallIndirect(idx) => {
-                    // FIXME: Due to only single table instance allowed, `ta` always equal to 0.
+                    // NOTE: Due to only single table instance allowed, `ta` always equal to 0.
                     let ta = frame.get_table_address();
                     let table = match &source_of_frame {
                         Some(module_name) => self
@@ -367,8 +367,8 @@ impl Vm {
                         let expect_fn_ty = &match &source_of_frame {
                             Some(module_name) => self
                                 .external_modules
-                                .get_function_type(&Some(module_name.to_owned()), *idx)?,
-                            None => self.store.get_function_type(*idx)?.clone(),
+                                .get_function_type(&Some(module_name.to_owned()), idx.into_u32())?,
+                            None => self.store.get_function_type(idx.into_u32())?.clone(),
                         };
                         if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);

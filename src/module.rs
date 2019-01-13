@@ -100,8 +100,7 @@ impl ExternalInterfaces {
     ExternalInterfaces(vec![])
   }
 
-  // FIXME: Rename to push.
-  pub fn insert(&mut self, value: ExternalInterface) {
+  pub fn push(&mut self, value: ExternalInterface) {
     self.0.push(value);
   }
 
