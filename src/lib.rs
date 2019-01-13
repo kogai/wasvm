@@ -54,15 +54,6 @@ mod tests {
         };
     }
 
-    #[test]
-    fn repl() {
-        println!("{}", std::f32::NAN);
-        println!("{}", std::f32::INFINITY);
-        println!("{}", std::f64::NAN);
-        println!("{}", 16777216u32);
-        println!("{}", 16777216i32);
-        println!("{}", 0x1000000);
-    }
     test_eval!(evaluate_cons8, "cons8", vec![], 42);
     test_eval!(
         evaluate_add_simple,

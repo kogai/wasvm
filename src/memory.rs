@@ -115,7 +115,7 @@ macro_rules! impl_load_data {
       let mut bit_buf: $ty = 0;
       for (idx, d) in data.iter().enumerate() {
         let bits = (*d as $ty) << idx * 8;
-        bit_buf = bit_buf ^ bits;
+        bit_buf ^= bits;
       }
       bit_buf
     }
@@ -195,15 +195,12 @@ impl MemoryInstance {
 
   fn validate(
     &mut self,
-    datas: &Vec<Data>,
+    datas: &[Data],
     limit: &Option<Limit>,
     global_instances: &GlobalInstances,
   ) -> Result<()> {
     let initial_size = match limit {
-      Some(limit) => {
-        let initial_size = limit.initial_min_size();
-        initial_size
-      }
+      Some(limit) => limit.initial_min_size(),
       None => self.limit.initial_min_size(),
     };
     for Data { offset, init, .. } in datas.into_iter() {
@@ -240,7 +237,7 @@ impl MemoryInstance {
   pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
     match self.limit {
       Limit::HasUpperLimit(_, max) if self.size_by_pages() + increase_page > max => {
-        return Err(Trap::FailToGrow)
+        Err(Trap::FailToGrow)
       }
       _ => {
         let current_size = self.data.len() as u32;
@@ -274,12 +271,12 @@ impl MemoryInstance {
   impl_store_data!(store_data_i64, 8, i64);
   impl_store_data!(store_data_f64, 8, f64);
 
-  pub fn store_data(&mut self, from: u32, to: u32, value: Values) {
+  pub fn store_data(&mut self, from: u32, to: u32, value: &Values) {
     match value {
-      Values::I32(v) => self.store_data_i32(v, from, to),
-      Values::F32(v) => self.store_data_f32(v, from, to),
-      Values::I64(v) => self.store_data_i64(v, from, to),
-      Values::F64(v) => self.store_data_f64(v, from, to),
+      Values::I32(v) => self.store_data_i32(*v, from, to),
+      Values::F32(v) => self.store_data_f32(*v, from, to),
+      Values::I64(v) => self.store_data_i64(*v, from, to),
+      Values::F64(v) => self.store_data_f64(*v, from, to),
     };
   }
 
@@ -339,7 +336,7 @@ impl MemoryInstances {
     that: &MemoryInstances,
     limit: &Option<Limit>,
     import: &ExternalInterface,
-    datas: &Vec<Data>,
+    datas: &[Data],
     global_instances: &GlobalInstances,
   ) -> Result<()> {
     that
@@ -425,7 +422,7 @@ impl MemoryInstances {
       .size_by_pages()
   }
 
-  pub fn store_data(&self, from: u32, to: u32, value: Values) {
+  pub fn store_data(&self, from: u32, to: u32, value: &Values) {
     self
       .0
       .borrow_mut()
@@ -443,9 +440,8 @@ impl MemoryInstances {
       .memory_grow(increase_page)
   }
 
-  pub fn clone_instance_by_name(&self, name: &String) -> Option<MemoryInstance> {
+  pub fn clone_instance_by_name(&self, name: &str) -> Option<MemoryInstance> {
     let instance = self.0.borrow().get(0)?.clone();
-
     if instance.export_name == Some(name.to_owned()) {
       Some(instance)
     } else {

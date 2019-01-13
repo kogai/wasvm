@@ -34,7 +34,7 @@ impl Store {
   }
 
   pub fn get_function_instance(&self, fn_idx: usize) -> Option<Rc<FunctionInstance>> {
-    self.function_instances.get(fn_idx).map(|x| x.clone())
+    self.function_instances.get(fn_idx).cloned()
   }
 
   pub fn get_function_type(&self, idx: u32) -> Option<&FunctionType> {

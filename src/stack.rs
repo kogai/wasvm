@@ -50,7 +50,7 @@ impl StackEntry {
     Rc::new(StackEntry::Label(Label {
       continuation,
       return_type,
-      source_instruction: source_instruction,
+      source_instruction,
     }))
   }
 
@@ -138,7 +138,7 @@ impl Stack {
   }
 
   pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
-    self.operand_stack.borrow().get(ptr).map(|x| x.clone())
+    self.operand_stack.borrow().get(ptr).cloned()
   }
 
   pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) -> Result<()> {
@@ -268,7 +268,6 @@ impl Stack {
         ..
       }) => continuation,
       Some(Label {
-        return_type: _,
         continuation,
         source_instruction,
         ..

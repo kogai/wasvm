@@ -10,7 +10,7 @@ use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 use wasvm::{create_spectest, ExternalModules, Trap, Values, Vm};
 
-fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
+fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
   args
     .iter()
     .map(|v| match v {
@@ -22,7 +22,7 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
     .collect()
 }
 
-fn get_expectation(expected: &Vec<Value>) -> String {
+fn get_expectation(expected: &[Value]) -> String {
   match expected.get(0) {
     Some(Value::I32(v)) => format!("i32:{}", v),
     Some(Value::I64(v)) => format!("i64:{}", v),

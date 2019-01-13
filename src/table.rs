@@ -23,7 +23,7 @@ impl TableInstance {
     table_type: TableType,
     export_name: Option<String>,
     global_instances: &GlobalInstances,
-    function_instances: &Vec<Rc<FunctionInstance>>,
+    function_instances: &[Rc<FunctionInstance>],
   ) -> Result<Self> {
     let table_size = match table_type.limit {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
@@ -32,7 +32,7 @@ impl TableInstance {
     for el in elements.into_iter() {
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => {
-          if offset < &0 {
+          if *offset < 0 {
             return Err(Trap::ElementSegmentDoesNotFit);
           }
           *offset
@@ -55,18 +55,18 @@ impl TableInstance {
   }
 
   pub fn validate(
-    elements: &Vec<Element>,
+    elements: &[Element],
     table_type: &TableType,
     global_instances: &GlobalInstances,
-    function_instances: &Vec<Rc<FunctionInstance>>,
+    function_instances: &[Rc<FunctionInstance>],
   ) -> Result<()> {
     let table_size = match table_type.limit {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
     } as usize;
-    for el in elements.into_iter() {
+    for el in elements.iter() {
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => {
-          if offset < &0 {
+          if *offset < 0 {
             return Err(Trap::ElementSegmentDoesNotFit);
           }
           *offset
@@ -108,7 +108,7 @@ impl TableInstances {
     TableInstances::new(vec![])
   }
 
-  pub fn find_by_name(&self, name: &String) -> bool {
+  pub fn find_by_name(&self, name: &str) -> bool {
     match self.0.borrow().first() {
       Some(table_instance) => table_instance.export_name == Some(name.to_owned()),
       None => false,
@@ -125,15 +125,14 @@ impl TableInstances {
 
   pub fn get_table_at<'a>(&'a self, idx: u32) -> Option<TableInstance> {
     let table_instances = self.0.borrow();
-    let table_instance = table_instances.get(idx as usize);
-    table_instance.map(|x| x.clone())
+    table_instances.get(idx as usize).cloned()
   }
 
   pub fn link(
     &self,
-    elements: Vec<Element>,
+    elements: &[Element],
     global_instances: &GlobalInstances,
-    function_instances: &Vec<Rc<FunctionInstance>>,
+    function_instances: &[Rc<FunctionInstance>],
   ) -> Result<()> {
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
@@ -154,9 +153,9 @@ impl TableInstances {
 
   pub fn validate(
     &self,
-    elements: &Vec<Element>,
+    elements: &[Element],
     global_instances: &GlobalInstances,
-    function_instances: &Vec<Rc<FunctionInstance>>,
+    function_instances: &[Rc<FunctionInstance>],
   ) -> Result<()> {
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
@@ -165,7 +164,7 @@ impl TableInstances {
     for el in elements.iter() {
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => {
-          if offset < &0 {
+          if *offset < 0 {
             return Err(Trap::ElementSegmentDoesNotFit);
           }
           *offset

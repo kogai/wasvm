@@ -68,7 +68,7 @@ macro_rules! impl_store_inst {
         if overflowed || memory_instances.data_size_small_than(ptr) {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        memory_instances.store_data(effective_address, ptr, c);
+        memory_instances.store_data(effective_address, ptr, &c);
     }};
 }
 
@@ -147,7 +147,7 @@ impl Vm {
                 let (store, internal_module) = section.complete(external_modules.clone())?;
                 let mut vm = Vm {
                     store,
-                    internal_module: internal_module,
+                    internal_module,
                     stack: Stack::new(65536),
                     external_modules,
                 };

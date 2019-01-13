@@ -66,7 +66,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         Code::If => {
           let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
           let mut if_insts = self.decode_instructions()?;
-          let last = if_insts.last().map(|x| x.clone());
+          let last = if_insts.last().cloned();
 
           let mut else_insts = match last {
             Some(Inst::Else) => self.decode_instructions()?,

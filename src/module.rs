@@ -51,6 +51,7 @@ pub enum ModuleDescriptor {
   ExportDescriptor(ExportDescriptor),
 }
 
+// FIXME: As using simply label, prefer to define constant of those variants.
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub enum ModuleDescriptorKind {
   Function,
@@ -107,25 +108,25 @@ impl ExternalInterfaces {
   pub fn find_kind_by_idx(
     &self,
     idx: u32,
-    kind: ModuleDescriptorKind,
+    kind: &ModuleDescriptorKind,
   ) -> Option<&ExternalInterface> {
     self
       .0
       .iter()
       .find(|ExternalInterface { descriptor, .. }| match descriptor {
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
-          ModuleDescriptorKind::Function == kind && *x == idx
+          &ModuleDescriptorKind::Function == kind && *x == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
-          ModuleDescriptorKind::Table == kind && *x == idx
+          &ModuleDescriptorKind::Table == kind && *x == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
-          ModuleDescriptorKind::Memory == kind && *x == idx
+          &ModuleDescriptorKind::Memory == kind && *x == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
-          ModuleDescriptorKind::Global == kind && *x == idx
+          &ModuleDescriptorKind::Global == kind && *x == idx
         }
-        _ => unimplemented!(),
+        _ => unreachable!(),
       })
   }
 
@@ -211,7 +212,7 @@ impl ExternalModule {
   fn find_function_instance(
     &self,
     key: &ExternalInterface,
-    function_types: &Vec<FunctionType>,
+    function_types: &[FunctionType],
   ) -> Result<Rc<FunctionInstance>> {
     match key {
       ExternalInterface {
@@ -294,7 +295,8 @@ impl ExternalModules {
   }
 
   pub fn get(&self, module_name: &ModuleName) -> Option<ExternalModule> {
-    self.0.borrow().get(module_name).map(|x| x.clone())
+    self.0.borrow().get(module_name)
+      .cloned()
   }
 
   pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) {
@@ -336,14 +338,14 @@ impl ExternalModules {
       .ok_or(Trap::UnknownImport)?
       .function_instances
       .get(idx)
-      .map(|x| x.clone())
+      .cloned()
       .ok_or(Trap::Notfound)
   }
 
   pub fn find_function_instances(
     &self,
     import: &ExternalInterface,
-    function_types: &Vec<FunctionType>,
+    function_types: &[FunctionType],
   ) -> Result<Rc<FunctionInstance>> {
     self
       .0
@@ -377,6 +379,6 @@ impl ExternalModules {
       .borrow()
       .get(module_name)
       .ok_or(Trap::UnknownImport)
-      .map(|x| (&x).global_instances.clone())
+      .map(|x| x.global_instances.clone())
   }
 }
