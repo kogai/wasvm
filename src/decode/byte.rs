@@ -96,7 +96,7 @@ mod tests {
         assert_eq!(
           bc.decode()
             .unwrap()
-            .complete(ExternalModules::default())
+            .complete(&ExternalModules::default())
             .unwrap()
             .0
             .get_function_instance(0)

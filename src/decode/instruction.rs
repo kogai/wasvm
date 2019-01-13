@@ -10,7 +10,7 @@ macro_rules! impl_decode_float {
       let mut shift = 0;
       for _ in 0..($bitwidth / 8) {
         let num = self.next()? as $buf_ty;
-        buf = buf ^ (num << shift);
+        buf ^= num << shift;
         shift += 8;
       }
       Ok($convert(buf))

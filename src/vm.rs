@@ -144,7 +144,7 @@ impl Vm {
         let mut bytes = Byte::new_with_drop(&bytes)?;
         match bytes.decode() {
             Ok(section) => {
-                let (store, internal_module) = section.complete(external_modules.clone())?;
+                let (store, internal_module) = section.complete(&external_modules)?;
                 let mut vm = Vm {
                     store,
                     internal_module,

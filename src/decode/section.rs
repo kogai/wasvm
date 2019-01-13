@@ -140,10 +140,8 @@ impl Section {
       .get(memory_idx as usize)
       .map(|key| external_modules.find_memory_instances(key));
 
-    if let Some(_) = limits.get(memory_idx as usize) {
-      if external_memory_instances.is_none() {
-        return Ok(());
-      }
+    if limits.get(memory_idx as usize).is_some() && external_memory_instances.is_none() {
+      return Ok(());
     }
     if external_memory_instances.is_some() {
       MemoryInstances::validate(
@@ -168,9 +166,9 @@ impl Section {
     global_instances: &GlobalInstances,
     function_instances: &[Rc<FunctionInstance>],
   ) -> Result<()> {
-    if tables.len() > 0 {
+    if !tables.is_empty() {
       tables
-        .into_iter()
+        .iter()
         .map(|table_type| {
           TableInstance::validate(elements, table_type, global_instances, function_instances)
         })
@@ -239,7 +237,7 @@ impl Section {
     global_instances: &GlobalInstances,
     function_instances: &[Rc<FunctionInstance>],
   ) -> Result<TableInstances> {
-    if tables.len() > 0 {
+    if !tables.is_empty() {
       tables
         .into_iter()
         .map(|table_type| {
@@ -255,7 +253,7 @@ impl Section {
           )
         })
         .collect::<Result<Vec<_>>>()
-        .map(|table_instances| TableInstances::new(table_instances))
+        .map(TableInstances::new)
     } else {
       // NOTE: Only one table instance allowed.
       match imports.first() {
@@ -270,7 +268,7 @@ impl Section {
     }
   }
 
-  fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
+  fn function_type(idx: usize, function_types: &[FunctionType]) -> FunctionType {
     function_types
       .get(idx)
       .expect("Function type can't found.")
@@ -278,8 +276,8 @@ impl Section {
   }
 
   fn function_instances(
-    function_types: &Vec<FunctionType>,
-    functions: Vec<u32>,
+    function_types: &[FunctionType],
+    functions: &[u32],
     exports: &ExternalInterfaces,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
@@ -307,8 +305,8 @@ impl Section {
   }
 
   fn external_function_instances(
-    function_types: &Vec<FunctionType>,
-    imports: &Vec<ExternalInterface>,
+    function_types: &[FunctionType],
+    imports: &[ExternalInterface],
     external_modules: &ExternalModules,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
     imports
@@ -317,7 +315,7 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
-  pub fn complete(self, external_modules: ExternalModules) -> Result<(Store, InternalModule)> {
+  pub fn complete(self, external_modules: &ExternalModules) -> Result<(Store, InternalModule)> {
     match self {
       Section {
         function_types,
@@ -340,7 +338,7 @@ impl Section {
         let imports_global = grouped_imports.get(&ModuleDescriptorKind::Global)?;
 
         let mut internal_function_instances =
-          Section::function_instances(&function_types, functions, &exports, codes)?;
+          Section::function_instances(&function_types, &functions, &exports, codes)?;
 
         let mut function_instances = Section::external_function_instances(
           &function_types,

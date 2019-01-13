@@ -256,7 +256,7 @@ impl Stack {
   pub fn jump_to_label(&mut self, depth_of_label: u32) -> Result<u32> /* point to continue */ {
     let mut buf_values: Vec<Rc<StackEntry>> = vec![];
     let mut label = None;
-    for _ in 0..(depth_of_label + 1) {
+    for _ in 0..=depth_of_label {
       let mut bufs = self.pop_until(&StackEntryKind::Label)?;
       buf_values.append(&mut bufs);
       label = Some(self.pop_label_ext());

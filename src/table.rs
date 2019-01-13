@@ -123,7 +123,7 @@ impl TableInstances {
     }
   }
 
-  pub fn get_table_at<'a>(&'a self, idx: u32) -> Option<TableInstance> {
+  pub fn get_table_at(&self, idx: u32) -> Option<TableInstance> {
     let table_instances = self.0.borrow();
     table_instances.get(idx as usize).cloned()
   }
