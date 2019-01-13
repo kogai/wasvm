@@ -68,7 +68,7 @@ macro_rules! impl_store_inst {
         if overflowed || memory_instances.data_size_small_than(ptr) {
             return Err(Trap::MemoryAccessOutOfBounds);
         };
-        memory_instances.store_data(effective_address, ptr, c);
+        memory_instances.store_data(effective_address, ptr, &c);
     }};
 }
 
@@ -136,18 +136,18 @@ impl Vm {
     impl_load_to!(load_data_to_i32, load_data_32, Values::I32, i32);
     impl_load_to!(load_data_to_i64, load_data_64, Values::I64, i64);
 
-    pub fn new(bytes: Vec<u8>) -> Result<Self> {
-        Vm::new_with_externals(bytes, ExternalModules::new())
+    pub fn new(bytes: &[u8]) -> Result<Self> {
+        Vm::new_with_externals(&bytes, ExternalModules::default())
     }
 
-    pub fn new_with_externals(bytes: Vec<u8>, external_modules: ExternalModules) -> Result<Self> {
-        let mut bytes = Byte::new_with_drop(bytes)?;
+    pub fn new_with_externals(bytes: &[u8], external_modules: ExternalModules) -> Result<Self> {
+        let mut bytes = Byte::new_with_drop(&bytes)?;
         match bytes.decode() {
             Ok(section) => {
-                let (store, internal_module) = section.complete(external_modules.clone())?;
+                let (store, internal_module) = section.complete(&external_modules)?;
                 let mut vm = Vm {
                     store,
-                    internal_module: internal_module,
+                    internal_module,
                     stack: Stack::new(65536),
                     external_modules,
                 };
@@ -238,15 +238,13 @@ impl Vm {
                     } else {
                         let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
                         let label = self.stack.pop_label_ext();
-                        match &label {
-                            Label {
-                                source_instruction: LabelKind::If,
-                                continuation,
-                                ..
-                            } => {
-                                frame.jump_to(*continuation);
-                            }
-                            _ => {}
+                        if let Label {
+                            source_instruction: LabelKind::If,
+                            continuation,
+                            ..
+                        } = &label
+                        {
+                            frame.jump_to(*continuation);
                         };
                         self.stack.push_entries(&mut buf_values)?;
                     }
@@ -305,13 +303,13 @@ impl Vm {
                     }
                 }
                 Br(label) => {
-                    let continuation = self.stack.jump_to_label(label)?;
+                    let continuation = self.stack.jump_to_label(*label)?;
                     frame.jump_to(continuation);
                 }
                 BrIf(l) => {
                     let cond = &self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        let continuation = self.stack.jump_to_label(l)?;
+                        let continuation = self.stack.jump_to_label(*l)?;
                         frame.jump_to(continuation);
                     };
                 }
@@ -322,7 +320,7 @@ impl Vm {
                     } else {
                         idx
                     };
-                    let continuation = self.stack.jump_to_label(l)?;
+                    let continuation = self.stack.jump_to_label(*l)?;
                     frame.jump_to(continuation);
                 }
                 Call(idx) => {
@@ -330,9 +328,9 @@ impl Vm {
                         Some(module_name) => self
                             .external_modules
                             // FIXME: Drop owning of name to search something.
-                            .get_function_instance(&Some(module_name.to_owned()), idx.into_usize())
+                            .get_function_instance(&Some(module_name.to_owned()), idx.to_usize())
                             .map(|x| x.clone())?,
-                        None => self.store.get_function_instance(idx.into_usize())?,
+                        None => self.store.get_function_instance(idx.to_usize())?,
                     };
                     let arity = function_instance.get_arity();
                     let mut arguments = vec![];
@@ -367,8 +365,8 @@ impl Vm {
                         let expect_fn_ty = &match &source_of_frame {
                             Some(module_name) => self
                                 .external_modules
-                                .get_function_type(&Some(module_name.to_owned()), idx.into_u32())?,
-                            None => self.store.get_function_type(idx.into_u32())?.clone(),
+                                .get_function_type(&Some(module_name.to_owned()), idx.to_u32())?,
+                            None => self.store.get_function_type(idx.to_u32())?.clone(),
                         };
                         if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);

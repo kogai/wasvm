@@ -32,16 +32,12 @@ impl Element {
 
   pub(crate) fn wrap_by_option(
     &self,
-    function_instances: &Vec<Rc<FunctionInstance>>,
+    function_instances: &[Rc<FunctionInstance>],
   ) -> Vec<Option<Rc<FunctionInstance>>> {
     self
       .init
       .iter()
-      .map(|fn_idx| {
-        function_instances
-          .get(*fn_idx as usize)
-          .map(|ins| ins.clone())
-      })
+      .map(|fn_idx| function_instances.get(*fn_idx as usize).cloned())
       .collect()
   }
 }

@@ -54,8 +54,8 @@ impl GlobalInstance {
     self.0.borrow_mut().value = value;
   }
 
-  fn is_same_name(&self, name: &String) -> bool {
-    self.0.borrow().export_name == Some(name.to_owned())
+  fn is_same_name(&self, name: &str) -> bool {
+    self.0.borrow().export_name == Some(name.to_string())
   }
 
   fn is_same_type(&self, ty: &GlobalType) -> bool {
@@ -78,7 +78,7 @@ impl GlobalInstances {
   pub fn new_with_external(
     globals: Vec<(GlobalType, Vec<Inst>)>,
     exports: &ExternalInterfaces,
-    imports: &Vec<ExternalInterface>,
+    imports: &[ExternalInterface],
     external_modules: &ExternalModules,
   ) -> Result<Self> {
     let mut global_instances: Vec<GlobalInstance> = vec![];
@@ -103,7 +103,7 @@ impl GlobalInstances {
     }
     for (idx, (global_type, init)) in globals.into_iter().enumerate() {
       let export_name = exports
-        .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Global)
+        .find_kind_by_idx(idx as u32, &ModuleDescriptorKind::Global)
         .map(|x| x.name.to_owned());
       let init_first = init.first();
       let value = match &init_first {
@@ -119,13 +119,13 @@ impl GlobalInstances {
     Ok(GlobalInstances::new(global_instances))
   }
 
-  pub fn find(&self, name: &String) -> Option<GlobalInstance> {
+  pub fn find(&self, name: &str) -> Option<GlobalInstance> {
     self
       .0
       .borrow()
       .iter()
       .find(|instance| instance.is_same_name(name))
-      .map(|x| x.clone())
+      .cloned()
   }
 
   pub fn get_global(&self, idx: u32) -> Result<Values> {
@@ -144,17 +144,12 @@ impl GlobalInstances {
         Values::I32(ref v) => *v,
         x => unreachable!("Expect Values::I32, got {:?}", x),
       })
-      .expect(&format!(
-        "Expect to get {:?} of global instances, got None",
-        idx
-      ))
+      .unwrap_or_else(|_| panic!("Expect to get {:?} of global instances, got None", idx))
   }
 
   pub fn set_global(&self, idx: u32, value: Values) {
-    self
-      .0
-      .borrow_mut()
-      .get_mut(idx as usize)
-      .map(|g| g.set_value(value));
+    if let Some(g) = self.0.borrow_mut().get_mut(idx as usize) {
+      g.set_value(value)
+    };
   }
 }

@@ -11,7 +11,7 @@ impl Leb128Decodable for Byte {}
 impl U32Decodable for Byte {}
 
 impl Byte {
-  pub fn new_with_drop(bytes: Vec<u8>) -> Result<Self> {
+  pub fn new_with_drop(bytes: &[u8]) -> Result<Self> {
     if 4 > bytes.len() {
       return Err(Trap::UnexpectedEnd);
     }
@@ -92,11 +92,11 @@ mod tests {
         let mut file = File::open(format!("./{}.wasm", $file_name)).unwrap();
         let mut buffer = vec![];
         let _ = file.read_to_end(&mut buffer);
-        let mut bc = Byte::new_with_drop(buffer).unwrap();
+        let mut bc = Byte::new_with_drop(&buffer).unwrap();
         assert_eq!(
           bc.decode()
             .unwrap()
-            .complete(ExternalModules::new())
+            .complete(&ExternalModules::default())
             .unwrap()
             .0
             .get_function_instance(0)
@@ -300,7 +300,7 @@ mod tests {
         I32Add,
         I64ExtendUnsignI32,
         I64Mul,
-        I64Const(8589934591),
+        I64Const(8_589_934_591),
         I64And,
         I64Const(1),
         I64ShiftRightUnsign,

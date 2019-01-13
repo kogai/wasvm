@@ -79,7 +79,7 @@ impl Default for Section {
     Section {
       function_types: vec![],
       functions: vec![],
-      exports: ExternalInterfaces::new(),
+      exports: ExternalInterfaces::default(),
       codes: vec![],
       datas: vec![],
       limits: vec![],
@@ -87,7 +87,7 @@ impl Default for Section {
       globals: vec![],
       elements: vec![],
       customs: vec![],
-      imports: ExternalInterfaces::new(),
+      imports: ExternalInterfaces::default(),
       start: None,
     }
   }
@@ -113,55 +113,25 @@ impl Section {
   impl_builder!(elements, elements, Element);
   impl_builder!(customs, customs, (String, Vec<u8>));
 
-  pub fn imports<'a>(&'a mut self, xs: ExternalInterfaces) -> &'a mut Self {
+  pub fn imports(&mut self, xs: ExternalInterfaces) -> &mut Self {
     self.imports = xs;
     self
   }
 
-  pub fn exports<'a>(&'a mut self, xs: ExternalInterfaces) -> &'a mut Self {
+  pub fn exports(&mut self, xs: ExternalInterfaces) -> &mut Self {
     self.exports = xs;
     self
   }
 
-  pub fn start<'a>(&'a mut self, x: u32) -> &'a mut Self {
+  pub fn start(&mut self, x: u32) -> &mut Self {
     self.start = Some(x);
     self
   }
 
-  fn validate(
-    elements: &Vec<Element>,
-    tables: &Vec<TableType>,
-    datas: &Vec<Data>,
-    limits: &Vec<Limit>,
-    imports_memory: &Vec<ExternalInterface>,
-    imports_table: &Vec<ExternalInterface>,
-    external_modules: &ExternalModules,
-    global_instances: &GlobalInstances,
-    function_instances: &Vec<Rc<FunctionInstance>>,
-  ) -> (Result<()>, Result<()>) {
-    (
-      Section::validate_memory(
-        datas,
-        limits,
-        imports_memory,
-        external_modules,
-        global_instances,
-      ),
-      Section::validate_table(
-        elements,
-        tables,
-        imports_table,
-        external_modules,
-        global_instances,
-        function_instances,
-      ),
-    )
-  }
-
   fn validate_memory(
-    datas: &Vec<Data>,
-    limits: &Vec<Limit>,
-    imports: &Vec<ExternalInterface>,
+    datas: &[Data],
+    limits: &[Limit],
+    imports: &[ExternalInterface],
     external_modules: &ExternalModules,
     global_instances: &GlobalInstances,
   ) -> Result<()> {
@@ -170,10 +140,8 @@ impl Section {
       .get(memory_idx as usize)
       .map(|key| external_modules.find_memory_instances(key));
 
-    if let Some(_) = limits.get(memory_idx as usize) {
-      if external_memory_instances.is_none() {
-        return Ok(());
-      }
+    if limits.get(memory_idx as usize).is_some() && external_memory_instances.is_none() {
+      return Ok(());
     }
     if external_memory_instances.is_some() {
       MemoryInstances::validate(
@@ -191,16 +159,16 @@ impl Section {
   }
 
   fn validate_table(
-    elements: &Vec<Element>,
-    tables: &Vec<TableType>,
-    imports: &Vec<ExternalInterface>,
+    elements: &[Element],
+    tables: &[TableType],
+    imports: &[ExternalInterface],
     external_modules: &ExternalModules,
     global_instances: &GlobalInstances,
-    function_instances: &Vec<Rc<FunctionInstance>>,
+    function_instances: &[Rc<FunctionInstance>],
   ) -> Result<()> {
-    if tables.len() > 0 {
+    if !tables.is_empty() {
       tables
-        .into_iter()
+        .iter()
         .map(|table_type| {
           TableInstance::validate(elements, table_type, global_instances, function_instances)
         })
@@ -220,16 +188,16 @@ impl Section {
 
   fn memory_instances(
     datas: Vec<Data>,
-    limits: Vec<Limit>,
+    limits: &[Limit],
     exports: &ExternalInterfaces,
-    imports: &Vec<ExternalInterface>,
+    imports: &[ExternalInterface],
     external_modules: &ExternalModules,
     global_instances: &GlobalInstances,
   ) -> Result<MemoryInstances> {
     // NOTE: Currently WASM specification assumed only one memory instance;
     let memory_idx = 0;
     let export_name = exports
-      .find_kind_by_idx(memory_idx, ModuleDescriptorKind::Memory)
+      .find_kind_by_idx(memory_idx, &ModuleDescriptorKind::Memory)
       .map(|x| x.name.to_owned());
 
     let external_memory_instances = imports
@@ -248,7 +216,7 @@ impl Section {
     }
     if external_memory_instances.is_some() {
       MemoryInstances::from(
-        external_memory_instances??,
+        &external_memory_instances??,
         limits
           .get(memory_idx as usize)
           .map(|limit| limit.to_owned()),
@@ -261,23 +229,23 @@ impl Section {
   }
 
   fn table_instances(
-    elements: Vec<Element>,
+    elements: &[Element],
     tables: Vec<TableType>,
     exports: &ExternalInterfaces,
-    imports: &Vec<ExternalInterface>,
+    imports: &[ExternalInterface],
     external_modules: &ExternalModules,
     global_instances: &GlobalInstances,
-    function_instances: &Vec<Rc<FunctionInstance>>,
+    function_instances: &[Rc<FunctionInstance>],
   ) -> Result<TableInstances> {
-    if tables.len() > 0 {
+    if !tables.is_empty() {
       tables
         .into_iter()
         .map(|table_type| {
           let export_name = exports
-            .find_kind_by_idx(0, ModuleDescriptorKind::Table)
+            .find_kind_by_idx(0, &ModuleDescriptorKind::Table)
             .map(|x| x.name.to_owned());
           TableInstance::new(
-            elements.clone(),
+            elements.to_vec(),
             table_type,
             export_name,
             global_instances,
@@ -285,14 +253,14 @@ impl Section {
           )
         })
         .collect::<Result<Vec<_>>>()
-        .map(|table_instances| TableInstances::new(table_instances))
+        .map(TableInstances::new)
     } else {
       // NOTE: Only one table instance allowed.
       match imports.first() {
         Some(import) => external_modules
           .find_table_instances(import)
           .map(|table_instances| {
-            table_instances.link(elements.clone(), global_instances, function_instances)?;
+            table_instances.link(&elements, global_instances, function_instances)?;
             Ok(table_instances)
           })?,
         None => Ok(TableInstances::empty()),
@@ -300,7 +268,7 @@ impl Section {
     }
   }
 
-  fn function_type(idx: usize, function_types: &Vec<FunctionType>) -> FunctionType {
+  fn function_type(idx: usize, function_types: &[FunctionType]) -> FunctionType {
     function_types
       .get(idx)
       .expect("Function type can't found.")
@@ -308,8 +276,8 @@ impl Section {
   }
 
   fn function_instances(
-    function_types: &Vec<FunctionType>,
-    functions: Vec<u32>,
+    function_types: &[FunctionType],
+    functions: &[u32],
     exports: &ExternalInterfaces,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
@@ -318,7 +286,7 @@ impl Section {
       .enumerate()
       .map(|(idx, code)| {
         let export_name = exports
-          .find_kind_by_idx(idx as u32, ModuleDescriptorKind::Function)
+          .find_kind_by_idx(idx as u32, &ModuleDescriptorKind::Function)
           .map(|x| x.name.to_owned());
         let index_of_type = match functions.get(idx) {
           Some(n) => *n,
@@ -337,8 +305,8 @@ impl Section {
   }
 
   fn external_function_instances(
-    function_types: &Vec<FunctionType>,
-    imports: &Vec<ExternalInterface>,
+    function_types: &[FunctionType],
+    imports: &[ExternalInterface],
     external_modules: &ExternalModules,
   ) -> Result<Vec<Rc<FunctionInstance>>> {
     imports
@@ -347,7 +315,7 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
-  pub fn complete(self, external_modules: ExternalModules) -> Result<(Store, InternalModule)> {
+  pub fn complete(self, external_modules: &ExternalModules) -> Result<(Store, InternalModule)> {
     match self {
       Section {
         function_types,
@@ -359,9 +327,9 @@ impl Section {
         tables,
         elements,
         globals,
-        customs: _,
         imports,
         start,
+        ..
       } => {
         let grouped_imports = imports.group_by_kind();
         let imports_function = grouped_imports.get(&ModuleDescriptorKind::Function)?;
@@ -370,7 +338,7 @@ impl Section {
         let imports_global = grouped_imports.get(&ModuleDescriptorKind::Global)?;
 
         let mut internal_function_instances =
-          Section::function_instances(&function_types, functions, &exports, codes)?;
+          Section::function_instances(&function_types, &functions, &exports, codes)?;
 
         let mut function_instances = Section::external_function_instances(
           &function_types,
@@ -387,23 +355,29 @@ impl Section {
           &external_modules,
         )?;
 
-        let (validate_memory, validate_table) = Section::validate(
-          &elements,
-          &tables,
-          &datas,
-          &limits,
-          &imports_memory,
-          &imports_table,
-          &external_modules,
-          &global_instances,
-          &function_instances,
+        let (validate_memory, validate_table) = (
+          Section::validate_memory(
+            &datas,
+            &limits,
+            &imports_memory,
+            &external_modules,
+            &global_instances,
+          ),
+          Section::validate_table(
+            &elements,
+            &tables,
+            &imports_table,
+            &external_modules,
+            &global_instances,
+            &function_instances,
+          ),
         );
         validate_memory?;
         validate_table?;
 
         let memory_instances = Section::memory_instances(
           datas,
-          limits,
+          &limits,
           &exports,
           &imports_memory,
           &external_modules,
@@ -411,7 +385,7 @@ impl Section {
         )?;
 
         let mut table_instances = Section::table_instances(
-          elements,
+          &elements,
           tables,
           &exports,
           &imports_table,

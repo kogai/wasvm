@@ -1,17 +1,15 @@
 [![Build Status](https://travis-ci.org/kogai/wasvm.svg?branch=master)](https://travis-ci.org/kogai/wasvm)
 
+## Status
+
+- All `assert_return` and several tests of testsuite which WASM core team provided has been passed.
+
 ## TODO
 
-- [x] Test assert_trap and assert_malformed
-- [x] Return Result from evaluate_inst
 - [ ] Show position where error occurred at docoding time
-- [ ] Implement type system
-  - [ ] Separate Runtime-error "Trap" and Decoding-time-error
-- [x] Build wasm from wast at CI
-- [x] Reasonable, pretty formattable Stack
-- [x] Investigate whether a test of block/at-load-operand is correct
-  - May need to ask core-team?
-  - After all, tests are reasonable, it assume to statefull vm for specs.
+- [ ] Implement type system(In definitions of WASM semantics, validation)
+- [ ] Investigate to introduce JIT
+- [ ] Consider something which this implementation fit to
 - [x] Consider to measure performance
   - https://blog.sqreen.io/webassembly-performance/
   - https://github.com/perlin-network/life/tree/master/bench/cases

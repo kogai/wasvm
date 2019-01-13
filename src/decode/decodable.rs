@@ -3,7 +3,7 @@ use memory::Limit;
 use trap::{Result, Trap};
 
 macro_rules! impl_decode_leb128 {
-  ($ty: ty, $fn_name: ident) => {
+  ($ty: ty, $conv_fn: path, $fn_name: ident) => {
     fn $fn_name(&mut self) -> $crate::trap::Result<($ty, u32)> {
       let mut buf: $ty = 0;
       let mut shift = 0;
@@ -19,8 +19,8 @@ macro_rules! impl_decode_leb128 {
       //        +------------+------------+
       loop {
         let raw_code = self.next()?;
-        let is_msb_zero = raw_code & 0b10000000 == 0;
-        let num = (raw_code & 0b01111111) as $ty; // Drop leftmost bit
+        let is_msb_zero = raw_code & 0b1000_0000 == 0;
+        let num = $conv_fn(raw_code & 0b0111_1111); // Drop leftmost bit
         // buf =      00000000_00000000_10000000_00000000
         // num =      00000000_00000000_00000000_00000001
         // num << 7 = 00000000_00000000_00000000_10000000
@@ -65,7 +65,7 @@ pub trait AbstractDecodable {
 
 pub trait U8Iterator: AbstractDecodable {
   fn next(&mut self) -> Option<u8> {
-    let el = self.bytes().get(self.byte_ptr()).map(|x| *x);
+    let el = self.bytes().get(self.byte_ptr()).cloned();
     self.increment_ptr();
     el
   }
@@ -73,13 +73,13 @@ pub trait U8Iterator: AbstractDecodable {
 
 pub trait Peekable: AbstractDecodable {
   fn peek(&self) -> Option<u8> {
-    self.bytes().get(self.byte_ptr()).map(|x| *x)
+    self.bytes().get(self.byte_ptr()).cloned()
   }
 }
 
 pub trait Leb128Decodable: U8Iterator {
-  impl_decode_leb128!(u32, decode_leb128_u32_internal);
-  impl_decode_leb128!(u64, decode_leb128_u64_internal);
+  impl_decode_leb128!(u32, u32::from, decode_leb128_u32_internal);
+  impl_decode_leb128!(u64, u64::from, decode_leb128_u64_internal);
 }
 
 pub trait U32Decodable: Leb128Decodable {

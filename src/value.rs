@@ -73,8 +73,8 @@ macro_rules! binary_try_inst {
   ($fn_name: ident,$op: ident) => {
     pub fn $fn_name(&self, other: &Self) -> Result<Self> {
       match (self, other) {
-        (Values::I32(l), Values::I32(r)) =>  l.$op(*r).map(|n| Values::I32(n)) ,
-        (Values::I64(l), Values::I64(r)) =>  l.$op(*r).map(|n| Values::I64(n)) ,
+        (Values::I32(l), Values::I32(r)) =>  l.$op(*r).map(Values::I32),
+        (Values::I64(l), Values::I64(r)) =>  l.$op(*r).map(Values::I64),
         _ => unimplemented!(),
       }
     }
@@ -141,12 +141,15 @@ macro_rules! impl_integer_traits {
         }
       }
       fn count_leading_zero(&self) -> Self {
+        #![allow(clippy::cast_lossless)]
         self.leading_zeros() as $ty
       }
       fn count_trailing_zero(&self) -> Self {
+        #![allow(clippy::cast_lossless)]
         self.trailing_zeros() as $ty
       }
       fn pop_count(&self) -> Self {
+        #![allow(clippy::cast_lossless)]
         self.count_ones() as $ty
       }
 
@@ -236,13 +239,11 @@ macro_rules! impl_integer_traits {
       }
       fn shift_right_sign(&self, other: Self) -> Self {
         let shifted = self.wrapping_shr(other as u32);
-        let casted = (shifted as $unsign) as $ty;
-        casted
+        (shifted as $unsign) as $ty
       }
       fn shift_right_unsign(&self, other: Self) -> Self {
         let i1 = *self as $unsign;
-        let shifted = i1.wrapping_shr(other as u32) as $ty;
-        shifted
+        i1.wrapping_shr(other as u32) as $ty
       }
 
       fn wasm_rotate_left(&self, other: Self) -> Self {
@@ -378,20 +379,20 @@ macro_rules! impl_float_traits {
   ($ty: ty) => {
     impl ArithmeticFloat for $ty {
       fn equal_zero(&self) -> i32 {
-        if self == &0.0 {
+        if *self == 0.0 {
           1
         } else {
           0
         }
       }
       fn count_leading_zero(&self) -> Self {
-        unimplemented!()
+        unreachable!();
       }
       fn count_trailing_zero(&self) -> Self {
-        unimplemented!()
+        unreachable!();
       }
       fn pop_count(&self) -> Self {
-        unimplemented!()
+        unreachable!();
       }
       fn wrapping_add(&self, x: Self) -> Self {
         self + x
@@ -431,33 +432,33 @@ macro_rules! impl_float_traits {
         }
       }
       fn equal(&self, x: Self) -> Self {
-        if self == &x {
+        if self.eq(&x) {
           1.0
         } else {
           0.0
         }
       }
       fn not_equal(&self, x: Self) -> Self {
-        if self != &x {
+        if self.ne(&x) {
           1.0
         } else {
           0.0
         }
       }
       fn shift_left(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn shift_right_sign(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn shift_right_unsign(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn wasm_rotate_left(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn wasm_rotate_right(&self, _x: Self) -> Self {
-        unimplemented!();
+        unreachable!();
       }
       fn copy_sign(&self, other: Self) -> Self {
         if (self.is_sign_positive() == other.is_sign_positive())
@@ -479,6 +480,7 @@ trait TruncFloat<T> {
 macro_rules! impl_try_trunc {
   ($from: ty, $to: ty) => {
     impl TruncFloat<$to> for $from {
+      #![allow(clippy::cast_lossless)]
       fn try_trunc_to(&self) -> Result<$to> {
         if self.is_nan() {
           return Err(Trap::InvalidConversionToInt);
@@ -487,7 +489,7 @@ macro_rules! impl_try_trunc {
           return Err(Trap::IntegerOverflow);
         }
         let result = *self as $to;
-        if result as $from != self.trunc() {
+        if (result as $from).ne(&self.trunc()) {
           return Err(Trap::IntegerOverflow);
         }
         Ok(result as $to)
@@ -574,7 +576,7 @@ impl Values {
         if n.is_nan() {
           Values::F64(f64::NAN)
         } else {
-          Values::F64(*n as f64)
+          Values::F64(f64::from(*n))
         }
       }
       _ => unreachable!(),
@@ -620,13 +622,13 @@ impl Values {
   }
   pub fn convert_sign_i32_to_f64(&self) -> Self {
     match self {
-      Values::I32(n) => Values::F64(*n as f64),
+      Values::I32(n) => Values::F64(f64::from(*n)),
       _ => unreachable!(),
     }
   }
   pub fn convert_unsign_i32_to_f64(&self) -> Self {
     match self {
-      Values::I32(n) => Values::F64((*n as u32) as f64),
+      Values::I32(n) => Values::F64(f64::from(*n as u32)),
       _ => unreachable!(),
     }
   }
@@ -654,8 +656,8 @@ impl Values {
 
   pub fn reinterpret(&self) -> Self {
     match self {
-      Values::I32(n) => Values::F32(unsafe { transmute(*n) }),
-      Values::I64(n) => Values::F64(unsafe { transmute(*n) }),
+      Values::I32(n) => Values::F32(f32::from_bits(*n as u32)),
+      Values::I64(n) => Values::F64(f64::from_bits(*n as u64)),
       Values::F32(n) => Values::I32(unsafe { transmute(*n) }),
       Values::F64(n) => Values::I64(unsafe { transmute(*n) }),
     }
@@ -757,15 +759,13 @@ impl Values {
   pub fn nearest(&self) -> Self {
     match self {
       Values::F32(l) => {
-        if *l > 0.0 && *l <= 0.5 {
-          Values::F32(0.0)
-        } else if *l < 0.0 && *l >= -0.5 {
+        if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
           Values::F32(0.0)
         } else {
           let round = l.round();
-          let result = if round.rem(2.0) == 1.0 {
+          let result = if round.rem(2.0).eq(&1.0) {
             l.floor()
-          } else if round.rem(2.0) == -1.0 {
+          } else if round.rem(2.0).eq(&-1.0) {
             l.ceil()
           } else {
             round
@@ -774,15 +774,13 @@ impl Values {
         }
       }
       Values::F64(l) => {
-        if *l > 0.0 && *l <= 0.5 {
-          Values::F64(0.0)
-        } else if *l < 0.0 && *l >= -0.5 {
+        if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
           Values::F64(0.0)
         } else {
           let round = l.round();
-          let result = if round.rem(2.0) == 1.0 {
+          let result = if round.rem(2.0).eq(&1.0) {
             l.floor()
-          } else if round.rem(2.0) == -1.0 {
+          } else if round.rem(2.0).eq(&-1.0) {
             l.ceil()
           } else {
             round

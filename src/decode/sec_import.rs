@@ -21,7 +21,7 @@ impl Decodable for Section {
   type Item = ExternalInterfaces;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
-    let mut imports: ExternalInterfaces = ExternalInterfaces::new();
+    let mut imports: ExternalInterfaces = ExternalInterfaces::default();
     for _ in 0..count_of_section {
       let module_name = self.decode_name()?;
       let name = self.decode_name()?;

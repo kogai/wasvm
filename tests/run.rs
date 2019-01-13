@@ -10,7 +10,7 @@ use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 use wasvm::{create_spectest, ExternalModules, Trap, Values, Vm};
 
-fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
+fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
   args
     .iter()
     .map(|v| match v {
@@ -22,7 +22,7 @@ fn get_args(args: &Vec<Value<f32, f64>>) -> Vec<Values> {
     .collect()
 }
 
-fn get_expectation(expected: &Vec<Value>) -> String {
+fn get_expectation(expected: &[Value]) -> String {
   match expected.get(0) {
     Some(Value::I32(v)) => format!("i32:{}", v),
     Some(Value::I64(v)) => format!("i64:{}", v),
@@ -48,7 +48,7 @@ macro_rules! impl_e2e {
       json.read_to_string(&mut buf).unwrap();
       let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
       let mut current_modules: HashMap<Option<String>, Rc<RefCell<Vm>>> = HashMap::new();
-      let mut importable_modules: ExternalModules = ExternalModules::new();
+      let mut importable_modules: ExternalModules = ExternalModules::default();
       let spectest = create_spectest();
       importable_modules.register_module(Some("spectest".to_owned()), spectest);
 
@@ -59,7 +59,7 @@ macro_rules! impl_e2e {
             ref name,
           } => {
             let vm_ref = Rc::new(RefCell::new(
-              Vm::new_with_externals(module.clone().into_vec(), importable_modules.clone())
+              Vm::new_with_externals(&module.clone().into_vec(), importable_modules.clone())
                 .unwrap(),
             ));
             current_modules.insert(None, vm_ref.clone());
@@ -141,7 +141,7 @@ macro_rules! impl_e2e {
           } => {
             println!("Assert uninstantiable at line:{}.", line);
             let bytes = module.clone().into_vec();
-            let mut vm = Vm::new(bytes);
+            let mut vm = Vm::new(&bytes);
             match vm {
               Ok(_) => unreachable!(),
               Err(err) => {
@@ -167,7 +167,7 @@ macro_rules! impl_e2e {
               continue;
             };
             let bytes = module.clone().into_vec();
-            let mut vm = Vm::new(bytes);
+            let mut vm = Vm::new(&bytes);
             use self::Trap::*;
             match vm {
               Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
@@ -229,7 +229,7 @@ macro_rules! impl_e2e {
             let (magic_numbers, _) = tmp_bytes.split_at(8);
             if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
               println!("Assert unlinkable at {}.", line,);
-              let mut vm = Vm::new_with_externals(bytes, importable_modules.clone());
+              let mut vm = Vm::new_with_externals(&bytes, importable_modules.clone());
               match vm {
                 Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
                 Err(err) => {

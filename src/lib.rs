@@ -47,22 +47,13 @@ mod tests {
                 let mut file = File::open(format!("./dist/{}.wasm", $file_name)).unwrap();
                 let mut buffer = vec![];
                 let _ = file.read_to_end(&mut buffer);
-                let mut vm = Vm::new(buffer).unwrap();
+                let mut vm = Vm::new(&buffer).unwrap();
                 let actual = vm.run("_subject", $call_arguments);
                 assert_eq!(actual, format!("i32:{}", $expect_value));
             }
         };
     }
 
-    #[test]
-    fn repl() {
-        println!("{}", std::f32::NAN);
-        println!("{}", std::f32::INFINITY);
-        println!("{}", std::f64::NAN);
-        println!("{}", 16777216u32);
-        println!("{}", 16777216i32);
-        println!("{}", 0x1000000);
-    }
     test_eval!(evaluate_cons8, "cons8", vec![], 42);
     test_eval!(
         evaluate_add_simple,

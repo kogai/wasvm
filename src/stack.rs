@@ -50,7 +50,7 @@ impl StackEntry {
     Rc::new(StackEntry::Label(Label {
       continuation,
       return_type,
-      source_instruction: source_instruction,
+      source_instruction,
     }))
   }
 
@@ -138,7 +138,7 @@ impl Stack {
   }
 
   pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
-    self.operand_stack.borrow().get(ptr).map(|x| x.clone())
+    self.operand_stack.borrow().get(ptr).cloned()
   }
 
   pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) -> Result<()> {
@@ -209,18 +209,18 @@ impl Stack {
     if self.stack_ptr >= self.stack_size {
       return None;
     }
-    if self.stack_ptr <= 0 {
+    if self.stack_ptr == 0 {
       return None;
     }
     self
       .operand_stack
       .borrow_mut()
       .get(self.stack_ptr - 1)
-      .map(|x| x.clone())
+      .cloned()
   }
 
   pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
-    if self.stack_ptr <= 0 {
+    if self.stack_ptr == 0 {
       return Err(Trap::StackUnderflow);
     }
     self.stack_ptr -= 1;
@@ -253,10 +253,10 @@ impl Stack {
     Ok(entry_buffer)
   }
 
-  pub fn jump_to_label(&mut self, depth_of_label: &u32) -> Result<u32> /* point to continue */ {
+  pub fn jump_to_label(&mut self, depth_of_label: u32) -> Result<u32> /* point to continue */ {
     let mut buf_values: Vec<Rc<StackEntry>> = vec![];
     let mut label = None;
-    for _ in 0..(depth_of_label + 1) {
+    for _ in 0..=depth_of_label {
       let mut bufs = self.pop_until(&StackEntryKind::Label)?;
       buf_values.append(&mut bufs);
       label = Some(self.pop_label_ext());
@@ -268,7 +268,6 @@ impl Stack {
         ..
       }) => continuation,
       Some(Label {
-        return_type: _,
         continuation,
         source_instruction,
         ..
