@@ -755,9 +755,7 @@ impl Values {
   pub fn nearest(&self) -> Self {
     match self {
       Values::F32(l) => {
-        if *l > 0.0 && *l <= 0.5 {
-          Values::F32(0.0)
-        } else if *l < 0.0 && *l >= -0.5 {
+        if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5){
           Values::F32(0.0)
         } else {
           let round = l.round();
@@ -772,9 +770,7 @@ impl Values {
         }
       }
       Values::F64(l) => {
-        if *l > 0.0 && *l <= 0.5 {
-          Values::F64(0.0)
-        } else if *l < 0.0 && *l >= -0.5 {
+        if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
           Values::F64(0.0)
         } else {
           let round = l.round();

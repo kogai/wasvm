@@ -97,10 +97,6 @@ impl ExternalInterface {
 pub struct ExternalInterfaces(Vec<ExternalInterface>);
 
 impl ExternalInterfaces {
-  pub fn new() -> Self {
-    ExternalInterfaces(vec![])
-  }
-
   pub fn push(&mut self, value: ExternalInterface) {
     self.0.push(value);
   }
@@ -163,6 +159,12 @@ impl ExternalInterfaces {
     buf.insert(ModuleDescriptorKind::Memory, buf_memory);
     buf.insert(ModuleDescriptorKind::Global, buf_global);
     buf
+  }
+}
+
+impl Default for ExternalInterfaces {
+  fn default() -> Self {
+    ExternalInterfaces(vec![])
   }
 }
 
@@ -289,14 +291,15 @@ impl From<&Store> for ExternalModule {
 #[derive(Debug, Clone)]
 pub struct ExternalModules(Rc<RefCell<HashMap<ModuleName, ExternalModule>>>);
 
-impl ExternalModules {
-  pub fn new() -> Self {
+impl Default for ExternalModules {
+  fn default() -> Self {
     ExternalModules(Rc::new(RefCell::new(HashMap::new())))
   }
+}
 
+impl ExternalModules {
   pub fn get(&self, module_name: &ModuleName) -> Option<ExternalModule> {
-    self.0.borrow().get(module_name)
-      .cloned()
+    self.0.borrow().get(module_name).cloned()
   }
 
   pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) {

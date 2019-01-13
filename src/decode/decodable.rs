@@ -65,7 +65,7 @@ pub trait AbstractDecodable {
 
 pub trait U8Iterator: AbstractDecodable {
   fn next(&mut self) -> Option<u8> {
-    let el = self.bytes().get(self.byte_ptr()).map(|x| *x);
+    let el = self.bytes().get(self.byte_ptr()).cloned();
     self.increment_ptr();
     el
   }
@@ -73,7 +73,7 @@ pub trait U8Iterator: AbstractDecodable {
 
 pub trait Peekable: AbstractDecodable {
   fn peek(&self) -> Option<u8> {
-    self.bytes().get(self.byte_ptr()).map(|x| *x)
+    self.bytes().get(self.byte_ptr()).cloned()
   }
 }
 

@@ -44,7 +44,7 @@ macro_rules! impl_benches {
       file.read_to_end(&mut buffer).unwrap();
       flame::start($bench_name);
       // b.iter(|| {
-      let mut vm = Vm::new(buffer).unwrap();
+      let mut vm = Vm::new(&buffer).unwrap();
       assert_eq!(vm.run("app_main", vec![]), $expect);
       // });
       flame::end($bench_name);

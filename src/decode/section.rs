@@ -79,7 +79,7 @@ impl Default for Section {
     Section {
       function_types: vec![],
       functions: vec![],
-      exports: ExternalInterfaces::new(),
+      exports: ExternalInterfaces::default(),
       codes: vec![],
       datas: vec![],
       limits: vec![],
@@ -87,7 +87,7 @@ impl Default for Section {
       globals: vec![],
       elements: vec![],
       customs: vec![],
-      imports: ExternalInterfaces::new(),
+      imports: ExternalInterfaces::default(),
       start: None,
     }
   }
@@ -126,36 +126,6 @@ impl Section {
   pub fn start(&mut self, x: u32) -> &mut Self {
     self.start = Some(x);
     self
-  }
-
-  fn validate(
-    elements: &[Element],
-    tables: &[TableType],
-    datas: &[Data],
-    limits: &[Limit],
-    imports_memory: &[ExternalInterface],
-    imports_table: &[ExternalInterface],
-    external_modules: &ExternalModules,
-    global_instances: &GlobalInstances,
-    function_instances: &[Rc<FunctionInstance>],
-  ) -> (Result<()>, Result<()>) {
-    (
-      Section::validate_memory(
-        datas,
-        limits,
-        imports_memory,
-        external_modules,
-        global_instances,
-      ),
-      Section::validate_table(
-        elements,
-        tables,
-        imports_table,
-        external_modules,
-        global_instances,
-        function_instances,
-      ),
-    )
   }
 
   fn validate_memory(
@@ -248,7 +218,7 @@ impl Section {
     }
     if external_memory_instances.is_some() {
       MemoryInstances::from(
-        external_memory_instances??,
+        &external_memory_instances??,
         limits
           .get(memory_idx as usize)
           .map(|limit| limit.to_owned()),
@@ -261,7 +231,7 @@ impl Section {
   }
 
   fn table_instances(
-    elements: Vec<Element>,
+    elements: &[Element],
     tables: Vec<TableType>,
     exports: &ExternalInterfaces,
     imports: &[ExternalInterface],
@@ -277,7 +247,7 @@ impl Section {
             .find_kind_by_idx(0, &ModuleDescriptorKind::Table)
             .map(|x| x.name.to_owned());
           TableInstance::new(
-            elements.clone(),
+            elements.to_vec(),
             table_type,
             export_name,
             global_instances,
@@ -387,16 +357,22 @@ impl Section {
           &external_modules,
         )?;
 
-        let (validate_memory, validate_table) = Section::validate(
-          &elements,
-          &tables,
-          &datas,
-          &limits,
-          &imports_memory,
-          &imports_table,
-          &external_modules,
-          &global_instances,
-          &function_instances,
+        let (validate_memory, validate_table) = (
+          Section::validate_memory(
+            &datas,
+            &limits,
+            &imports_memory,
+            &external_modules,
+            &global_instances,
+          ),
+          Section::validate_table(
+            &elements,
+            &tables,
+            &imports_table,
+            &external_modules,
+            &global_instances,
+            &function_instances,
+          ),
         );
         validate_memory?;
         validate_table?;
@@ -411,7 +387,7 @@ impl Section {
         )?;
 
         let mut table_instances = Section::table_instances(
-          elements,
+          &elements,
           tables,
           &exports,
           &imports_table,

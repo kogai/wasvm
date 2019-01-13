@@ -20,11 +20,11 @@ impl From<usize> for Indice {
 }
 
 impl Indice {
-  pub fn into_usize(&self) -> usize {
+  pub fn to_usize(&self) -> usize {
     self.0 as usize
   }
 
-  pub fn into_u32(&self) -> u32 {
+  pub fn to_u32(&self) -> u32 {
     self.0
   }
 }

@@ -17,13 +17,13 @@ fn main() -> io::Result<()> {
       let mut buffer = vec![];
       file.read_to_end(&mut buffer)?;
 
-      let mut vm = Vm::new(buffer).unwrap();
+      let mut vm = Vm::new(&buffer).unwrap();
       let result = vm.run(
         "_subject",
         arguments
           .iter()
           .map(|v| i32::from_str_radix(v, 10).expect("Parameters must be i32"))
-          .map(|v| Values::I32(v))
+          .map(Values::I32)
           .collect::<Vec<Values>>(),
       );
       println!("{:?}", result);

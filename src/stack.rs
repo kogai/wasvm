@@ -253,7 +253,7 @@ impl Stack {
     Ok(entry_buffer)
   }
 
-  pub fn jump_to_label(&mut self, depth_of_label: &u32) -> Result<u32> /* point to continue */ {
+  pub fn jump_to_label(&mut self, depth_of_label: u32) -> Result<u32> /* point to continue */ {
     let mut buf_values: Vec<Rc<StackEntry>> = vec![];
     let mut label = None;
     for _ in 0..(depth_of_label + 1) {

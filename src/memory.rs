@@ -146,7 +146,7 @@ impl MemoryInstance {
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = match offset.first() {
         Some(Inst::I32Const(offset)) => {
-          if offset < &0 {
+          if *offset < 0 {
             return Err(Trap::DataSegmentDoesNotFit);
           }
           *offset
@@ -203,10 +203,10 @@ impl MemoryInstance {
       Some(limit) => limit.initial_min_size(),
       None => self.limit.initial_min_size(),
     };
-    for Data { offset, init, .. } in datas.into_iter() {
+    for Data { offset, init, .. } in datas.iter() {
       let offset = match offset.first() {
         Some(Inst::I32Const(offset)) => {
-          if offset < &0 {
+          if *offset < 0 {
             return Err(Trap::DataSegmentDoesNotFit);
           }
           *offset
@@ -318,7 +318,7 @@ impl MemoryInstances {
   }
 
   pub fn from(
-    that: MemoryInstances,
+    that: &MemoryInstances,
     limit: Option<Limit>,
     datas: Vec<Data>,
     global_instances: &GlobalInstances,
