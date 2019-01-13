@@ -34,6 +34,8 @@ pub use self::trap::Trap;
 pub use self::value::Values;
 pub use self::vm::Vm;
 
+// FIXME: Use type alias of Indices for u32.
+
 #[cfg(test)]
 mod tests {
     use super::*;

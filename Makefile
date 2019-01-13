@@ -50,7 +50,7 @@ out.svg: out.perf
 	./FlameGraph/flamegraph.pl out.perf_folded > out.svg
 
 report.node.txt: Makefile
-	perf stat -o report.txt node run-wasm dist/fib 35
+	perf stat -o report.node.txt node run-wasm dist/fib _subject 35
 
 .PHONY: run
 run:

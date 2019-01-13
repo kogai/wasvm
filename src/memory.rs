@@ -88,14 +88,16 @@ impl PartialOrd for Limit {
 impl fmt::Debug for Limit {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     use self::Limit::*;
-    write!(
-      f,
-      "{}",
-      match self {
-        NoUpperLimit(min) => format!("min:{}", min),
-        HasUpperLimit(min, max) => format!("min:{},max:{}", min, max),
-      }
-    )
+    match self {
+      NoUpperLimit(min) => f
+        .debug_tuple("Limit")
+        .field(&format!("min:{}", min))
+        .finish(),
+      HasUpperLimit(min, max) => f
+        .debug_tuple("Limit")
+        .field(&format!("min:{},max:{}", min, max))
+        .finish(),
+    }
   }
 }
 
