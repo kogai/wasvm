@@ -129,8 +129,7 @@ impl TableInstances {
     table_instance.map(|x| x.clone())
   }
 
-  // FIXME: Rename to `link`
-  pub fn update(
+  pub fn link(
     &self,
     elements: Vec<Element>,
     global_instances: &GlobalInstances,
@@ -139,27 +138,15 @@ impl TableInstances {
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
     let function_elements = &mut table_instance.function_elements;
-    let mut swappable_function_address = vec![];
 
     for el in elements.iter() {
       let offset = match el.offset.first() {
-        Some(Inst::I32Const(offset)) => {
-          if offset < &0 {
-            return Err(Trap::ElementSegmentDoesNotFit);
-          }
-          *offset
-        }
+        Some(Inst::I32Const(offset)) => *offset,
         Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
-      if end > function_elements.len() {
-        return Err(Trap::ElementSegmentDoesNotFit);
-      }
-      swappable_function_address.push((function_addresses, offset, end));
-    }
-    for (mut function_addresses, offset, end) in swappable_function_address.into_iter() {
       function_addresses.swap_with_slice(&mut function_elements[offset..end]);
     }
     Ok(())
@@ -184,7 +171,7 @@ impl TableInstances {
           *offset
         }
         Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
+        x => unreachable!("Expected offset value of table, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
