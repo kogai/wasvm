@@ -12,7 +12,6 @@ use value_type::ValueTypes;
 #[derive(PartialEq)]
 pub enum StackEntry {
   Empty,
-  Pointer(usize),
   Value(Values),
   Label(Label),
 }
@@ -22,7 +21,6 @@ impl fmt::Debug for StackEntry {
     use self::StackEntry::*;
     let label = match self {
       Empty => "_".to_owned(),
-      Pointer(v) => format!("P(*{:?})", v),
       Value(v) => format!("{:?}", v),
       Label(v) => format!("{:?}", v),
     };
@@ -54,10 +52,6 @@ impl StackEntry {
       return_type,
       source_instruction: source_instruction,
     }))
-  }
-
-  pub fn new_pointer(ptr: usize) -> Rc<Self> {
-    Rc::new(StackEntry::Pointer(ptr))
   }
 
   fn is_same_kind(&self, other: &StackEntryKind) -> bool {
@@ -106,7 +100,7 @@ macro_rules! impl_pop_value_ext {
 /// +---------------+
 /// | ..            |
 /// +---------------+
-/// | Empty*        | < Stack pointer
+/// | Empty*        | <- Stack pointer
 /// +---------------+
 /// | Locals*       |
 /// +---------------+
@@ -120,9 +114,7 @@ macro_rules! impl_pop_value_ext {
 /// +---------------+
 /// | Args  0       | Indices are starts by zero.
 /// +---------------+
-/// | ReturnPointer |
-/// +---------------+
-/// | ...           | < Frame pointer
+/// | ...           | <- Frame pointer
 /// +---------------+
 pub struct Stack {
   stack_size: usize,
@@ -307,17 +299,9 @@ impl Stack {
     self.frame_ptr
   }
 
-  pub fn update_frame_ptr(&mut self) {
-    let frame_ptr = self
-      .get(self.frame_ptr)
-      .expect("Expected Frame pointer, got None");
-    match *frame_ptr {
-      StackEntry::Pointer(ref p) => {
-        self.stack_ptr = self.frame_ptr;
-        self.frame_ptr = *p;
-      }
-      ref x => unreachable!("Expected Frame pointer, got {:?}", x),
-    }
+  pub fn update_frame_ptr(&mut self, frame: &Frame) {
+    self.stack_ptr = self.frame_ptr;
+    self.frame_ptr = frame.prev_return_ptr;
   }
 }
 

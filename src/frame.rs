@@ -15,13 +15,15 @@ pub struct Frame {
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
   pub(crate) function_instance: Rc<FunctionInstance>,
   ptr: RefCell<u32>,
-  pub last_ptr: u32,
+  pub last_ptr: u32, // Indices of instructions.
   pub return_ptr: usize,
+  pub prev_return_ptr: usize,
 }
 
 impl Frame {
   pub fn new(
     return_ptr: usize,
+    prev_return_ptr: usize,
     function_instance: Rc<FunctionInstance>,
     arguments: &mut Vec<Rc<StackEntry>>,
   ) -> Self {
@@ -34,6 +36,7 @@ impl Frame {
       function_instance,
       last_ptr,
       return_ptr,
+      prev_return_ptr,
       ptr: RefCell::new(0),
     }
   }

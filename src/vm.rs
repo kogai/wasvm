@@ -153,7 +153,12 @@ impl Vm {
                 };
                 if let Some(idx) = vm.internal_module.start {
                     let function_instance = vm.store.get_function_instance(idx as usize)?;
-                    let frame = Frame::new(vm.stack.stack_ptr, function_instance, &mut vec![]);
+                    let frame = Frame::new(
+                        vm.stack.stack_ptr,
+                        vm.stack.frame_ptr,
+                        function_instance,
+                        &mut vec![],
+                    );
                     vm.stack.push_frame(frame)?;
                     vm.evaluate()?;
                     vm.stack = Stack::new(65536);
@@ -170,7 +175,7 @@ impl Vm {
 
     fn get_local(&mut self, idx: u32) -> Result<()> {
         let frame_ptr = self.stack.get_frame_ptr();
-        let index = (idx as usize) + frame_ptr + 1;
+        let index = (idx as usize) + frame_ptr;
         let value = self.stack.get(index)?;
         self.stack.push(value)?;
         Ok(())
@@ -179,7 +184,7 @@ impl Vm {
     fn set_local(&mut self, idx: u32) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr + 1, value)?;
+        self.stack.set((idx as usize) + frame_ptr, value)?;
         Ok(())
     }
 
@@ -187,7 +192,7 @@ impl Vm {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         self.stack.push(value.clone())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr + 1, value)?;
+        self.stack.set((idx as usize) + frame_ptr, value)?;
         Ok(())
     }
 
@@ -221,6 +226,7 @@ impl Vm {
         use self::Inst::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
+            println!("{:?}", expression);
             match expression {
                 Unreachable => return Err(Trap::Unreachable),
                 Return => {
@@ -334,7 +340,12 @@ impl Vm {
                     for _ in 0..arity {
                         arguments.push(self.stack.pop()?);
                     }
-                    let frame = Frame::new(self.stack.stack_ptr, function_instance, &mut arguments);
+                    let frame = Frame::new(
+                        self.stack.stack_ptr,
+                        self.stack.frame_ptr,
+                        function_instance,
+                        &mut arguments,
+                    );
                     self.stack.push_frame(frame)?;
                     break;
                 }
@@ -369,7 +380,12 @@ impl Vm {
                         }
                         arg
                     };
-                    let frame = Frame::new(self.stack.stack_ptr, function_instance, &mut arguments);
+                    let frame = Frame::new(
+                        self.stack.stack_ptr,
+                        self.stack.frame_ptr,
+                        function_instance,
+                        &mut arguments,
+                    );
                     self.stack.push_frame(frame)?;
                     break;
                 }
@@ -581,14 +597,12 @@ impl Vm {
             let frame = self.stack.pop_frame()?;
             // NOTE: Only fresh frame should be initialization.
             if frame.is_fresh() {
-                let prev_frame_ptr = self.stack.frame_ptr;
                 let return_type = frame
                     .get_return_type()
                     .first()
                     .map_or(ValueTypes::Empty, |x| x.to_owned());
                 let label = StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
                 self.stack.frame_ptr = frame.return_ptr;
-                self.stack.push(StackEntry::new_pointer(prev_frame_ptr))?;
                 self.stack.push_entries(&mut frame.get_local_variables())?;
                 self.stack.push(label)?;
             }
@@ -604,7 +618,7 @@ impl Vm {
             for _ in 0..count_of_returns {
                 returns.push(StackEntry::new_value(self.stack.pop_value()?));
             }
-            self.stack.update_frame_ptr();
+            self.stack.update_frame_ptr(&frame);
             self.stack.push_entries(&mut returns)?;
         }
         Ok(())
@@ -627,6 +641,7 @@ impl Vm {
                 let function_instance = self.store.get_function_instance(idx as usize).unwrap();
                 let frame = Frame::new(
                     self.stack.stack_ptr,
+                    self.stack.frame_ptr,
                     function_instance,
                     &mut argument_entries,
                 );
