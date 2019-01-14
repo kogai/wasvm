@@ -1,5 +1,4 @@
 use alloc::prelude::*;
-use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use frame::Frame;
@@ -11,7 +10,7 @@ use module::{
     ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
     ModuleDescriptor, ModuleName,
 };
-use stack::{Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
+use stack::{Stack, StackEntry};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -156,7 +155,7 @@ impl Vm {
         })
     }
 
-    pub fn get_function_instance(&self, idx: &Indice) -> Option<Rc<FunctionInstance>> {
+    pub fn get_function_instance(&self, idx: &Indice) -> Option<FunctionInstance> {
         self.store.get_function_instance(idx.to_usize())
     }
 
@@ -227,7 +226,7 @@ impl Vm {
                     if frame.is_next_empty() {
                         break;
                     } else {
-                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        let mut buf_values = self.stack.pop_until_label()?;
                         let label = self.stack.pop_label_ext();
                         if let Label {
                             source_instruction: LabelKind::If,
@@ -352,7 +351,7 @@ impl Vm {
                     }
                     let function_instance = table.get_function_instance(i as u32)?;
                     let mut arguments = {
-                        let actual_fn_ty = &function_instance.function_type;
+                        let actual_fn_ty = function_instance.function_type_ref();
                         let expect_fn_ty = &match &source_of_frame {
                             Some(module_name) => self
                                 .external_modules

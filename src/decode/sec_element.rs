@@ -2,7 +2,6 @@ use super::decodable::{
   Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable,
 };
 use super::instruction::InstructionDecodable;
-use alloc::rc::Rc;
 use alloc::vec::Vec;
 use function::FunctionInstance;
 use inst::Inst;
@@ -12,7 +11,7 @@ use trap::Result;
 pub struct Element {
   pub(crate) table_idx: u32,
   pub(crate) offset: Vec<Inst>,
-  pub(crate) init: Vec<u32>, // vec of funcidx
+  pub(crate) init: Vec<u32>, // FIXME: Vec of funcidx, Use Indice type
 }
 
 impl Element {
@@ -32,8 +31,8 @@ impl Element {
 
   pub(crate) fn wrap_by_option(
     &self,
-    function_instances: &[Rc<FunctionInstance>],
-  ) -> Vec<Option<Rc<FunctionInstance>>> {
+    function_instances: &[FunctionInstance],
+  ) -> Vec<Option<FunctionInstance>> {
     self
       .init
       .iter()
