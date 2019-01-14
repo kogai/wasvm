@@ -18,7 +18,7 @@ pub fn decode_module(bytes: &[u8]) -> Result<Section> {
 
 pub fn validate_module(module: &Result<Section>) -> validate::Result<()> {
   match module {
-    Ok(module) => Context::new(module).validate(),
+    Ok(module) => Context::new(module)?.validate(),
     Err(err) => Err(validate::TypeError::Trap(err.to_owned())),
   }
 }

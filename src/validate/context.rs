@@ -2,21 +2,36 @@ use super::error::{Result, TypeError};
 use alloc::vec::Vec;
 use decode::Section;
 use function::FunctionType;
-use inst::Inst;
+use inst::{Indice, Inst};
 use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
+use trap::Trap;
 use value::Values;
 use value_type::ValueTypes;
 
-struct Function {
-  function_type: FunctionType,
-  locals: Vec<ValueTypes>,
-  body: Vec<Inst>,
+struct Function<'a> {
+  function_type: &'a FunctionType,
+  locals: &'a Vec<ValueTypes>,
+  body: &'a Vec<Inst>,
+}
+
+impl<'a> Function<'a> {
+  fn new(
+    function_type: &'a FunctionType,
+    locals: &'a Vec<ValueTypes>,
+    body: &'a Vec<Inst>,
+  ) -> Function<'a> {
+    Function {
+      function_type,
+      locals,
+      body,
+    }
+  }
 }
 
 pub struct Context<'a> {
   module: &'a Section,
   function_types: &'a Vec<FunctionType>,
-  //  functions: Vec<u32>,
+  functions: Vec<Function<'a>>,
   //  exports: ExternalInterfaces,
   //  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   //  datas: Vec<Data>,
@@ -30,11 +45,25 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-  pub fn new(module: &'a Section) -> Self {
-    Context {
+  pub fn new(module: &'a Section) -> Result<Self> {
+    Ok(Context {
       module,
       function_types: &module.function_types,
-    }
+      functions: module
+        .codes
+        .iter()
+        .enumerate()
+        .map(|(idx, code)| {
+          let idx = module.functions.get(idx).map(|n| Indice::from(*n))?;
+          let function_type = module.function_types.get(idx.to_usize())?;
+          let (body, locals) = match code {
+            Ok((body, locals)) => Ok((body, locals)),
+            Err(ref err) => Err(TypeError::Trap(err.to_owned())),
+          }?;
+          Ok(Function::new(function_type, locals, body))
+        })
+        .collect::<Result<Vec<_>>>()?,
+    })
   }
 
   fn validate_function_types(&self) -> Result<()> {
