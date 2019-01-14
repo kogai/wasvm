@@ -316,7 +316,11 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
-  pub fn complete(self, external_modules: &ExternalModules) -> Result<(Store, InternalModule)> {
+  pub fn complete(
+    self,
+    external_modules: &ExternalModules,
+    store: &mut Store,
+  ) -> Result<InternalModule> {
     match self {
       Section {
         function_types,
@@ -405,7 +409,7 @@ impl Section {
             exports,
             start,
           )
-          .without_validate()?,
+          .without_validate(store)?,
         )
       }
     }

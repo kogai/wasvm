@@ -29,7 +29,7 @@ mod value;
 mod value_type;
 mod vm;
 
-pub use self::embedder::{decode_module, init_store};
+pub use self::embedder::{decode_module, init_store, instantiate_module};
 pub use self::module::{ExternalModule, ExternalModules};
 pub use self::spectest::create_spectest;
 pub use self::trap::Trap;

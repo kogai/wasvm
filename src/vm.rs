@@ -1,9 +1,11 @@
 use alloc::prelude::*;
+use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
-use decode::Byte;
+use embedder::{decode_module, init_store, instantiate_module};
 use frame::Frame;
-use inst::Inst;
+use function::FunctionInstance;
+use inst::{Indice, Inst};
 use label::{Label, LabelKind};
 use memory::MemoryInstances;
 use module::{
@@ -120,9 +122,10 @@ macro_rules! impl_try_binary_inst {
     }};
 }
 
+// FIXME: May rename to `ModuleInstance`
 pub struct Vm {
     store: Store,
-    stack: Stack,
+    pub(crate) stack: Stack,
     internal_module: InternalModule,
     external_modules: ExternalModules,
 }
@@ -136,37 +139,35 @@ impl Vm {
     impl_load_to!(load_data_to_i32, load_data_32, Values::I32, i32);
     impl_load_to!(load_data_to_i64, load_data_64, Values::I64, i64);
 
+    pub fn start_index(&self) -> &Option<Indice> {
+        &self.internal_module.start
+    }
+
     pub fn new(bytes: &[u8]) -> Result<Self> {
         Vm::new_with_externals(&bytes, ExternalModules::default())
     }
 
     pub fn new_with_externals(bytes: &[u8], external_modules: ExternalModules) -> Result<Self> {
-        let mut bytes = Byte::new_with_drop(&bytes)?;
-        match bytes.decode() {
-            Ok(section) => {
-                let (store, internal_module) = section.complete(&external_modules)?;
-                let mut vm = Vm {
-                    store,
-                    internal_module,
-                    stack: Stack::new(65536),
-                    external_modules,
-                };
-                if let Some(idx) = vm.internal_module.start {
-                    let function_instance = vm.store.get_function_instance(idx as usize)?;
-                    let frame = Frame::new(
-                        vm.stack.stack_ptr,
-                        vm.stack.frame_ptr,
-                        function_instance,
-                        &mut vec![],
-                    );
-                    vm.stack.push_frame(frame)?;
-                    vm.evaluate()?;
-                    vm.stack = Stack::new(65536);
-                };
-                Ok(vm)
-            }
-            Err(err) => Err(err),
-        }
+        let store = init_store();
+        let section = decode_module(bytes)?;
+        instantiate_module(store, section, external_modules)
+    }
+
+    pub(crate) fn new_from(
+        store: Store,
+        internal_module: InternalModule,
+        external_modules: ExternalModules,
+    ) -> Result<Self> {
+        Ok(Vm {
+            store,
+            internal_module,
+            stack: Stack::new(65536),
+            external_modules,
+        })
+    }
+
+    pub fn get_function_instance(&self, idx: &Indice) -> Option<Rc<FunctionInstance>> {
+        self.store.get_function_instance(idx.to_usize())
     }
 
     pub fn export_module(&self) -> ExternalModule {
@@ -589,7 +590,7 @@ impl Vm {
         Ok(())
     }
 
-    fn evaluate(&mut self) -> Result<()> {
+    pub(crate) fn evaluate(&mut self) -> Result<()> {
         while !self.stack.call_stack_is_empty() {
             let frame = self.stack.pop_frame()?;
             // NOTE: Only fresh frame should be initialization.

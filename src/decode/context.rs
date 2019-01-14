@@ -42,16 +42,14 @@ impl Context {
     }
   }
 
-  pub fn without_validate(self) -> Result<(Store, InternalModule)> {
-    let store = Store::new(
-      self.function_instances,
-      self.function_types,
-      self.memory_instances,
-      self.table_instances,
-      self.global_instances,
-    );
+  pub fn without_validate(self, store: &mut Store) -> Result<InternalModule> {
+    store.function_instances = self.function_instances;
+    store.function_types = self.function_types;
+    store.memory_instances = self.memory_instances;
+    store.table_instances = self.table_instances;
+    store.global_instances = self.global_instances;
     let internal_module = InternalModule::new(self.exports, self.start);
-    Ok((store, internal_module))
+    Ok(internal_module)
   }
 
   // pub fn validate(self) -> Result<Store> {

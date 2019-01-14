@@ -1,4 +1,7 @@
+use decode::{Byte, Section};
+use frame::Frame;
 use module::ExternalModules;
+use stack::Stack;
 use store::Store;
 use trap::Result;
 use vm::Vm;
@@ -16,13 +19,26 @@ pub fn decode_module(bytes: &[u8]) -> Result<Section> {
 // }
 
 pub fn instantiate_module(
-  store: &Store,
-  /* module: Module(PreVm), */
-  external_val: ExternalModules,
-)
-/* -> Result<Store, ModuleInst(Vm), Error> */
-{
-  unimplemented!();
+  mut store: Store,
+  section: Section, // module: Module(PreVm)
+  external_modules: ExternalModules,
+) -> Result<Vm> {
+  // TODO: Return pair of (Store, Vm) by using Rc<Store> type.
+  let internal_module = section.complete(&external_modules, &mut store)?;
+  let mut vm = Vm::new_from(store, internal_module, external_modules)?;
+  if let Some(idx) = vm.start_index().clone() {
+    let function_instance = vm.get_function_instance(&idx)?;
+    let frame = Frame::new(
+      vm.stack.stack_ptr,
+      vm.stack.frame_ptr,
+      function_instance,
+      &mut vec![],
+    );
+    vm.stack.push_frame(frame)?;
+    vm.evaluate()?;
+    vm.stack = Stack::new(65536);
+  };
+  Ok(vm)
 }
 
 // module_imports(module):(name,name,externtype)∗¶
