@@ -1,4 +1,3 @@
-use super::context::Context;
 use super::sec_element::Element;
 use super::sec_table::TableType;
 use super::Data;
@@ -58,6 +57,7 @@ impl TryFrom<Option<u8>> for SectionCode {
   }
 }
 
+// FIXME: Rename to `Module`
 #[derive(Debug)]
 pub struct Section {
   function_types: Vec<FunctionType>,
@@ -315,7 +315,11 @@ impl Section {
       .collect::<Result<Vec<_>>>()
   }
 
-  pub fn complete(self, external_modules: &ExternalModules) -> Result<(Store, InternalModule)> {
+  pub fn complete(
+    self,
+    external_modules: &ExternalModules,
+    store: &mut Store,
+  ) -> Result<InternalModule> {
     match self {
       Section {
         function_types,
@@ -394,18 +398,13 @@ impl Section {
           &function_instances,
         )?;
 
-        Ok(
-          Context::new(
-            function_instances,
-            function_types,
-            memory_instances,
-            table_instances,
-            global_instances,
-            exports,
-            start,
-          )
-          .without_validate()?,
-        )
+        store.function_instances = function_instances;
+        store.function_types = function_types;
+        store.memory_instances = memory_instances;
+        store.table_instances = table_instances;
+        store.global_instances = global_instances;
+        let internal_module = InternalModule::new(exports, start);
+        Ok(internal_module)
       }
     }
   }

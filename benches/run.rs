@@ -5,7 +5,7 @@ extern crate wasvm;
 
 use std::fs;
 use std::io::Read;
-use wasvm::Vm;
+use wasvm::{decode_module, init_store, instantiate_module};
 
 #[derive(Clone)]
 struct Sample(usize, usize);
@@ -40,11 +40,13 @@ macro_rules! impl_benches {
     #[bench]
     fn $test_name(_b: &mut test::Bencher) {
       let mut file = fs::File::open(format!("./tmp/{}.wasm", $bench_name)).unwrap();
-      let mut buffer = vec![];
-      file.read_to_end(&mut buffer).unwrap();
+      let mut bytes = vec![];
+      file.read_to_end(&mut bytes).unwrap();
       flame::start($bench_name);
       // b.iter(|| {
-      let mut vm = Vm::new(&buffer).unwrap();
+      let store = init_store();
+      let module = decode_module(&bytes);
+      let mut vm = instantiate_module(store, module, Default::default()).unwrap();
       assert_eq!(vm.run("app_main", vec![]), $expect);
       // });
       flame::end($bench_name);

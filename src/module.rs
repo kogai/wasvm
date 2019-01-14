@@ -11,6 +11,7 @@ use decode::TableType;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
 use hashbrown::HashMap;
+use inst::Indice;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
 use table::{TableInstance, TableInstances};
@@ -26,7 +27,7 @@ pub enum ImportDescriptor {
 
 #[derive(Debug, Clone)]
 pub enum ExportDescriptor {
-  Function(u32), // NOTE: Index of FunctionTypes
+  Function(u32), // FIXME: Use Indice type.
   Table(u32),
   Memory(u32),
   Global(u32),
@@ -168,14 +169,18 @@ impl Default for ExternalInterfaces {
   }
 }
 
+#[derive(Debug)]
 pub struct InternalModule {
   exports: ExternalInterfaces,
-  pub start: Option<u32>,
+  pub start: Option<Indice>,
 }
 
 impl InternalModule {
   pub fn new(exports: ExternalInterfaces, start: Option<u32>) -> Self {
-    InternalModule { exports, start }
+    InternalModule {
+      exports,
+      start: start.map(Indice::from),
+    }
   }
 
   pub fn get_export_by_key(&self, invoke: &str) -> Option<&ExternalInterface> {

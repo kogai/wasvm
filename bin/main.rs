@@ -6,7 +6,7 @@ use std::env::args;
 use std::fs;
 use std::io;
 use std::io::Read;
-use wasvm::{Values, Vm};
+use wasvm::{decode_module, init_store, instantiate_module, Values};
 
 fn main() -> io::Result<()> {
   let arguments = args().collect::<Vec<String>>();
@@ -14,10 +14,12 @@ fn main() -> io::Result<()> {
   match arguments.split_first() {
     Some((file_name, arguments)) => {
       let mut file = fs::File::open(format!("./{}.wasm", file_name))?;
-      let mut buffer = vec![];
-      file.read_to_end(&mut buffer)?;
+      let mut bytes = vec![];
+      file.read_to_end(&mut bytes)?;
 
-      let mut vm = Vm::new(&buffer).unwrap();
+      let store = init_store();
+      let module = decode_module(&bytes);
+      let mut vm = instantiate_module(store, module, Default::default()).unwrap();
       let result = vm.run(
         "_subject",
         arguments

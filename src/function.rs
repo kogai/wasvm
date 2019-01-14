@@ -59,6 +59,8 @@ impl FunctionType {
   }
 }
 
+// FIXME: Add enum which represents either FunctionInstance or HostFunction.
+// FIXME: Represents with Rc type internaly like -> `struct FunctionRef(Rc<FunctionInstance>)`
 #[derive(PartialEq)]
 pub struct FunctionInstance {
   pub export_name: Option<String>,

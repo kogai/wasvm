@@ -77,6 +77,7 @@ impl Byte {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use embedder::{decode_module, init_store};
   use function::{FunctionInstance, FunctionType};
   use inst::Inst;
   use module::ExternalModules;
@@ -92,17 +93,12 @@ mod tests {
         let mut file = File::open(format!("./{}.wasm", $file_name)).unwrap();
         let mut buffer = vec![];
         let _ = file.read_to_end(&mut buffer);
-        let mut bc = Byte::new_with_drop(&buffer).unwrap();
-        assert_eq!(
-          bc.decode()
-            .unwrap()
-            .complete(&ExternalModules::default())
-            .unwrap()
-            .0
-            .get_function_instance(0)
-            .unwrap(),
-          $fn_insts
-        );
+        let mut store = init_store();
+        decode_module(&buffer)
+          .unwrap()
+          .complete(&ExternalModules::default(), &mut store)
+          .unwrap();
+        assert_eq!(store.get_function_instance(0).unwrap(), $fn_insts);
       }
     };
   }
