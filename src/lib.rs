@@ -12,6 +12,7 @@ extern crate hashbrown;
 
 #[macro_use]
 mod decode;
+mod embedder;
 mod frame;
 mod function;
 mod global;

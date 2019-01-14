@@ -26,7 +26,7 @@ pub enum ImportDescriptor {
 
 #[derive(Debug, Clone)]
 pub enum ExportDescriptor {
-  Function(u32), // NOTE: Index of FunctionTypes
+  Function(u32), // FIXME: Use Indice type.
   Table(u32),
   Memory(u32),
   Global(u32),

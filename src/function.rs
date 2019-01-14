@@ -59,6 +59,7 @@ impl FunctionType {
   }
 }
 
+// FIXME: Add enum which represents either FunctionInstance or HostFunction.
 #[derive(PartialEq)]
 pub struct FunctionInstance {
   pub export_name: Option<String>,
