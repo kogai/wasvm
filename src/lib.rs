@@ -25,6 +25,7 @@ mod stack;
 mod store;
 mod table;
 mod trap;
+mod validate;
 mod value;
 mod value_type;
 mod vm;

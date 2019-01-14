@@ -71,6 +71,7 @@ impl GlobalInstances {
     GlobalInstances(Rc::new(RefCell::new(global_instances)))
   }
 
+  // TODO: Use Default trait.
   pub fn empty() -> Self {
     GlobalInstances::new(vec![])
   }

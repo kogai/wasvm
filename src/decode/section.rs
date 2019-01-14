@@ -360,6 +360,7 @@ impl Section {
           &external_modules,
         )?;
 
+        // TODO: Move to context mod.
         let (validate_memory, validate_table) = (
           Section::validate_memory(
             &datas,

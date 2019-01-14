@@ -1,5 +1,17 @@
-use super::section::Section;
+use alloc::vec::Vec;
+use decode::Section;
+use function::FunctionType;
+use inst::Inst;
+use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
 use trap::Result;
+use value::Values;
+use value_type::ValueTypes;
+
+struct Function {
+  function_type: FunctionType,
+  locals: Vec<ValueTypes>,
+  body: Vec<Inst>,
+}
 
 pub struct Context<'a> {
   module: &'a Section,
@@ -12,8 +24,28 @@ impl<'a> Context<'a> {
 
   // FIXME: Skip type validation until ready.
   pub fn validate(&self) -> Result<()> {
+    // let grouped_imports = self.module.imports.group_by_kind();
+    // let imports_function = grouped_imports.get(&FUNCTION_DESCRIPTOR)?;
+    // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
+    // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
+    // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
+
+    // let mut internal_function_instances = Section::function_instances(
+    //   &self.module.function_types,
+    //   &self.module.functions,
+    //   &self.module.exports,
+    //   self.module.codes,
+    // )?;
+
+    // let mut function_instances =
+    //   Section::external_function_instances(&function_types, &imports_function, &external_modules)?;
+    // function_instances.append(&mut internal_function_instances);
+
+    // let global_instances =
+    //   GlobalInstances::new_with_external(globals, &exports, &imports_global, &external_modules)?;
+
     unimplemented!(
-      "Type system(Also called as `validation`) not implemented yet.\n{:?}",
+      "Type system(Also called as `validation`) not implemented yet.\n{:#?}",
       self.module
     );
   }

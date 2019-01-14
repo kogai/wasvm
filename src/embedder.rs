@@ -1,9 +1,10 @@
-use decode::{Byte, Context, Section};
+use decode::{Byte, Section};
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
 use store::Store;
 use trap::Result;
+use validate::Context;
 use vm::Vm;
 
 pub fn init_store() -> Store {
