@@ -20,11 +20,11 @@ pub fn decode_module(bytes: &[u8]) -> Result<Section> {
 
 pub fn instantiate_module(
   mut store: Store,
-  section: Section, // module: Module(PreVm)
+  section: Result<Section>, // module: Module(PreVm)
   external_modules: ExternalModules,
 ) -> Result<Vm> {
   // TODO: Return pair of (Store, Vm) by using Rc<Store> type.
-  let internal_module = section.complete(&external_modules, &mut store)?;
+  let internal_module = section?.complete(&external_modules, &mut store)?;
   let mut vm = Vm::new_from(store, internal_module, external_modules)?;
   if let Some(idx) = vm.start_index().clone() {
     let function_instance = vm.get_function_instance(&idx)?;

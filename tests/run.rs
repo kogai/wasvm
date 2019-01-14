@@ -8,7 +8,9 @@ use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
-use wasvm::{create_spectest, ExternalModules, Trap, Values, Vm};
+use wasvm::{
+  create_spectest, decode_module, init_store, instantiate_module, ExternalModules, Trap, Values, Vm,
+};
 
 fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
   args
@@ -58,9 +60,11 @@ macro_rules! impl_e2e {
             ref module,
             ref name,
           } => {
+            let bytes = module.clone().into_vec();
+            let store = init_store();
+            let section = decode_module(&bytes);
             let vm_ref = Rc::new(RefCell::new(
-              Vm::new_with_externals(&module.clone().into_vec(), importable_modules.clone())
-                .unwrap(),
+              instantiate_module(store, section, importable_modules.clone()).unwrap(),
             ));
             current_modules.insert(None, vm_ref.clone());
             current_modules.insert(name.clone(), vm_ref.clone());
@@ -141,17 +145,14 @@ macro_rules! impl_e2e {
           } => {
             println!("Assert uninstantiable at line:{}.", line);
             let bytes = module.clone().into_vec();
-            let mut vm = Vm::new(&bytes);
-            match vm {
-              Ok(_) => unreachable!(),
-              Err(err) => {
-                let actual = String::from(err);
-                match message.as_ref() {
-                  "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-                  _ => assert_eq!(&actual, message),
-                }
-              }
-            }
+            let store = init_store();
+            let module = decode_module(&bytes);
+            let err = instantiate_module(store, module, Default::default()).unwrap_err();
+            let actual = String::from(err);
+            match message.as_ref() {
+              "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+              _ => assert_eq!(&actual, message),
+            };
           }
           CommandKind::AssertMalformed {
             ref module,
@@ -167,30 +168,27 @@ macro_rules! impl_e2e {
               continue;
             };
             let bytes = module.clone().into_vec();
-            let mut vm = Vm::new(&bytes);
+            let store = init_store();
+            let module = decode_module(&bytes);
+            let err = instantiate_module(store, module, Default::default()).unwrap_err();
             use self::Trap::*;
-            match vm {
-              Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
-              Err(err) => {
-                if let UnsupportedTextform = err {
-                  println!("Skip malformed text form at line:{}.", line);
-                  continue;
-                };
-                println!("Assert malformed at {}.", line,);
-                match err {
-                  UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
-                  _ => {
-                    if ($file_name == "globals" && line == 305)
-                      || ($file_name == "globals" && line == 318)
-                    {
-                      assert_eq!(&String::from(err), "unexpected end");
-                    } else {
-                      assert_eq!(&String::from(err), message);
-                    }
-                  }
-                };
+            if let UnsupportedTextform = err {
+              println!("Skip malformed text form at line:{}.", line);
+              continue;
+            };
+            println!("Assert malformed at {}.", line,);
+            match err {
+              UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
+              _ => {
+                if ($file_name == "globals" && line == 305)
+                  || ($file_name == "globals" && line == 318)
+                {
+                  assert_eq!(&String::from(err), "unexpected end");
+                } else {
+                  assert_eq!(&String::from(err), message);
+                }
               }
-            }
+            };
           }
           CommandKind::AssertReturnCanonicalNan {
             action:
@@ -229,18 +227,15 @@ macro_rules! impl_e2e {
             let (magic_numbers, _) = tmp_bytes.split_at(8);
             if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
               println!("Assert unlinkable at {}.", line,);
-              let mut vm = Vm::new_with_externals(&bytes, importable_modules.clone());
-              match vm {
-                Ok(_) => unreachable!("Expect '{}', but successed to instantiate.", message),
-                Err(err) => {
-                  let actual = String::from(err);
-                  match message.as_ref() {
-                    // FIXME: Skip to assert actual message
-                    "incompatible import type" => {}
-                    _ => assert_eq!(&actual, message),
-                  }
-                }
-              }
+              let store = init_store();
+              let section = decode_module(&bytes);
+              let err = instantiate_module(store, section, importable_modules.clone()).unwrap_err();
+              let actual = String::from(err);
+              match message.as_ref() {
+                // FIXME: Skip to assert actual message
+                "incompatible import type" => {}
+                _ => assert_eq!(&actual, message),
+              };
             } else {
               println!("Skip unlinkable text form at line:{}.", line);
             };

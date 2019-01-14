@@ -47,9 +47,12 @@ mod tests {
             #[test]
             fn $fn_name() {
                 let mut file = File::open(format!("./dist/{}.wasm", $file_name)).unwrap();
-                let mut buffer = vec![];
-                let _ = file.read_to_end(&mut buffer);
-                let mut vm = Vm::new(&buffer).unwrap();
+                let mut bytes = vec![];
+                file.read_to_end(&mut bytes).unwrap();
+
+                let store = init_store();
+                let section = decode_module(&bytes);
+                let mut vm = instantiate_module(store, section, Default::default()).unwrap();
                 let actual = vm.run("_subject", $call_arguments);
                 assert_eq!(actual, format!("i32:{}", $expect_value));
             }

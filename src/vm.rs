@@ -2,7 +2,6 @@ use alloc::prelude::*;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
-use embedder::{decode_module, init_store, instantiate_module};
 use frame::Frame;
 use function::FunctionInstance;
 use inst::{Indice, Inst};
@@ -123,6 +122,7 @@ macro_rules! impl_try_binary_inst {
 }
 
 // FIXME: May rename to `ModuleInstance`
+#[derive(Debug)]
 pub struct Vm {
     store: Store,
     pub(crate) stack: Stack,
@@ -141,16 +141,6 @@ impl Vm {
 
     pub fn start_index(&self) -> &Option<Indice> {
         &self.internal_module.start
-    }
-
-    pub fn new(bytes: &[u8]) -> Result<Self> {
-        Vm::new_with_externals(&bytes, ExternalModules::default())
-    }
-
-    pub fn new_with_externals(bytes: &[u8], external_modules: ExternalModules) -> Result<Self> {
-        let store = init_store();
-        let section = decode_module(bytes)?;
-        instantiate_module(store, section, external_modules)
     }
 
     pub(crate) fn new_from(

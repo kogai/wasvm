@@ -169,6 +169,7 @@ impl Default for ExternalInterfaces {
   }
 }
 
+#[derive(Debug)]
 pub struct InternalModule {
   exports: ExternalInterfaces,
   pub start: Option<Indice>,
