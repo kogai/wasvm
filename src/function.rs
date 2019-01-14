@@ -12,9 +12,33 @@ use value::Values;
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
-pub struct FunctionType {
+struct FunctionTypeImpl {
   parameters: Vec<ValueTypes>,
   returns: Vec<ValueTypes>,
+}
+
+#[derive(PartialEq, Clone)]
+pub struct FunctionType(Rc<FunctionTypeImpl>);
+
+impl FunctionType {
+  pub fn new(parameters: Vec<ValueTypes>, returns: Vec<ValueTypes>) -> Self {
+    FunctionType(Rc::new(FunctionTypeImpl {
+      parameters,
+      returns,
+    }))
+  }
+
+  pub fn parameters<'a>(&'a self) -> &'a Vec<ValueTypes> {
+    &self.0.parameters
+  }
+
+  pub fn returns<'a>(&'a self) -> &'a Vec<ValueTypes> {
+    &self.0.returns
+  }
+
+  pub fn get_arity(&self) -> u32 {
+    self.0.parameters.len() as u32
+  }
 }
 
 impl fmt::Debug for FunctionType {
@@ -23,39 +47,20 @@ impl fmt::Debug for FunctionType {
       f,
       "({}) -> ({})",
       self
+        .0
         .parameters
         .iter()
         .map(|p| format!("{:?}", p))
         .collect::<Vec<String>>()
         .join(", "),
       self
+        .0
         .returns
         .iter()
         .map(|p| format!("{:?}", p))
         .collect::<Vec<String>>()
         .join(", "),
     )
-  }
-}
-
-impl FunctionType {
-  pub fn new(parameters: Vec<ValueTypes>, returns: Vec<ValueTypes>) -> Self {
-    FunctionType {
-      parameters,
-      returns,
-    }
-  }
-
-  pub fn get_parameter_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
-    &self.parameters
-  }
-
-  pub fn get_return_types<'a>(&'a self) -> &'a Vec<ValueTypes> {
-    &self.returns
-  }
-
-  pub fn get_arity(&self) -> u32 {
-    self.parameters.len() as u32
   }
 }
 
@@ -121,7 +126,7 @@ impl FunctionInstance {
   }
 
   pub fn get_arity(&self) -> u32 {
-    self.0.function_type.parameters.len() as u32
+    self.0.function_type.parameters().len() as u32
   }
 
   pub fn get_function_type(&self) -> FunctionType {
@@ -129,11 +134,11 @@ impl FunctionInstance {
   }
 
   pub fn get_return_type(&self) -> &Vec<ValueTypes> {
-    &self.0.function_type.returns
+    &self.0.function_type.returns()
   }
 
   pub fn get_return_count(&self) -> u32 {
-    self.0.function_type.returns.len() as u32
+    self.get_return_type().len() as u32
   }
 
   pub fn validate_type(&self, other: &FunctionType) -> Result<()> {
