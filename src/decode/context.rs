@@ -1,80 +1,22 @@
-use alloc::rc::Rc;
-use alloc::vec::Vec;
-use function::{FunctionInstance, FunctionType};
-use global::GlobalInstances;
-use inst::TypeKind;
-use memory::MemoryInstances;
-use module::{ExternalInterfaces, InternalModule};
-use store::Store;
-use table::TableInstances;
+use super::section::Section;
 use trap::Result;
 
-pub struct Context {
-  function_instances: Vec<Rc<FunctionInstance>>,
-  function_types: Vec<FunctionType>,
-  memory_instances: MemoryInstances,
-  table_instances: TableInstances,
-  global_instances: GlobalInstances,
-  exports: ExternalInterfaces,
-  start: Option<u32>,
-  _type_context: Vec<TypeKind>,
+pub struct Context<'a> {
+  module: &'a Section,
 }
 
-impl Context {
-  pub fn new(
-    function_instances: Vec<Rc<FunctionInstance>>,
-    function_types: Vec<FunctionType>,
-    memory_instances: MemoryInstances,
-    table_instances: TableInstances,
-    global_instances: GlobalInstances,
-    exports: ExternalInterfaces,
-    start: Option<u32>,
-  ) -> Self {
-    Context {
-      function_instances,
-      function_types,
-      memory_instances,
-      table_instances,
-      global_instances,
-      exports,
-      _type_context: vec![],
-      start,
-    }
+impl<'a> Context<'a> {
+  pub fn new(module: &'a Section) -> Self {
+    Context { module }
   }
 
-  pub fn without_validate(self, store: &mut Store) -> Result<InternalModule> {
-    store.function_instances = self.function_instances;
-    store.function_types = self.function_types;
-    store.memory_instances = self.memory_instances;
-    store.table_instances = self.table_instances;
-    store.global_instances = self.global_instances;
-    let internal_module = InternalModule::new(self.exports, self.start);
-    Ok(internal_module)
+  // FIXME: Skip type validation until ready.
+  pub fn validate(&self) -> Result<()> {
+    unimplemented!(
+      "Type system(Also called as `validation`) not implemented yet.\n{:?}",
+      self.module
+    );
   }
-
-  // pub fn validate(self) -> Result<Store> {
-  //   // FIXME: Suppress compile type validate until ready.
-  //   self
-  //     .function_instances
-  //     .iter()
-  //     .map(|function_instance| {
-  //       let function_type = function_instance.get_function_type();
-  //       let expect_return_type = function_type.get_return_types();
-  //       let actual_return_type = self.reduction_instructions(function_instance, &function_type)?;
-  //       if expect_return_type != &actual_return_type {
-  //         return Err(Trap::TypeMismatch);
-  //       }
-  //       Ok(())
-  //     })
-  //     .collect::<Result<Vec<_>>>()?;
-  //   Ok(Store::new(
-  //     self.function_instances,
-  //     self.function_types,
-  //     self.memory_instances,
-  //     self.table_instances,
-  //     self.global_instances,
-  //   ))
-  // }
 
   // fn reduction_instructions(
   //   &self,

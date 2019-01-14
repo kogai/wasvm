@@ -1,4 +1,4 @@
-use decode::{Byte, Section};
+use decode::{Byte, Context, Section};
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
@@ -14,9 +14,12 @@ pub fn decode_module(bytes: &[u8]) -> Result<Section> {
   Byte::new_with_drop(&bytes)?.decode()
 }
 
-// pub fn validate_module(vm: &Vm /* module: Module(PreVm) */) -> Result<()> {
-//   unimplemented!();
-// }
+pub fn validate_module(module: &Result<Section>) -> Result<()> {
+  match module {
+    Ok(module) => Context::new(module).validate(),
+    Err(err) => Err(err.to_owned()),
+  }
+}
 
 pub fn instantiate_module(
   mut store: Store,

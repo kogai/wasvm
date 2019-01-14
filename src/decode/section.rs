@@ -1,4 +1,3 @@
-use super::context::Context;
 use super::sec_element::Element;
 use super::sec_table::TableType;
 use super::Data;
@@ -399,18 +398,13 @@ impl Section {
           &function_instances,
         )?;
 
-        Ok(
-          Context::new(
-            function_instances,
-            function_types,
-            memory_instances,
-            table_instances,
-            global_instances,
-            exports,
-            start,
-          )
-          .without_validate(store)?,
-        )
+        store.function_instances = function_instances;
+        store.function_types = function_types;
+        store.memory_instances = memory_instances;
+        store.table_instances = table_instances;
+        store.global_instances = global_instances;
+        let internal_module = InternalModule::new(exports, start);
+        Ok(internal_module)
       }
     }
   }
