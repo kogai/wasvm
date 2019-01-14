@@ -4,7 +4,7 @@ use trap::Result;
 use vm::Vm;
 
 pub fn init_store() -> Store {
-  unimplemented!();
+  Default::default()
 }
 
 pub fn decode_module(bytes: &[u8]) -> Vm /* Module */ {
