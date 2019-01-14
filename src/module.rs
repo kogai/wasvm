@@ -1,4 +1,3 @@
-use alloc::prelude::*;
 use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -190,7 +189,7 @@ impl InternalModule {
 
 #[derive(Debug, Clone)]
 pub struct ExternalModule {
-  pub function_instances: Vec<Rc<FunctionInstance>>,
+  pub function_instances: Vec<FunctionInstance>,
   function_types: Vec<FunctionType>,
   pub(crate) memory_instances: MemoryInstances,
   table_instances: TableInstances,
@@ -200,7 +199,7 @@ pub struct ExternalModule {
 impl ExternalModule {
   // NOTE: Only for spectest
   pub(crate) fn new(
-    function_instances: Vec<Rc<FunctionInstance>>,
+    function_instances: Vec<FunctionInstance>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,
     table_instances: Vec<TableInstance>,
@@ -220,7 +219,7 @@ impl ExternalModule {
     &self,
     key: &ExternalInterface,
     function_types: &[FunctionType],
-  ) -> Result<Rc<FunctionInstance>> {
+  ) -> Result<FunctionInstance> {
     match key {
       ExternalInterface {
         descriptor: ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(idx)),
@@ -231,7 +230,7 @@ impl ExternalModule {
         let instance = self
           .function_instances
           .iter()
-          .find(|instance| instance.export_name == Some(name.to_owned()))
+          .find(|instance| instance.is_same_name(name))
           .ok_or(Trap::UnknownImport)
           .map(|x| x.clone())?;
 
@@ -338,7 +337,7 @@ impl ExternalModules {
     &self,
     module_name: &ModuleName,
     idx: usize,
-  ) -> Result<Rc<FunctionInstance>> {
+  ) -> Result<FunctionInstance> {
     self
       .0
       .borrow()
@@ -354,7 +353,7 @@ impl ExternalModules {
     &self,
     import: &ExternalInterface,
     function_types: &[FunctionType],
-  ) -> Result<Rc<FunctionInstance>> {
+  ) -> Result<FunctionInstance> {
     self
       .0
       .borrow()

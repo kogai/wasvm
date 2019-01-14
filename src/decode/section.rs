@@ -2,7 +2,6 @@ use super::sec_element::Element;
 use super::sec_table::TableType;
 use super::Data;
 use alloc::prelude::*;
-use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
@@ -164,7 +163,7 @@ impl Section {
     imports: &[ExternalInterface],
     external_modules: &ExternalModules,
     global_instances: &GlobalInstances,
-    function_instances: &[Rc<FunctionInstance>],
+    function_instances: &[FunctionInstance],
   ) -> Result<()> {
     if !tables.is_empty() {
       tables
@@ -235,7 +234,7 @@ impl Section {
     imports: &[ExternalInterface],
     external_modules: &ExternalModules,
     global_instances: &GlobalInstances,
-    function_instances: &[Rc<FunctionInstance>],
+    function_instances: &[FunctionInstance],
   ) -> Result<TableInstances> {
     if !tables.is_empty() {
       tables
@@ -280,7 +279,7 @@ impl Section {
     functions: &[u32],
     exports: &ExternalInterfaces,
     codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  ) -> Result<Vec<Rc<FunctionInstance>>> {
+  ) -> Result<Vec<FunctionInstance>> {
     codes
       .into_iter()
       .enumerate()
@@ -308,7 +307,7 @@ impl Section {
     function_types: &[FunctionType],
     imports: &[ExternalInterface],
     external_modules: &ExternalModules,
-  ) -> Result<Vec<Rc<FunctionInstance>>> {
+  ) -> Result<Vec<FunctionInstance>> {
     imports
       .iter()
       .map(|value| external_modules.find_function_instances(value, function_types))

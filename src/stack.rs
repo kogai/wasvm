@@ -10,54 +10,56 @@ use value::Values;
 use value_type::ValueTypes;
 
 #[derive(PartialEq)]
-pub enum StackEntry {
+enum StackEntryImpl {
   Empty,
   Value(Values),
   Label(Label),
 }
 
+#[derive(PartialEq, Clone)]
+pub struct StackEntry(Rc<StackEntryImpl>);
+
 impl fmt::Debug for StackEntry {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    use self::StackEntry::*;
-    let label = match self {
+    use self::StackEntryImpl::*;
+    let label = match *self.0 {
       Empty => "_".to_owned(),
-      Value(v) => format!("{:?}", v),
-      Label(v) => format!("{:?}", v),
+      Value(ref v) => format!("{:?}", v),
+      Label(ref v) => format!("{:?}", v),
     };
     write!(f, "{}", label)
   }
 }
 
-// FIXME: Remove this enum definition completely.
-pub enum StackEntryKind {
-  Label,
-}
-
-pub const STACK_ENTRY_KIND_LABEL: StackEntryKind = StackEntryKind::Label;
-
 impl StackEntry {
-  pub fn new_empty() -> Rc<Self> {
-    Rc::new(StackEntry::Empty)
+  fn new(entry: StackEntryImpl) -> Self {
+    StackEntry(Rc::new(entry))
   }
-  pub fn new_value(value: Values) -> Rc<Self> {
-    Rc::new(StackEntry::Value(value))
+
+  pub fn new_empty() -> Self {
+    StackEntry::new(StackEntryImpl::Empty)
   }
+
+  pub fn new_value(value: Values) -> Self {
+    StackEntry::new(StackEntryImpl::Value(value))
+  }
+
   pub fn new_label(
     continuation: u32,
     return_type: ValueTypes,
     source_instruction: LabelKind,
-  ) -> Rc<Self> {
-    Rc::new(StackEntry::Label(Label {
+  ) -> Self {
+    StackEntry::new(StackEntryImpl::Label(Label {
       continuation,
       return_type,
       source_instruction,
     }))
   }
 
-  fn is_same_kind(&self, other: &StackEntryKind) -> bool {
-    use self::StackEntry::*;
-    match (self, other) {
-      (Label(_), StackEntryKind::Label) => true,
+  fn is_label(&self) -> bool {
+    use self::StackEntryImpl::*;
+    match *self.0 {
+      Label(_) => true,
       _ => false,
     }
   }
@@ -67,7 +69,7 @@ macro_rules! impl_pop {
   ($name: ident, $name_ext: ident, $path: path, $ret: ty, $error_decription: expr) => {
     pub fn $name(&mut self) -> Result<$ret> {
       let value = self.pop()?;
-      match *value {
+      match *value.0 {
         $path(ref v) => Ok(v.to_owned()),
         _ => {
           self.push(value.to_owned())?;
@@ -118,7 +120,7 @@ macro_rules! impl_pop_value_ext {
 /// +---------------+
 pub struct Stack {
   stack_size: usize,
-  operand_stack: RefCell<Vec<Rc<StackEntry>>>,
+  operand_stack: RefCell<Vec<StackEntry>>,
   call_stack: RefCell<Vec<Frame>>,
   pub(crate) stack_ptr: usize,
   pub(crate) frame_ptr: usize,
@@ -137,11 +139,11 @@ impl Stack {
     }
   }
 
-  pub fn get(&self, ptr: usize) -> Option<Rc<StackEntry>> {
+  pub fn get(&self, ptr: usize) -> Option<StackEntry> {
     self.operand_stack.borrow().get(ptr).cloned()
   }
 
-  pub fn set(&mut self, ptr: usize, entry: Rc<StackEntry>) -> Result<()> {
+  pub fn set(&mut self, ptr: usize, entry: StackEntry) -> Result<()> {
     if ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
@@ -149,7 +151,7 @@ impl Stack {
     Ok(())
   }
 
-  pub fn push(&mut self, entry: Rc<StackEntry>) -> Result<()> {
+  pub fn push(&mut self, entry: StackEntry) -> Result<()> {
     if self.stack_ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
@@ -169,7 +171,7 @@ impl Stack {
   /// +---------+
   /// | Val0    |
   /// +---------+
-  pub fn push_entries(&mut self, entries: &mut Vec<Rc<StackEntry>>) -> Result<()> {
+  pub fn push_entries(&mut self, entries: &mut Vec<StackEntry>) -> Result<()> {
     let len = entries.len();
     if self.stack_ptr + len >= self.stack_size {
       Err(Trap::StackOverflow)
@@ -205,7 +207,7 @@ impl Stack {
     calls.is_empty()
   }
 
-  pub fn peek(&self) -> Option<Rc<StackEntry>> {
+  pub fn peek(&self) -> Option<StackEntry> {
     if self.stack_ptr >= self.stack_size {
       return None;
     }
@@ -219,7 +221,7 @@ impl Stack {
       .cloned()
   }
 
-  pub fn pop(&mut self) -> Result<Rc<StackEntry>> {
+  pub fn pop(&mut self) -> Result<StackEntry> {
     if self.stack_ptr == 0 {
       return Err(Trap::StackUnderflow);
     }
@@ -233,31 +235,31 @@ impl Stack {
   impl_pop!(
     pop_value,
     pop_value_ext,
-    StackEntry::Value,
+    StackEntryImpl::Value,
     Values,
     "Expect to pop up Value, but got None"
   );
   impl_pop!(
     pop_label,
     pop_label_ext,
-    StackEntry::Label,
+    StackEntryImpl::Label,
     Label,
     "Expect to pop up Label, but got None"
   );
 
-  pub fn pop_until(&mut self, kind: &StackEntryKind) -> Result<Vec<Rc<StackEntry>>> {
+  pub fn pop_until_label(&mut self) -> Result<Vec<StackEntry>> {
     let mut entry_buffer = vec![];
-    while !self.peek().map_or(true, |entry| entry.is_same_kind(kind)) {
+    while !self.peek().map_or(true, |entry| entry.is_label()) {
       entry_buffer.push(self.pop()?);
     }
     Ok(entry_buffer)
   }
 
   pub fn jump_to_label(&mut self, depth_of_label: u32) -> Result<u32> /* point to continue */ {
-    let mut buf_values: Vec<Rc<StackEntry>> = vec![];
+    let mut buf_values = vec![];
     let mut label = None;
     for _ in 0..=depth_of_label {
-      let mut bufs = self.pop_until(&StackEntryKind::Label)?;
+      let mut bufs = self.pop_until_label()?;
       buf_values.append(&mut bufs);
       label = Some(self.pop_label_ext());
     }
@@ -330,13 +332,13 @@ mod tests {
     let mut stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(1));
     stack.push(value).unwrap();
-    assert_eq!(*stack.pop().unwrap(), StackEntry::Value(Values::I32(1)));
+    assert_eq!(stack.pop().unwrap(), StackEntry::new_value(Values::I32(1)));
   }
   #[test]
   fn stack_set() {
     let mut stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(2));
     stack.set(2, value).unwrap();
-    assert_eq!(*stack.get(2).unwrap(), StackEntry::Value(Values::I32(2)));
+    assert_eq!(stack.get(2).unwrap(), StackEntry::new_value(Values::I32(2)));
   }
 }

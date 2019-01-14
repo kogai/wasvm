@@ -12,7 +12,7 @@ use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
 pub struct TableInstance {
-  pub(crate) function_elements: Vec<Option<Rc<FunctionInstance>>>,
+  pub(crate) function_elements: Vec<Option<FunctionInstance>>,
   pub(crate) export_name: Option<String>,
   table_type: TableType,
 }
@@ -23,7 +23,7 @@ impl TableInstance {
     table_type: TableType,
     export_name: Option<String>,
     global_instances: &GlobalInstances,
-    function_instances: &[Rc<FunctionInstance>],
+    function_instances: &[FunctionInstance],
   ) -> Result<Self> {
     let table_size = match table_type.limit {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
@@ -58,7 +58,7 @@ impl TableInstance {
     elements: &[Element],
     table_type: &TableType,
     global_instances: &GlobalInstances,
-    function_instances: &[Rc<FunctionInstance>],
+    function_instances: &[FunctionInstance],
   ) -> Result<()> {
     let table_size = match table_type.limit {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
@@ -87,7 +87,7 @@ impl TableInstance {
     self.function_elements.len()
   }
 
-  pub fn get_function_instance(&self, idx: u32) -> Result<Rc<FunctionInstance>> {
+  pub fn get_function_instance(&self, idx: u32) -> Result<FunctionInstance> {
     match self.function_elements.get(idx as usize) {
       Some(Some(x)) => Ok(x.clone()),
       Some(None) => Err(Trap::UninitializedElement),
@@ -132,7 +132,7 @@ impl TableInstances {
     &self,
     elements: &[Element],
     global_instances: &GlobalInstances,
-    function_instances: &[Rc<FunctionInstance>],
+    function_instances: &[FunctionInstance],
   ) -> Result<()> {
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
@@ -155,7 +155,7 @@ impl TableInstances {
     &self,
     elements: &[Element],
     global_instances: &GlobalInstances,
-    function_instances: &[Rc<FunctionInstance>],
+    function_instances: &[FunctionInstance],
   ) -> Result<()> {
     let mut table_instances = self.0.borrow_mut();
     let table_instance = table_instances.first_mut()?;
