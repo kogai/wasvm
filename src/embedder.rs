@@ -7,13 +7,13 @@ pub fn init_store() -> Store {
   Default::default()
 }
 
-pub fn decode_module(bytes: &[u8]) -> Vm /* Module */ {
-  unimplemented!();
+pub fn decode_module(bytes: &[u8]) -> Result<Section> {
+  Byte::new_with_drop(&bytes)?.decode()
 }
 
-pub fn validate_module(vm: &Vm /* module: Module(PreVm) */) -> Result<()> {
-  unimplemented!();
-}
+// pub fn validate_module(vm: &Vm /* module: Module(PreVm) */) -> Result<()> {
+//   unimplemented!();
+// }
 
 pub fn instantiate_module(
   store: &Store,

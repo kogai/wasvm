@@ -1,5 +1,6 @@
 use alloc::rc::Rc;
 use alloc::vec::Vec;
+use core::default::Default;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstances;
 use memory::MemoryInstances;
@@ -57,5 +58,17 @@ impl Store {
 
   pub fn get_table_at(&self, idx: u32) -> Option<TableInstance> {
     self.table_instances.get_table_at(idx)
+  }
+}
+
+impl Default for Store {
+  fn default() -> Self {
+    Store {
+      function_instances: Vec::new(),
+      function_types: Vec::new(),
+      memory_instances: MemoryInstances::empty(),
+      table_instances: TableInstances::empty(),
+      global_instances: GlobalInstances::empty(),
+    }
   }
 }

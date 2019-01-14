@@ -58,6 +58,7 @@ impl TryFrom<Option<u8>> for SectionCode {
   }
 }
 
+// FIXME: Rename to `Module`
 #[derive(Debug)]
 pub struct Section {
   function_types: Vec<FunctionType>,
