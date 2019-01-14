@@ -6,7 +6,8 @@ use super::sec_table::TableType;
 use alloc::vec::Vec;
 use global::GlobalType;
 use module::{
-  ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, ModuleDescriptorKind,
+  ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, FUNCTION_DESCRIPTOR,
+  GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR,
 };
 use trap::Result;
 use value_type::ValueTypes;
@@ -25,14 +26,14 @@ impl Decodable for Section {
     for _ in 0..count_of_section {
       let module_name = self.decode_name()?;
       let name = self.decode_name()?;
-      let import_descriptor = match ModuleDescriptorKind::from(self.next()) {
-        ModuleDescriptorKind::Function => ImportDescriptor::Function(self.decode_leb128_u32()?),
-        ModuleDescriptorKind::Table => ImportDescriptor::Table(TableType::new(
+      let import_descriptor = match From::from(self.next()) {
+        FUNCTION_DESCRIPTOR => ImportDescriptor::Function(self.decode_leb128_u32()?),
+        TABLE_DESCRIPTOR => ImportDescriptor::Table(TableType::new(
           ElementType::from(self.next()),
           self.decode_limit()?,
         )),
-        ModuleDescriptorKind::Memory => ImportDescriptor::Memory(self.decode_limit()?),
-        ModuleDescriptorKind::Global => {
+        MEMORY_DESCRIPTOR => ImportDescriptor::Memory(self.decode_limit()?),
+        GLOBAL_DESCRIPTOR => {
           let value_type = ValueTypes::from(self.next());
           let global_type = GlobalType::new(self.next(), value_type);
           ImportDescriptor::Global(global_type)
