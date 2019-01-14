@@ -63,7 +63,7 @@ impl FunctionType {
 struct FunctionInstanceImpl {
   export_name: Option<String>,
   function_type: FunctionType,
-  local_variables: Vec<Rc<StackEntry>>,
+  local_variables: Vec<StackEntry>,
   body: Vec<Inst>,
   source_module_name: RefCell<Option<String>>,
 }
@@ -93,7 +93,7 @@ impl FunctionInstance {
     }))
   }
 
-  pub fn local_variables(&self) -> Vec<Rc<StackEntry>> {
+  pub fn local_variables(&self) -> Vec<StackEntry> {
     self.0.local_variables.clone()
   }
 

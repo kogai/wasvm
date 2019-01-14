@@ -10,7 +10,7 @@ use module::{
     ExportDescriptor, ExternalInterface, ExternalModule, ExternalModules, InternalModule,
     ModuleDescriptor, ModuleName,
 };
-use stack::{Stack, StackEntry, STACK_ENTRY_KIND_LABEL};
+use stack::{Stack, StackEntry};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
@@ -226,7 +226,7 @@ impl Vm {
                     if frame.is_next_empty() {
                         break;
                     } else {
-                        let mut buf_values = self.stack.pop_until(&STACK_ENTRY_KIND_LABEL)?;
+                        let mut buf_values = self.stack.pop_until_label()?;
                         let label = self.stack.pop_label_ext();
                         if let Label {
                             source_instruction: LabelKind::If,

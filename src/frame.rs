@@ -1,5 +1,4 @@
 use alloc::prelude::*;
-use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cell::{RefCell, RefMut};
 use core::fmt;
@@ -12,7 +11,7 @@ use value_type::ValueTypes;
 #[derive(PartialEq)]
 pub struct Frame {
   // FIXME: No need to hold local_variables in frame.
-  local_variables: RefCell<Vec<Rc<StackEntry>>>,
+  local_variables: RefCell<Vec<StackEntry>>,
   pub(crate) function_instance: FunctionInstance,
   ptr: RefCell<u32>,
   pub last_ptr: u32, // FIXME: Use Indice type for indices of instructions.
@@ -25,7 +24,7 @@ impl Frame {
     return_ptr: usize,
     prev_return_ptr: usize,
     function_instance: FunctionInstance,
-    arguments: &mut Vec<Rc<StackEntry>>,
+    arguments: &mut Vec<StackEntry>,
   ) -> Self {
     let last_ptr = function_instance.get_expressions_count() as u32;
     Frame {
@@ -49,16 +48,16 @@ impl Frame {
     self.ptr.borrow().eq(&0)
   }
 
-  pub fn get_local_variables(&self) -> RefMut<Vec<Rc<StackEntry>>> {
+  pub fn get_local_variables(&self) -> RefMut<Vec<StackEntry>> {
     self.local_variables.borrow_mut()
   }
 
   // From: args[2,1]; locals[4,3]
   // To [4,3,2,1]
   fn derive_local_variables(
-    arguments: &mut Vec<Rc<StackEntry>>,
-    mut local_variables: Vec<Rc<StackEntry>>,
-  ) -> RefCell<Vec<Rc<StackEntry>>> {
+    arguments: &mut Vec<StackEntry>,
+    mut local_variables: Vec<StackEntry>,
+  ) -> RefCell<Vec<StackEntry>> {
     local_variables.append(arguments);
     RefCell::new(local_variables)
   }
