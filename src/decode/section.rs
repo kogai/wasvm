@@ -61,18 +61,18 @@ impl TryFrom<Option<u8>> for SectionCode {
 // FIXME: Rename to `Module`
 #[derive(Debug)]
 pub struct Section {
-  function_types: Vec<FunctionType>,
-  functions: Vec<u32>,
-  exports: ExternalInterfaces,
-  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  datas: Vec<Data>,
-  limits: Vec<Limit>,
-  tables: Vec<TableType>,
-  globals: Vec<(GlobalType, Vec<Inst>)>,
-  elements: Vec<Element>,
-  customs: Vec<(String, Vec<u8>)>,
-  imports: ExternalInterfaces,
-  start: Option<u32>,
+  pub(crate) function_types: Vec<FunctionType>,
+  pub(crate) functions: Vec<u32>,
+  pub(crate) exports: ExternalInterfaces,
+  pub(crate) codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
+  pub(crate) datas: Vec<Data>,
+  pub(crate) limits: Vec<Limit>,
+  pub(crate) tables: Vec<TableType>,
+  pub(crate) globals: Vec<(GlobalType, Vec<Inst>)>,
+  pub(crate) elements: Vec<Element>,
+  pub(crate) customs: Vec<(String, Vec<u8>)>,
+  pub(crate) imports: ExternalInterfaces,
+  pub(crate) start: Option<u32>,
 }
 
 impl Default for Section {

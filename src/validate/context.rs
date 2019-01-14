@@ -1,9 +1,9 @@
+use super::error::{Result, TypeError};
 use alloc::vec::Vec;
 use decode::Section;
 use function::FunctionType;
 use inst::Inst;
 use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
-use trap::Result;
 use value::Values;
 use value_type::ValueTypes;
 
@@ -15,20 +15,44 @@ struct Function {
 
 pub struct Context<'a> {
   module: &'a Section,
+  function_types: &'a Vec<FunctionType>,
+  //  functions: Vec<u32>,
+  //  exports: ExternalInterfaces,
+  //  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
+  //  datas: Vec<Data>,
+  //  limits: Vec<Limit>,
+  //  tables: Vec<TableType>,
+  //  globals: Vec<(GlobalType, Vec<Inst>)>,
+  //  elements: Vec<Element>,
+  //  customs: Vec<(String, Vec<u8>)>,
+  //  imports: ExternalInterfaces,
+  //  start: Option<u32>,
 }
 
 impl<'a> Context<'a> {
   pub fn new(module: &'a Section) -> Self {
-    Context { module }
+    Context {
+      module,
+      function_types: &module.function_types,
+    }
   }
 
-  // FIXME: Skip type validation until ready.
+  fn validate_function_types(&self) -> Result<()> {
+    for fy in self.function_types.iter() {
+      if fy.get_return_types().len() > 1 {
+        return Err(TypeError::TypeMismatch);
+      }
+    }
+    Ok(())
+  }
+
   pub fn validate(&self) -> Result<()> {
     // let grouped_imports = self.module.imports.group_by_kind();
     // let imports_function = grouped_imports.get(&FUNCTION_DESCRIPTOR)?;
     // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
     // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
     // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
+    self.validate_function_types();
 
     // let mut internal_function_instances = Section::function_instances(
     //   &self.module.function_types,
