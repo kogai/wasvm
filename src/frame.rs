@@ -13,9 +13,9 @@ use value_type::ValueTypes;
 pub struct Frame {
   // FIXME: No need to hold local_variables in frame.
   local_variables: RefCell<Vec<Rc<StackEntry>>>,
-  pub(crate) function_instance: Rc<FunctionInstance>,
+  pub(crate) function_instance: FunctionInstance,
   ptr: RefCell<u32>,
-  pub last_ptr: u32, // Indices of instructions.
+  pub last_ptr: u32, // FIXME: Use Indice type for indices of instructions.
   pub return_ptr: usize,
   pub prev_return_ptr: usize,
 }
@@ -24,14 +24,14 @@ impl Frame {
   pub fn new(
     return_ptr: usize,
     prev_return_ptr: usize,
-    function_instance: Rc<FunctionInstance>,
+    function_instance: FunctionInstance,
     arguments: &mut Vec<Rc<StackEntry>>,
   ) -> Self {
     let last_ptr = function_instance.get_expressions_count() as u32;
     Frame {
       local_variables: Frame::derive_local_variables(
         arguments,
-        function_instance.local_variables.clone(),
+        function_instance.local_variables(),
       ),
       function_instance,
       last_ptr,

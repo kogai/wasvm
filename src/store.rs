@@ -1,4 +1,3 @@
-use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::default::Default;
 use function::{FunctionInstance, FunctionType};
@@ -10,7 +9,7 @@ use value::Values;
 
 #[derive(Debug)]
 pub struct Store {
-  pub function_instances: Vec<Rc<FunctionInstance>>,
+  pub function_instances: Vec<FunctionInstance>,
   pub function_types: Vec<FunctionType>,
   pub memory_instances: MemoryInstances,
   pub table_instances: TableInstances,
@@ -19,7 +18,7 @@ pub struct Store {
 
 impl Store {
   pub fn new(
-    function_instances: Vec<Rc<FunctionInstance>>,
+    function_instances: Vec<FunctionInstance>,
     function_types: Vec<FunctionType>,
     memory_instances: MemoryInstances,
     table_instances: TableInstances,
@@ -34,7 +33,8 @@ impl Store {
     }
   }
 
-  pub fn get_function_instance(&self, fn_idx: usize) -> Option<Rc<FunctionInstance>> {
+  // FIXME: Use Indice type
+  pub fn get_function_instance(&self, fn_idx: usize) -> Option<FunctionInstance> {
     self.function_instances.get(fn_idx).cloned()
   }
 
