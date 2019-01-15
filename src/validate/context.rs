@@ -1,6 +1,6 @@
 use super::error::{Result, TypeError};
 use alloc::vec::Vec;
-use core::cell::RefCell;
+use core::cell::{Cell, RefCell};
 use decode::Section;
 use function::FunctionType;
 use inst::{Indice, Inst};
@@ -19,6 +19,16 @@ struct FunctionContext {
   return_type: ResultType,
 }
 
+impl FunctionContext {
+  fn push(&mut self, ty: ValueTypes) {
+    self.stack.push(ty);
+  }
+
+  fn pop(&mut self) -> Option<ValueTypes> {
+    self.stack.pop()
+  }
+}
+
 impl Default for FunctionContext {
   fn default() -> Self {
     FunctionContext {
@@ -35,6 +45,7 @@ struct Function<'a> {
   function_type: &'a FunctionType,
   locals: &'a [ValueTypes],
   body: &'a [Inst],
+  body_ptr: Cell<usize>,
   stack: RefCell<FunctionContext>,
 }
 
@@ -48,7 +59,21 @@ impl<'a> Function<'a> {
       function_type,
       locals,
       body,
+      body_ptr: Cell::new(0),
       stack: Default::default(),
+    }
+  }
+
+  fn pop(&self) -> Option<&Inst> {
+    let ptr = self.body_ptr.get();
+    self.body_ptr.set(ptr + 1);
+    self.body.get(ptr)
+  }
+
+  fn pop_value_type(&self) -> Option<&ValueTypes> {
+    match self.pop() {
+      Some(Inst::RuntimeValue(ty)) => Some(ty),
+      _ => None,
     }
   }
 }
@@ -117,12 +142,16 @@ impl<'a> Context<'a> {
 
   fn validate_function(&self, function: &Function) -> Result<()> {
     use self::Inst::*;
-    let stack = &mut function.stack.borrow_mut().stack;
-    for inst in function.body.iter() {
+    let stack = &mut function.stack.borrow_mut();
+    while let Some(inst) = function.pop() {
       match inst {
         Unreachable => unimplemented!(),
         Nop => unimplemented!(),
-        Block(_) => unimplemented!(),
+        Block(_) => {
+          let ty = function.pop_value_type()?;
+          println!("ty={:?}", ty);
+          unimplemented!();
+        }
         Loop(_) => unimplemented!(),
         If(_, _) => unimplemented!(),
         Else => unimplemented!(),
@@ -134,14 +163,10 @@ impl<'a> Context<'a> {
         Call(_) => unimplemented!(),
         CallIndirect(_) => unimplemented!(),
 
-        I32Const(_) => unimplemented!(),
-        I64Const(_) => {
-          stack.push(ValueTypes::I64);
-        }
-        F32Const(_) => {
-          stack.push(ValueTypes::F32);
-        }
-        F64Const(_) => unimplemented!(),
+        I32Const(_) => stack.push(ValueTypes::I32),
+        I64Const(_) => stack.push(ValueTypes::I64),
+        F32Const(_) => stack.push(ValueTypes::F32),
+        F64Const(_) => stack.push(ValueTypes::F64),
 
         GetLocal(_) => unimplemented!(),
         SetLocal(_) => unimplemented!(),
@@ -287,7 +312,9 @@ impl<'a> Context<'a> {
         F64Copysign => unimplemented!(),
 
         Select => unimplemented!(),
-        DropInst => unimplemented!(),
+        DropInst => {
+          stack.pop();
+        }
         I32WrapI64 => unimplemented!(),
 
         I32TruncSignF32 => unimplemented!(),
