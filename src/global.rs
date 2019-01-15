@@ -5,7 +5,7 @@ use core::cell::RefCell;
 use inst::Inst;
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
-  ModuleDescriptorKind,
+  GLOBAL_DESCRIPTOR,
 };
 use trap::{Result, Trap};
 use value::Values;
@@ -71,6 +71,7 @@ impl GlobalInstances {
     GlobalInstances(Rc::new(RefCell::new(global_instances)))
   }
 
+  // TODO: Use Default trait.
   pub fn empty() -> Self {
     GlobalInstances::new(vec![])
   }
@@ -103,7 +104,7 @@ impl GlobalInstances {
     }
     for (idx, (global_type, init)) in globals.into_iter().enumerate() {
       let export_name = exports
-        .find_kind_by_idx(idx as u32, &ModuleDescriptorKind::Global)
+        .find_kind_by_idx(idx as u32, &GLOBAL_DESCRIPTOR)
         .map(|x| x.name.to_owned());
       let init_first = init.first();
       let value = match &init_first {

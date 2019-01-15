@@ -51,7 +51,6 @@ pub enum ModuleDescriptor {
   ExportDescriptor(ExportDescriptor),
 }
 
-// FIXME: As using simply label, prefer to define constant of those variants.
 #[derive(Eq, PartialEq, Debug, Clone, Hash)]
 pub enum ModuleDescriptorKind {
   Function,
@@ -59,6 +58,11 @@ pub enum ModuleDescriptorKind {
   Memory,
   Global,
 }
+
+pub const FUNCTION_DESCRIPTOR: ModuleDescriptorKind = ModuleDescriptorKind::Function;
+pub const TABLE_DESCRIPTOR: ModuleDescriptorKind = ModuleDescriptorKind::Table;
+pub const MEMORY_DESCRIPTOR: ModuleDescriptorKind = ModuleDescriptorKind::Memory;
+pub const GLOBAL_DESCRIPTOR: ModuleDescriptorKind = ModuleDescriptorKind::Global;
 
 impl From<Option<u8>> for ModuleDescriptorKind {
   fn from(code: Option<u8>) -> Self {
@@ -111,16 +115,16 @@ impl ExternalInterfaces {
       .iter()
       .find(|ExternalInterface { descriptor, .. }| match descriptor {
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
-          &ModuleDescriptorKind::Function == kind && *x == idx
+          &FUNCTION_DESCRIPTOR == kind && *x == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
-          &ModuleDescriptorKind::Table == kind && *x == idx
+          &TABLE_DESCRIPTOR == kind && *x == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
-          &ModuleDescriptorKind::Memory == kind && *x == idx
+          &MEMORY_DESCRIPTOR == kind && *x == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
-          &ModuleDescriptorKind::Global == kind && *x == idx
+          &GLOBAL_DESCRIPTOR == kind && *x == idx
         }
         _ => unreachable!(),
       })

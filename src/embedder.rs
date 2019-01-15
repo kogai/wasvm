@@ -1,9 +1,11 @@
-use decode::{Byte, Context, Section};
+use decode::{Byte, Section};
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
 use store::Store;
 use trap::Result;
+use validate;
+use validate::Context;
 use vm::Vm;
 
 pub fn init_store() -> Store {
@@ -14,10 +16,10 @@ pub fn decode_module(bytes: &[u8]) -> Result<Section> {
   Byte::new_with_drop(&bytes)?.decode()
 }
 
-pub fn validate_module(module: &Result<Section>) -> Result<()> {
+pub fn validate_module(module: &Result<Section>) -> validate::Result<()> {
   match module {
-    Ok(module) => Context::new(module).validate(),
-    Err(err) => Err(err.to_owned()),
+    Ok(module) => Context::new(module)?.validate(),
+    Err(err) => Err(validate::TypeError::Trap(err.to_owned())),
   }
 }
 

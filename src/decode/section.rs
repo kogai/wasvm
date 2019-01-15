@@ -11,7 +11,8 @@ use global::{GlobalInstances, GlobalType};
 use inst::Inst;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use module::{
-  ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, ModuleDescriptorKind,
+  ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, FUNCTION_DESCRIPTOR,
+  GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR,
 };
 use store::Store;
 use table::{TableInstance, TableInstances};
@@ -59,18 +60,18 @@ impl TryFrom<Option<u8>> for SectionCode {
 // FIXME: Rename to `Module`
 #[derive(Debug)]
 pub struct Section {
-  function_types: Vec<FunctionType>,
-  functions: Vec<u32>,
-  exports: ExternalInterfaces,
-  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  datas: Vec<Data>,
-  limits: Vec<Limit>,
-  tables: Vec<TableType>,
-  globals: Vec<(GlobalType, Vec<Inst>)>,
-  elements: Vec<Element>,
-  customs: Vec<(String, Vec<u8>)>,
-  imports: ExternalInterfaces,
-  start: Option<u32>,
+  pub(crate) function_types: Vec<FunctionType>,
+  pub(crate) functions: Vec<u32>,
+  pub(crate) exports: ExternalInterfaces,
+  pub(crate) codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
+  pub(crate) datas: Vec<Data>,
+  pub(crate) limits: Vec<Limit>,
+  pub(crate) tables: Vec<TableType>,
+  pub(crate) globals: Vec<(GlobalType, Vec<Inst>)>,
+  pub(crate) elements: Vec<Element>,
+  pub(crate) customs: Vec<(String, Vec<u8>)>,
+  pub(crate) imports: ExternalInterfaces,
+  pub(crate) start: Option<u32>,
 }
 
 impl Default for Section {
@@ -196,7 +197,7 @@ impl Section {
     // NOTE: Currently WASM specification assumed only one memory instance;
     let memory_idx = 0;
     let export_name = exports
-      .find_kind_by_idx(memory_idx, &ModuleDescriptorKind::Memory)
+      .find_kind_by_idx(memory_idx, &MEMORY_DESCRIPTOR)
       .map(|x| x.name.to_owned());
 
     let external_memory_instances = imports
@@ -241,7 +242,7 @@ impl Section {
         .into_iter()
         .map(|table_type| {
           let export_name = exports
-            .find_kind_by_idx(0, &ModuleDescriptorKind::Table)
+            .find_kind_by_idx(0, &TABLE_DESCRIPTOR)
             .map(|x| x.name.to_owned());
           TableInstance::new(
             elements.to_vec(),
@@ -285,7 +286,7 @@ impl Section {
       .enumerate()
       .map(|(idx, code)| {
         let export_name = exports
-          .find_kind_by_idx(idx as u32, &ModuleDescriptorKind::Function)
+          .find_kind_by_idx(idx as u32, &FUNCTION_DESCRIPTOR)
           .map(|x| x.name.to_owned());
         let index_of_type = match functions.get(idx) {
           Some(n) => *n,
@@ -335,10 +336,10 @@ impl Section {
         ..
       } => {
         let grouped_imports = imports.group_by_kind();
-        let imports_function = grouped_imports.get(&ModuleDescriptorKind::Function)?;
-        let imports_table = grouped_imports.get(&ModuleDescriptorKind::Table)?;
-        let imports_memory = grouped_imports.get(&ModuleDescriptorKind::Memory)?;
-        let imports_global = grouped_imports.get(&ModuleDescriptorKind::Global)?;
+        let imports_function = grouped_imports.get(&FUNCTION_DESCRIPTOR)?;
+        let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
+        let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
+        let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
 
         let mut internal_function_instances =
           Section::function_instances(&function_types, &functions, &exports, codes)?;
@@ -358,6 +359,7 @@ impl Section {
           &external_modules,
         )?;
 
+        // TODO: Move to context mod.
         let (validate_memory, validate_table) = (
           Section::validate_memory(
             &datas,

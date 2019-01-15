@@ -232,7 +232,6 @@ macro_rules! impl_e2e {
               let err = instantiate_module(store, section, importable_modules.clone()).unwrap_err();
               let actual = String::from(err);
               match message.as_ref() {
-                // FIXME: Skip to assert actual message
                 "incompatible import type" => {}
                 _ => assert_eq!(&actual, message),
               };
