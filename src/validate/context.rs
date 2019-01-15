@@ -11,15 +11,18 @@ use value_type::ValueTypes;
 
 type ResultType = [ValueTypes; 1];
 
-struct Stack {
+#[derive(Debug)]
+struct FunctionContext {
+  stack: Vec<ValueTypes>,
   locals: Vec<ValueTypes>,
   labels: Vec<ResultType>,
   return_type: ResultType,
 }
 
-impl Default for Stack {
+impl Default for FunctionContext {
   fn default() -> Self {
-    Stack {
+    FunctionContext {
+      stack: Vec::new(),
       locals: Vec::new(),
       labels: Vec::new(),
       return_type: [ValueTypes::Empty; 1],
@@ -27,18 +30,19 @@ impl Default for Stack {
   }
 }
 
+#[derive(Debug)]
 struct Function<'a> {
   function_type: &'a FunctionType,
-  locals: &'a Vec<ValueTypes>,
-  body: &'a Vec<Inst>,
-  stack: RefCell<Stack>,
+  locals: &'a [ValueTypes],
+  body: &'a [Inst],
+  stack: RefCell<FunctionContext>,
 }
 
 impl<'a> Function<'a> {
   fn new(
     function_type: &'a FunctionType,
-    locals: &'a Vec<ValueTypes>,
-    body: &'a Vec<Inst>,
+    locals: &'a [ValueTypes],
+    body: &'a [Inst],
   ) -> Function<'a> {
     Function {
       function_type,
@@ -102,11 +106,27 @@ impl<'a> Context<'a> {
   }
 
   fn validate_function(&self, function: &Function) -> Result<()> {
-    // for fy in self.function_types.iter() {
-    //   if fy.returns().len() > 1 {
-    //     return Err(TypeError::TypeMismatch);
-    //   }
-    // }
+    let stack = &mut function.stack.borrow_mut().stack;
+    for inst in function.body.iter() {
+      println!("{:?}", inst);
+      match inst {
+        Inst::I64Const(_) => {
+          stack.push(ValueTypes::I64);
+        }
+        Inst::F32Const(_) => {
+          stack.push(ValueTypes::F32);
+        }
+        Inst::I32Add => {
+          let l = stack.pop();
+          let r = stack.pop();
+          if l != r {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
+        Inst::End => unimplemented!(),
+        x => unimplemented!("Type level calculation for {:?} not implemented yet.", x),
+      }
+    }
     Ok(())
   }
 
