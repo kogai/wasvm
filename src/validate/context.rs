@@ -46,7 +46,7 @@ struct Function<'a> {
   locals: &'a [ValueTypes],
   body: &'a [Inst],
   body_ptr: Cell<usize>,
-  stack: RefCell<FunctionContext>,
+  function_context: RefCell<FunctionContext>,
 }
 
 impl<'a> Function<'a> {
@@ -60,7 +60,7 @@ impl<'a> Function<'a> {
       locals,
       body,
       body_ptr: Cell::new(0),
-      stack: Default::default(),
+      function_context: Default::default(),
     }
   }
 
@@ -140,22 +140,52 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
-  fn validate_function(&self, function: &Function) -> Result<()> {
+  fn validate_function(&self, function: &Function) -> Result<ResultType> {
     use self::Inst::*;
-    let stack = &mut function.stack.borrow_mut();
+    let cxt = &mut function.function_context.borrow_mut();
     while let Some(inst) = function.pop() {
       match inst {
         Unreachable => unimplemented!(),
         Nop => unimplemented!(),
-        Block(_) => {
-          let ty = function.pop_value_type()?;
-          println!("ty={:?}", ty);
-          unimplemented!();
+        Block(size) => {
+          let expect_type = function.pop_value_type()?;
+          let ea = function.body_ptr.get();
+          let end = ea + *size as usize - 2;
+          let function_type = FunctionType::new(Vec::new(), vec![expect_type.clone()]);
+          let func = Function::new(&function_type, function.locals, &function.body[ea..end]);
+          let actual_type = &self.validate_function(&func)?[0];
+          if expect_type != actual_type {
+            return Err(TypeError::TypeMismatch);
+          }
         }
-        Loop(_) => unimplemented!(),
-        If(_, _) => unimplemented!(),
+        Loop(size) => {
+          let expect_type = function.pop_value_type()?;
+          let ea = function.body_ptr.get();
+          let end = ea + *size as usize - 2;
+          let function_type = FunctionType::new(Vec::new(), vec![expect_type.clone()]);
+          let func = Function::new(&function_type, function.locals, &function.body[ea..end]);
+          let actual_type = &self.validate_function(&func)?[0];
+          if expect_type != actual_type {
+            return Err(TypeError::TypeMismatch);
+          }
+          // println!("{:?}", function.body);
+          // println!("body_ptr={} size={}", ea, size);
+          // println!("{:?}", &function.body[ea..end]);
+          // unimplemented!();
+        }
+        If(if_size, else_size) => unimplemented!(),
         Else => unimplemented!(),
-        End => unimplemented!(),
+        End => {
+          // Ok([ValueTypes::Empty])
+          // let ty1 = cxt.pop()?;
+          // let ty2 = cxt.pop_label()?;
+          // if ty1 != ty2 {
+          //   return Err(TypeError::TypeMismatch);
+          // }
+          unimplemented!();
+          // break;
+        }
+
         Br(_) => unimplemented!(),
         BrIf(_) => unimplemented!(),
         BrTable(_, _) => unimplemented!(),
@@ -163,10 +193,10 @@ impl<'a> Context<'a> {
         Call(_) => unimplemented!(),
         CallIndirect(_) => unimplemented!(),
 
-        I32Const(_) => stack.push(ValueTypes::I32),
-        I64Const(_) => stack.push(ValueTypes::I64),
-        F32Const(_) => stack.push(ValueTypes::F32),
-        F64Const(_) => stack.push(ValueTypes::F64),
+        I32Const(_) => cxt.push(ValueTypes::I32),
+        I64Const(_) => cxt.push(ValueTypes::I64),
+        F32Const(_) => cxt.push(ValueTypes::F32),
+        F64Const(_) => cxt.push(ValueTypes::F64),
 
         GetLocal(_) => unimplemented!(),
         SetLocal(_) => unimplemented!(),
@@ -203,9 +233,9 @@ impl<'a> Context<'a> {
         I32CountLeadingZero => unimplemented!(),
         I32CountTrailingZero => unimplemented!(),
         I32CountNonZero => unimplemented!(),
-        I32Add => bin_op!(stack),
-        I32Sub => bin_op!(stack),
-        I32Mul => bin_op!(stack),
+        I32Add => bin_op!(cxt),
+        I32Sub => bin_op!(cxt),
+        I32Mul => bin_op!(cxt),
         I32DivSign => unimplemented!(),
         I32DivUnsign => unimplemented!(),
         I32RemSign => unimplemented!(),
@@ -239,8 +269,8 @@ impl<'a> Context<'a> {
         I64RotateRight => unimplemented!(),
 
         I32EqualZero => {
-          if let Some(ValueTypes::I32) = stack.pop() {
-            stack.push(ValueTypes::I32);
+          if let Some(ValueTypes::I32) = cxt.pop() {
+            cxt.push(ValueTypes::I32);
           } else {
             return Err(TypeError::TypeMismatch);
           }
@@ -313,7 +343,7 @@ impl<'a> Context<'a> {
 
         Select => unimplemented!(),
         DropInst => {
-          stack.pop();
+          cxt.pop();
         }
         I32WrapI64 => unimplemented!(),
 
@@ -345,7 +375,7 @@ impl<'a> Context<'a> {
         RuntimeValue(_) => unimplemented!(),
       }
     }
-    Ok(())
+    Ok([ValueTypes::Empty])
   }
 
   pub fn validate(&self) -> Result<()> {
