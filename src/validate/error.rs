@@ -3,7 +3,7 @@ use core::convert::From;
 use core::option::NoneError;
 use trap::Trap;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum TypeError {
   NotFound,
   TypeMismatch,

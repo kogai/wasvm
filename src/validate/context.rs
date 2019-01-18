@@ -1,4 +1,5 @@
 use super::error::{Result, TypeError};
+use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use decode::Section;
@@ -11,31 +12,55 @@ use value_type::ValueTypes;
 
 type ResultType = [ValueTypes; 1];
 
+#[derive(Debug, Clone)]
+enum Entry {
+  Type(ValueTypes),
+  Label,
+}
+
 #[derive(Debug)]
-struct FunctionContext {
-  stack: Vec<ValueTypes>,
-  locals: Vec<ValueTypes>,
-  labels: Vec<ResultType>,
-  return_type: ResultType,
-}
+struct TypeStack(RefCell<Vec<Entry>>);
 
-impl FunctionContext {
-  fn push(&mut self, ty: ValueTypes) {
-    self.stack.push(ty);
+impl TypeStack {
+  fn new() -> Self {
+    TypeStack(RefCell::new(Vec::new()))
   }
 
-  fn pop(&mut self) -> Option<ValueTypes> {
-    self.stack.pop()
+  fn push(&self, ty: ValueTypes) {
+    self.0.borrow_mut().push(Entry::Type(ty));
   }
-}
 
-impl Default for FunctionContext {
-  fn default() -> Self {
-    FunctionContext {
-      stack: Vec::new(),
-      locals: Vec::new(),
-      labels: Vec::new(),
-      return_type: [ValueTypes::Empty; 1],
+  fn push_label(&self) {
+    self.0.borrow_mut().push(Entry::Label);
+  }
+
+  fn pop(&self) -> Option<Entry> {
+    self.0.borrow_mut().pop()
+  }
+
+  fn pop_type(&self) -> Result<ValueTypes> {
+    match self.pop() {
+      Some(Entry::Type(ty)) => Ok(ty),
+      _ => Err(TypeError::TypeMismatch),
+    }
+  }
+
+  fn last(&self) -> Option<Entry> {
+    self.0.borrow().last().cloned()
+  }
+
+  fn pop_until_label(&self) -> Result<Vec<Entry>> {
+    let mut buf = Vec::new();
+    while let Some(Entry::Type(ty)) = self.pop() {
+      buf.push(Entry::Type(ty));
+    }
+    Ok(buf)
+  }
+
+  fn pop_i32(&self) -> Result<ValueTypes> {
+    match self.0.borrow_mut().pop() {
+      Some(Entry::Type(ValueTypes::I32)) => Ok(ValueTypes::I32),
+      _ => Err(TypeError::TypeMismatch),
     }
   }
 }
@@ -46,7 +71,7 @@ struct Function<'a> {
   locals: &'a [ValueTypes],
   body: &'a [Inst],
   body_ptr: Cell<usize>,
-  function_context: RefCell<FunctionContext>,
+  type_stack: TypeStack,
 }
 
 impl<'a> Function<'a> {
@@ -60,7 +85,7 @@ impl<'a> Function<'a> {
       locals,
       body,
       body_ptr: Cell::new(0),
-      function_context: Default::default(),
+      type_stack: TypeStack::new(),
     }
   }
 
@@ -70,9 +95,9 @@ impl<'a> Function<'a> {
     self.body.get(ptr)
   }
 
-  fn pop_value_type(&self) -> Option<&ValueTypes> {
+  fn pop_value_type(&self) -> Option<ValueTypes> {
     match self.pop() {
-      Some(Inst::RuntimeValue(ty)) => Some(ty),
+      Some(Inst::RuntimeValue(ty)) => Some(ty.to_owned()),
       _ => None,
     }
   }
@@ -91,12 +116,15 @@ pub struct Context<'a> {
   //  customs: Vec<(String, Vec<u8>)>,
   //  imports: ExternalInterfaces,
   //  start: Option<u32>,
+  locals: RefCell<Vec<ValueTypes>>,
+  labels: RefCell<VecDeque<ResultType>>,
+  return_type: RefCell<ResultType>,
 }
 
 macro_rules! bin_op {
   ($stack: ident) => {{
-    let l = $stack.pop();
-    let r = $stack.pop();
+    let l = $stack.pop_type()?;
+    let r = $stack.pop_type()?;
     if l != r {
       return Err(TypeError::TypeMismatch);
     }
@@ -121,6 +149,9 @@ impl<'a> Context<'a> {
           Ok(Function::new(function_type, locals, body))
         })
         .collect::<Result<Vec<_>>>()?,
+      locals: RefCell::new(Vec::new()),
+      labels: RefCell::new(VecDeque::new()),
+      return_type: RefCell::new([ValueTypes::Empty; 1]),
     })
   }
 
@@ -140,56 +171,96 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
-  fn validate_function(&self, function: &Function) -> Result<ResultType> {
+  fn validate_function(&self, function: &Function) -> Result<()> {
     use self::Inst::*;
-    let cxt = &mut function.function_context.borrow_mut();
+    let cxt = &function.type_stack;
+    let labels = &mut self.labels.borrow_mut();
+    let locals = &mut self.locals.borrow_mut();
+    let return_type = &mut self.return_type.borrow_mut();
+
+    labels.push_front(
+      [match function.function_type.returns().first() {
+        Some(ty) => ty.clone(),
+        None => ValueTypes::Empty,
+      }; 1],
+    );
+
     while let Some(inst) = function.pop() {
+      // println!("{:?}", inst);
       match inst {
         Unreachable => unimplemented!(),
         Nop => unimplemented!(),
-        Block(size) => {
+        Block(_) => {
           let expect_type = function.pop_value_type()?;
-          let ea = function.body_ptr.get();
-          let end = ea + *size as usize - 2;
-          let function_type = FunctionType::new(Vec::new(), vec![expect_type.clone()]);
-          let func = Function::new(&function_type, function.locals, &function.body[ea..end]);
-          let actual_type = &self.validate_function(&func)?[0];
-          if expect_type != actual_type {
+          labels.push_front([expect_type; 1]);
+          cxt.push_label();
+        }
+        Loop(_) => {
+          let expect_type = function.pop_value_type()?;
+          labels.push_front([expect_type; 1]);
+          cxt.push_label();
+        }
+        If(_, _) => {
+          let _ = cxt.pop_i32()?;
+          let expect_type = function.pop_value_type()?;
+          labels.push_front([expect_type; 1]);
+          cxt.push_label();
+        }
+        Else => {
+          let expect = labels.pop_front().ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
+          cxt.pop_until_label()?;
+          labels.push_front([expect; 1]);
         }
-        Loop(size) => {
-          let expect_type = function.pop_value_type()?;
-          let ea = function.body_ptr.get();
-          let end = ea + *size as usize - 2;
-          let function_type = FunctionType::new(Vec::new(), vec![expect_type.clone()]);
-          let func = Function::new(&function_type, function.locals, &function.body[ea..end]);
-          let actual_type = &self.validate_function(&func)?[0];
-          if expect_type != actual_type {
-            return Err(TypeError::TypeMismatch);
-          }
-          // println!("{:?}", function.body);
-          // println!("body_ptr={} size={}", ea, size);
-          // println!("{:?}", &function.body[ea..end]);
-          // unimplemented!();
-        }
-        If(if_size, else_size) => unimplemented!(),
-        Else => unimplemented!(),
         End => {
-          // Ok([ValueTypes::Empty])
-          // let ty1 = cxt.pop()?;
-          // let ty2 = cxt.pop_label()?;
-          // if ty1 != ty2 {
-          //   return Err(TypeError::TypeMismatch);
-          // }
-          unimplemented!();
-          // break;
+          let expect = labels.pop_front().ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+          cxt.pop_until_label()?;
+          // println!("{:?}", labels);
         }
 
-        Br(_) => unimplemented!(),
-        BrIf(_) => unimplemented!(),
-        BrTable(_, _) => unimplemented!(),
-        Return => unimplemented!(),
+        Br(idx) => {
+          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
+        BrIf(idx) => {
+          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          cxt.pop_i32()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
+        BrTable(indices, idx) => {
+          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          for i in indices.iter() {
+            let actual = labels.get(*i as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+            if expect != actual {
+              return Err(TypeError::TypeMismatch);
+            }
+          }
+          let actual = cxt.pop_type()?;
+          cxt.pop_i32()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
+        Return => {
+          let expect = return_type[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
         Call(_) => unimplemented!(),
         CallIndirect(_) => unimplemented!(),
 
@@ -198,8 +269,17 @@ impl<'a> Context<'a> {
         F32Const(_) => cxt.push(ValueTypes::F32),
         F64Const(_) => cxt.push(ValueTypes::F64),
 
-        GetLocal(_) => unimplemented!(),
-        SetLocal(_) => unimplemented!(),
+        GetLocal(idx) => {
+          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          cxt.push(actual.clone());
+        }
+        SetLocal(idx) => {
+          let expect = cxt.pop_type()?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          if &expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
         TeeLocal(_) => unimplemented!(),
         GetGlobal(_) => unimplemented!(),
         SetGlobal(_) => unimplemented!(),
@@ -269,11 +349,8 @@ impl<'a> Context<'a> {
         I64RotateRight => unimplemented!(),
 
         I32EqualZero => {
-          if let Some(ValueTypes::I32) = cxt.pop() {
-            cxt.push(ValueTypes::I32);
-          } else {
-            return Err(TypeError::TypeMismatch);
-          }
+          let ty = cxt.pop_i32()?;
+          cxt.push(ty);
         }
         Equal => unimplemented!(),
         NotEqual => unimplemented!(),
@@ -343,7 +420,7 @@ impl<'a> Context<'a> {
 
         Select => unimplemented!(),
         DropInst => {
-          cxt.pop();
+          cxt.pop().ok_or(TypeError::TypeMismatch)?;
         }
         I32WrapI64 => unimplemented!(),
 
@@ -375,7 +452,8 @@ impl<'a> Context<'a> {
         RuntimeValue(_) => unimplemented!(),
       }
     }
-    Ok([ValueTypes::Empty])
+    // Ok([ValueTypes::Empty])
+    Ok(())
   }
 
   pub fn validate(&self) -> Result<()> {
