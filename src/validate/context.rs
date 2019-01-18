@@ -46,10 +46,6 @@ impl TypeStack {
     }
   }
 
-  fn last(&self) -> Option<Entry> {
-    self.0.borrow().last().cloned()
-  }
-
   fn pop_until_label(&self) -> Result<Vec<Entry>> {
     let mut buf = Vec::new();
     while let Some(Entry::Type(ty)) = self.pop() {
