@@ -215,7 +215,7 @@ impl<'a> Context<'a> {
   ) -> Result<()> {
     self.limits.first().ok_or(TypeError::TypeMismatch)?;
     if 2u32.pow(align) > bit_width / 8 {
-      return Err(TypeError::INvalidAlignment);
+      return Err(TypeError::InvalidAlignment);
     };
     cxt.pop_i32()?;
     cxt.push(ty);
@@ -225,7 +225,7 @@ impl<'a> Context<'a> {
   fn validate_store(&self, cxt: &TypeStack, align: u32, bit_width: u32) -> Result<()> {
     self.limits.first().ok_or(TypeError::TypeMismatch)?;
     if 2u32.pow(align) > bit_width / 8 {
-      return Err(TypeError::INvalidAlignment);
+      return Err(TypeError::InvalidAlignment);
     };
     cxt.pop_i32()?;
     Ok(())
@@ -285,14 +285,14 @@ impl<'a> Context<'a> {
         }
 
         Br(idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
         BrIf(idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           cxt.pop_i32()?;
           if expect != actual {
@@ -300,9 +300,9 @@ impl<'a> Context<'a> {
           }
         }
         BrTable(indices, idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
           for i in indices.iter() {
-            let actual = labels.get(*i as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+            let actual = labels.get(*i as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
             if expect != actual {
               return Err(TypeError::TypeMismatch);
             }
