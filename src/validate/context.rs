@@ -118,13 +118,6 @@ pub struct Context<'a> {
   return_type: RefCell<ResultType>,
 }
 
-macro_rules! un_op {
-  ($stack: ident) => {{
-    let t = $stack.pop_type()?;
-    $stack.push(t);
-  }};
-}
-
 macro_rules! bin_op {
   ($stack: ident) => {{
     let l = $stack.pop_type()?;
@@ -151,16 +144,6 @@ macro_rules! rel_op {
       return Err(TypeError::TypeMismatch);
     }
     $stack.push(ValueTypes::I32);
-  }};
-}
-
-macro_rules! conv_op {
-  ($stack: ident, $from: path, $to: path) => {{
-    let from_ty = $stack.pop_type()?;
-    if from_ty != $from {
-      return Err(TypeError::TypeMismatch);
-    }
-    $stack.push($to);
   }};
 }
 
@@ -231,6 +214,21 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
+  fn validate_unary(&self, cxt: &TypeStack) -> Result<()> {
+    let t = cxt.pop_type()?;
+    cxt.push(t);
+    Ok(())
+  }
+
+  fn validate_convert(&self, cxt: &TypeStack, from: ValueTypes, to: ValueTypes) -> Result<()> {
+    let from_ty = cxt.pop_type()?;
+    if from_ty != from {
+      return Err(TypeError::TypeMismatch);
+    }
+    cxt.push(to);
+    Ok(())
+  }
+
   fn validate_function(&self, function: &Function) -> Result<()> {
     use self::Inst::*;
     let cxt = &function.type_stack;
@@ -246,7 +244,6 @@ impl<'a> Context<'a> {
     );
 
     while let Some(inst) = function.pop() {
-      // println!("{:?}", inst);
       match inst {
         Unreachable => {}
         Nop => {}
@@ -277,11 +274,19 @@ impl<'a> Context<'a> {
         }
         End => {
           let expect = labels.pop_front().ok_or(TypeError::TypeMismatch)?[0].clone();
-          let actual = cxt.pop_type()?;
-          if expect != actual {
-            return Err(TypeError::TypeMismatch);
-          }
-          cxt.pop_until_label()?;
+          match cxt.pop() {
+            Some(Entry::Type(actual)) => {
+              if expect != actual {
+                return Err(TypeError::TypeMismatch);
+              };
+              cxt.pop_until_label()?;
+            }
+            _ => {
+              if expect != ValueTypes::Empty {
+                return Err(TypeError::TypeMismatch);
+              }
+            }
+          };
         }
 
         Br(idx) => {
@@ -378,12 +383,12 @@ impl<'a> Context<'a> {
           cxt.push(ValueTypes::I32);
         }
 
-        I32CountLeadingZero => un_op!(cxt),
-        I32CountTrailingZero => un_op!(cxt),
-        I32CountNonZero => un_op!(cxt),
-        I64CountLeadingZero => un_op!(cxt),
-        I64CountTrailingZero => un_op!(cxt),
-        I64CountNonZero => un_op!(cxt),
+        I32CountLeadingZero => self.validate_unary(cxt)?,
+        I32CountTrailingZero => self.validate_unary(cxt)?,
+        I32CountNonZero => self.validate_unary(cxt)?,
+        I64CountLeadingZero => self.validate_unary(cxt)?,
+        I64CountTrailingZero => self.validate_unary(cxt)?,
+        I64CountNonZero => self.validate_unary(cxt)?,
 
         I32Add => bin_op!(cxt),
         I32Sub => bin_op!(cxt),
@@ -456,13 +461,13 @@ impl<'a> Context<'a> {
         F64LessEqual => rel_op!(cxt),
         F64GreaterEqual => rel_op!(cxt),
 
-        F32Abs => un_op!(cxt),
-        F32Neg => un_op!(cxt),
-        F32Ceil => un_op!(cxt),
-        F32Floor => un_op!(cxt),
-        F32Trunc => un_op!(cxt),
-        F32Nearest => un_op!(cxt),
-        F32Sqrt => un_op!(cxt),
+        F32Abs => self.validate_unary(cxt)?,
+        F32Neg => self.validate_unary(cxt)?,
+        F32Ceil => self.validate_unary(cxt)?,
+        F32Floor => self.validate_unary(cxt)?,
+        F32Trunc => self.validate_unary(cxt)?,
+        F32Nearest => self.validate_unary(cxt)?,
+        F32Sqrt => self.validate_unary(cxt)?,
 
         F32Add => bin_op!(cxt),
         F32Sub => bin_op!(cxt),
@@ -472,13 +477,13 @@ impl<'a> Context<'a> {
         F32Max => bin_op!(cxt),
         F32Copysign => bin_op!(cxt),
 
-        F64Abs => un_op!(cxt),
-        F64Neg => un_op!(cxt),
-        F64Ceil => un_op!(cxt),
-        F64Floor => un_op!(cxt),
-        F64Trunc => un_op!(cxt),
-        F64Nearest => un_op!(cxt),
-        F64Sqrt => un_op!(cxt),
+        F64Abs => self.validate_unary(cxt)?,
+        F64Neg => self.validate_unary(cxt)?,
+        F64Ceil => self.validate_unary(cxt)?,
+        F64Floor => self.validate_unary(cxt)?,
+        F64Trunc => self.validate_unary(cxt)?,
+        F64Nearest => self.validate_unary(cxt)?,
+        F64Sqrt => self.validate_unary(cxt)?,
         F64Add => bin_op!(cxt),
         F64Sub => bin_op!(cxt),
         F64Mul => bin_op!(cxt),
@@ -499,36 +504,35 @@ impl<'a> Context<'a> {
 
         // To_convert_name_From
         // macro(cxt, from, to)
-        I32WrapI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::I32),
-        I32TruncSignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
-        I32TruncUnsignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
-        I32TruncSignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I32),
-        I32TruncUnsignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I32),
-        I64ExtendSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::I64),
-        I64ExtendUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::I64),
-        I64TruncSignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I64),
-        I64TruncUnsignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I64),
-        I64TruncSignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
-        I64TruncUnsignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
-        F32ConvertSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
-        F32ConvertUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
-        F32ConvertSignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F32),
-        F32ConvertUnsignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F32),
-        F32DemoteF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::F32),
-        F64ConvertSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F64),
-        F64ConvertUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F64),
-        F64ConvertSignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
-        F64ConvertUnsignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
-        F64PromoteF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::F64),
-        I32ReinterpretF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
-        I64ReinterpretF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
-        F32ReinterpretI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
-        F64ReinterpretI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
+        I32WrapI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::I32)?,
+        I32TruncSignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I32)?,
+        I32TruncUnsignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I32)?,
+        I32TruncSignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I32)?,
+        I32TruncUnsignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I32)?,
+        I64ExtendSignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::I64)?,
+        I64ExtendUnsignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::I64)?,
+        I64TruncSignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I64)?,
+        I64TruncUnsignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I64)?,
+        I64TruncSignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I64)?,
+        I64TruncUnsignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I64)?,
+        F32ConvertSignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F32)?,
+        F32ConvertUnsignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F32)?,
+        F32ConvertSignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F32)?,
+        F32ConvertUnsignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F32)?,
+        F32DemoteF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::F32)?,
+        F64ConvertSignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F64)?,
+        F64ConvertUnsignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F64)?,
+        F64ConvertSignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F64)?,
+        F64ConvertUnsignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F64)?,
+        F64PromoteF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::F64)?,
+        I32ReinterpretF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I32)?,
+        I64ReinterpretF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I64)?,
+        F32ReinterpretI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F32)?,
+        F64ReinterpretI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F64)?,
 
         RuntimeValue(_) => unimplemented!(),
       }
     }
-    // Ok([ValueTypes::Empty])
     Ok(())
   }
 
