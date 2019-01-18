@@ -248,8 +248,8 @@ impl<'a> Context<'a> {
     while let Some(inst) = function.pop() {
       // println!("{:?}", inst);
       match inst {
-        Unreachable => unimplemented!(),
-        Nop => unimplemented!(),
+        Unreachable => {}
+        Nop => {}
         Block(_) => {
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
@@ -282,7 +282,6 @@ impl<'a> Context<'a> {
             return Err(TypeError::TypeMismatch);
           }
           cxt.pop_until_label()?;
-          // println!("{:?}", labels);
         }
 
         Br(idx) => {
