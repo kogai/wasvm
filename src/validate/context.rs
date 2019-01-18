@@ -2,8 +2,9 @@ use super::error::{Result, TypeError};
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use decode::Section;
+use decode::{Element, Section, TableType};
 use function::FunctionType;
+use global::GlobalType;
 use inst::{Indice, Inst};
 use memory::Limit;
 // use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
@@ -107,9 +108,9 @@ pub struct Context<'a> {
   //  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   //  datas: Vec<Data>,
   limits: &'a Vec<Limit>,
-  //  tables: Vec<TableType>,
-  //  globals: Vec<(GlobalType, Vec<Inst>)>,
-  //  elements: Vec<Element>,
+  tables: &'a Vec<TableType>,
+  globals: &'a Vec<(GlobalType, Vec<Inst>)>,
+  elements: &'a Vec<Element>,
   //  customs: Vec<(String, Vec<u8>)>,
   //  imports: ExternalInterfaces,
   //  start: Option<u32>,
@@ -165,12 +166,60 @@ impl<'a> Context<'a> {
           Ok(Function::new(function_type, locals, body))
         })
         .collect::<Result<Vec<_>>>()?,
+      globals: &module.globals,
+      tables: &module.tables,
+      elements: &module.elements,
       limits: &module.limits,
 
       locals: RefCell::new(Vec::new()),
       labels: RefCell::new(VecDeque::new()),
       return_type: RefCell::new([ValueTypes::Empty; 1]),
     })
+  }
+
+  fn validate_constant(&self, expr: &[Inst]) -> Result<ValueTypes> {
+    let type_stack = TypeStack::new();
+    match expr.get(0) {
+      Some(Inst::I32Const(_)) => type_stack.push(ValueTypes::I32),
+      Some(Inst::I64Const(_)) => type_stack.push(ValueTypes::I64),
+      Some(Inst::F32Const(_)) => type_stack.push(ValueTypes::F32),
+      Some(Inst::F64Const(_)) => type_stack.push(ValueTypes::F64),
+      Some(Inst::GetGlobal(idx)) => match self.globals.get(*idx as usize) {
+        Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
+          type_stack.push(ty.clone())
+        }
+        _ => return Err(TypeError::TypeMismatch),
+      },
+      _ => return Err(TypeError::ConstantExpressionRequired),
+    };
+    match expr.get(1) {
+      Some(Inst::End) => {}
+      _ => return Err(TypeError::ConstantExpressionRequired),
+    };
+    type_stack.pop_type()
+  }
+
+  fn validate_elements(&self) -> Result<()> {
+    for Element {
+      table_idx,
+      offset,
+      init,
+    } in self.elements.iter()
+    {
+      if self.tables.get(*table_idx as usize).is_none() {
+        return Err(TypeError::UnknownTable(*table_idx));
+      }
+      if ValueTypes::I32 != self.validate_constant(offset)? {
+        return Err(TypeError::TypeMismatch);
+      }
+      for i in init.iter() {
+        self
+          .functions
+          .get(*i as usize)
+          .ok_or(TypeError::TypeMismatch)?;
+      }
+    }
+    Ok(())
   }
 
   fn validate_function_types(&self) -> Result<()> {
@@ -542,6 +591,7 @@ impl<'a> Context<'a> {
     // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
     // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
     // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
+    self.validate_elements()?;
     self.validate_function_types()?;
     self.validate_functions()?;
 

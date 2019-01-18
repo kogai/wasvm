@@ -12,6 +12,8 @@ pub enum TypeError {
   InvalidResultArity,
   InvalidAlignment,
   UnknownLabel,
+  UnknownTable(u32),
+  ConstantExpressionRequired,
   // FIXME: Separate TypeError and RuntimeError(Trap) completely.
   Trap(Trap),
 }
@@ -39,6 +41,8 @@ impl From<TypeError> for String {
       InvalidResultArity => "invalid result arity".to_string(),
       InvalidAlignment => "alignment must not be larger than natural".to_string(),
       UnknownLabel => "unknown label".to_string(),
+      ConstantExpressionRequired => "constant expression required".to_string(),
+      UnknownTable(idx) => format!("unknown table {}", idx),
       Trap(err) => String::from(err),
     }
   }
