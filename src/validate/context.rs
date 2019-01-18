@@ -130,13 +130,6 @@ macro_rules! bin_op {
   }};
 }
 
-macro_rules! test_op {
-  ($stack: ident) => {{
-    $stack.pop_type()?;
-    $stack.push(ValueTypes::I32);
-  }};
-}
-
 macro_rules! rel_op {
   ($stack: ident) => {{
     let l = $stack.pop_type()?;
@@ -266,6 +259,12 @@ impl<'a> Context<'a> {
   fn validate_unary(&self, cxt: &TypeStack) -> Result<()> {
     let t = cxt.pop_type()?;
     cxt.push(t);
+    Ok(())
+  }
+
+  fn validate_test_inst(&self, cxt: &TypeStack) -> Result<()> {
+    cxt.pop_type()?;
+    cxt.push(ValueTypes::I32);
     Ok(())
   }
 
@@ -471,8 +470,8 @@ impl<'a> Context<'a> {
         I64RotateLeft => bin_op!(cxt),
         I64RotateRight => bin_op!(cxt),
 
-        I32EqualZero => test_op!(cxt),
-        I64EqualZero => test_op!(cxt),
+        I32EqualZero => self.validate_test_inst(cxt),
+        I64EqualZero => self.validate_test_inst(cxt),
 
         Equal => rel_op!(cxt),
         NotEqual => rel_op!(cxt),
