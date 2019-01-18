@@ -9,7 +9,8 @@ use std::io::Read;
 use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
 use wasvm::{
-  create_spectest, decode_module, init_store, instantiate_module, ExternalModules, Trap, Values, Vm,
+  create_spectest, decode_module, init_store, instantiate_module, validate_module, ExternalModules,
+  Trap, Values, Vm,
 };
 
 fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
@@ -243,8 +244,18 @@ macro_rules! impl_e2e {
           CommandKind::AssertExhaustion {
             action: Action::Invoke { ref field, .. },
           } => println!("Skip exhaustion line:{}:{}.", field, line),
-          CommandKind::AssertInvalid { ref message, .. } => {
-            println!("Skip assert invalid at '{}:{}'.", message, line)
+          CommandKind::AssertInvalid {
+            ref message,
+            ref module,
+          } => {
+            println!("Assert invalid at {}:{}.", message, line,);
+            if $file_name != "typecheck" {
+              continue;
+            }
+            let bytes = module.clone().into_vec();
+            let section = decode_module(&bytes);
+            let err = validate_module(&section).unwrap_err();
+            assert_eq!(&String::from(err), message);
           }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",

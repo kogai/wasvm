@@ -1,9 +1,11 @@
 use super::error::{Result, TypeError};
+use alloc::collections::VecDeque;
 use alloc::vec::Vec;
-use core::cell::RefCell;
+use core::cell::{Cell, RefCell};
 use decode::Section;
 use function::FunctionType;
 use inst::{Indice, Inst};
+use memory::Limit;
 // use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
 // use trap::Trap;
 // use value::Values;
@@ -11,21 +13,51 @@ use value_type::ValueTypes;
 
 type ResultType = [ValueTypes; 1];
 
-#[derive(Debug)]
-struct FunctionContext {
-  stack: Vec<ValueTypes>,
-  locals: Vec<ValueTypes>,
-  labels: Vec<ResultType>,
-  return_type: ResultType,
+#[derive(Debug, Clone)]
+enum Entry {
+  Type(ValueTypes),
+  Label,
 }
 
-impl Default for FunctionContext {
-  fn default() -> Self {
-    FunctionContext {
-      stack: Vec::new(),
-      locals: Vec::new(),
-      labels: Vec::new(),
-      return_type: [ValueTypes::Empty; 1],
+#[derive(Debug)]
+struct TypeStack(RefCell<Vec<Entry>>);
+
+impl TypeStack {
+  fn new() -> Self {
+    TypeStack(RefCell::new(Vec::new()))
+  }
+
+  fn push(&self, ty: ValueTypes) {
+    self.0.borrow_mut().push(Entry::Type(ty));
+  }
+
+  fn push_label(&self) {
+    self.0.borrow_mut().push(Entry::Label);
+  }
+
+  fn pop(&self) -> Option<Entry> {
+    self.0.borrow_mut().pop()
+  }
+
+  fn pop_type(&self) -> Result<ValueTypes> {
+    match self.pop() {
+      Some(Entry::Type(ty)) => Ok(ty),
+      _ => Err(TypeError::TypeMismatch),
+    }
+  }
+
+  fn pop_until_label(&self) -> Result<Vec<Entry>> {
+    let mut buf = Vec::new();
+    while let Some(Entry::Type(ty)) = self.pop() {
+      buf.push(Entry::Type(ty));
+    }
+    Ok(buf)
+  }
+
+  fn pop_i32(&self) -> Result<ValueTypes> {
+    match self.0.borrow_mut().pop() {
+      Some(Entry::Type(ValueTypes::I32)) => Ok(ValueTypes::I32),
+      _ => Err(TypeError::TypeMismatch),
     }
   }
 }
@@ -35,7 +67,8 @@ struct Function<'a> {
   function_type: &'a FunctionType,
   locals: &'a [ValueTypes],
   body: &'a [Inst],
-  stack: RefCell<FunctionContext>,
+  body_ptr: Cell<usize>,
+  type_stack: TypeStack,
 }
 
 impl<'a> Function<'a> {
@@ -48,7 +81,21 @@ impl<'a> Function<'a> {
       function_type,
       locals,
       body,
-      stack: Default::default(),
+      body_ptr: Cell::new(0),
+      type_stack: TypeStack::new(),
+    }
+  }
+
+  fn pop(&self) -> Option<&Inst> {
+    let ptr = self.body_ptr.get();
+    self.body_ptr.set(ptr + 1);
+    self.body.get(ptr)
+  }
+
+  fn pop_value_type(&self) -> Option<ValueTypes> {
+    match self.pop() {
+      Some(Inst::RuntimeValue(ty)) => Some(ty.to_owned()),
+      _ => None,
     }
   }
 }
@@ -59,22 +106,82 @@ pub struct Context<'a> {
   //  exports: ExternalInterfaces,
   //  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
   //  datas: Vec<Data>,
-  //  limits: Vec<Limit>,
+  limits: &'a Vec<Limit>,
   //  tables: Vec<TableType>,
   //  globals: Vec<(GlobalType, Vec<Inst>)>,
   //  elements: Vec<Element>,
   //  customs: Vec<(String, Vec<u8>)>,
   //  imports: ExternalInterfaces,
   //  start: Option<u32>,
+  locals: RefCell<Vec<ValueTypes>>,
+  labels: RefCell<VecDeque<ResultType>>,
+  return_type: RefCell<ResultType>,
+}
+
+macro_rules! un_op {
+  ($stack: ident) => {{
+    let t = $stack.pop_type()?;
+    $stack.push(t);
+  }};
 }
 
 macro_rules! bin_op {
   ($stack: ident) => {{
-    let l = $stack.pop();
-    let r = $stack.pop();
+    let l = $stack.pop_type()?;
+    let r = $stack.pop_type()?;
     if l != r {
       return Err(TypeError::TypeMismatch);
     }
+    $stack.push(l);
+  }};
+}
+
+macro_rules! test_op {
+  ($stack: ident) => {{
+    $stack.pop_type()?;
+    $stack.push(ValueTypes::I32);
+  }};
+}
+
+macro_rules! rel_op {
+  ($stack: ident) => {{
+    let l = $stack.pop_type()?;
+    let r = $stack.pop_type()?;
+    if l != r {
+      return Err(TypeError::TypeMismatch);
+    }
+    $stack.push(ValueTypes::I32);
+  }};
+}
+
+macro_rules! conv_op {
+  ($stack: ident, $from: path, $to: path) => {{
+    let from_ty = $stack.pop_type()?;
+    if from_ty != $from {
+      return Err(TypeError::TypeMismatch);
+    }
+    $stack.push($to);
+  }};
+}
+
+macro_rules! load_op {
+  // load
+  ($self: ident, $cxt: ident, $align: ident, $bit_width: expr, $ty: path) => {{
+    $self.limits.first().ok_or(TypeError::TypeMismatch)?;
+    if 2u32.pow(*$align) > $bit_width / 4 {
+      return Err(TypeError::TypeMismatch);
+    };
+    $cxt.pop_i32()?;
+    $cxt.push($ty);
+  }};
+
+  // store
+  ($self: ident, $cxt: ident, $align: ident, $bit_width: expr) => {{
+    $self.limits.first().ok_or(TypeError::TypeMismatch)?;
+    if 2u32.pow(*$align) > $bit_width / 4 {
+      return Err(TypeError::TypeMismatch);
+    };
+    $cxt.pop_i32()?;
   }};
 }
 
@@ -96,6 +203,11 @@ impl<'a> Context<'a> {
           Ok(Function::new(function_type, locals, body))
         })
         .collect::<Result<Vec<_>>>()?,
+      limits: &module.limits,
+
+      locals: RefCell::new(Vec::new()),
+      labels: RefCell::new(VecDeque::new()),
+      return_type: RefCell::new([ValueTypes::Empty; 1]),
     })
   }
 
@@ -117,207 +229,303 @@ impl<'a> Context<'a> {
 
   fn validate_function(&self, function: &Function) -> Result<()> {
     use self::Inst::*;
-    let stack = &mut function.stack.borrow_mut().stack;
-    for inst in function.body.iter() {
+    let cxt = &function.type_stack;
+    let labels = &mut self.labels.borrow_mut();
+    let locals = &mut self.locals.borrow_mut();
+    let return_type = &mut self.return_type.borrow_mut();
+
+    labels.push_front(
+      [match function.function_type.returns().first() {
+        Some(ty) => ty.clone(),
+        None => ValueTypes::Empty,
+      }; 1],
+    );
+
+    while let Some(inst) = function.pop() {
+      // println!("{:?}", inst);
       match inst {
         Unreachable => unimplemented!(),
         Nop => unimplemented!(),
-        Block(_) => unimplemented!(),
-        Loop(_) => unimplemented!(),
-        If(_, _) => unimplemented!(),
-        Else => unimplemented!(),
-        End => unimplemented!(),
-        Br(_) => unimplemented!(),
-        BrIf(_) => unimplemented!(),
-        BrTable(_, _) => unimplemented!(),
-        Return => unimplemented!(),
+        Block(_) => {
+          let expect_type = function.pop_value_type()?;
+          labels.push_front([expect_type; 1]);
+          cxt.push_label();
+        }
+        Loop(_) => {
+          let expect_type = function.pop_value_type()?;
+          labels.push_front([expect_type; 1]);
+          cxt.push_label();
+        }
+        If(_, _) => {
+          let _ = cxt.pop_i32()?;
+          let expect_type = function.pop_value_type()?;
+          labels.push_front([expect_type; 1]);
+          cxt.push_label();
+        }
+        Else => {
+          let expect = labels.pop_front().ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+          cxt.pop_until_label()?;
+          labels.push_front([expect; 1]);
+        }
+        End => {
+          let expect = labels.pop_front().ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+          cxt.pop_until_label()?;
+          // println!("{:?}", labels);
+        }
+
+        Br(idx) => {
+          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
+        BrIf(idx) => {
+          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let actual = cxt.pop_type()?;
+          cxt.pop_i32()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
+        BrTable(indices, idx) => {
+          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          for i in indices.iter() {
+            let actual = labels.get(*i as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+            if expect != actual {
+              return Err(TypeError::TypeMismatch);
+            }
+          }
+          let actual = cxt.pop_type()?;
+          cxt.pop_i32()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
+        Return => {
+          let expect = return_type[0].clone();
+          let actual = cxt.pop_type()?;
+          if expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
         Call(_) => unimplemented!(),
         CallIndirect(_) => unimplemented!(),
 
-        I32Const(_) => unimplemented!(),
-        I64Const(_) => {
-          stack.push(ValueTypes::I64);
-        }
-        F32Const(_) => {
-          stack.push(ValueTypes::F32);
-        }
-        F64Const(_) => unimplemented!(),
+        I32Const(_) => cxt.push(ValueTypes::I32),
+        I64Const(_) => cxt.push(ValueTypes::I64),
+        F32Const(_) => cxt.push(ValueTypes::F32),
+        F64Const(_) => cxt.push(ValueTypes::F64),
 
-        GetLocal(_) => unimplemented!(),
-        SetLocal(_) => unimplemented!(),
+        GetLocal(idx) => {
+          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          cxt.push(actual.clone());
+        }
+        SetLocal(idx) => {
+          let expect = cxt.pop_type()?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          if &expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
         TeeLocal(_) => unimplemented!(),
         GetGlobal(_) => unimplemented!(),
         SetGlobal(_) => unimplemented!(),
 
-        I32Load(_, _) => unimplemented!(),
-        I64Load(_, _) => unimplemented!(),
-        F32Load(_, _) => unimplemented!(),
-        F64Load(_, _) => unimplemented!(),
-        I32Load8Sign(_, _) => unimplemented!(),
-        I32Load8Unsign(_, _) => unimplemented!(),
-        I32Load16Sign(_, _) => unimplemented!(),
-        I32Load16Unsign(_, _) => unimplemented!(),
-        I64Load8Sign(_, _) => unimplemented!(),
-        I64Load8Unsign(_, _) => unimplemented!(),
-        I64Load16Sign(_, _) => unimplemented!(),
-        I64Load16Unsign(_, _) => unimplemented!(),
-        I64Load32Sign(_, _) => unimplemented!(),
-        I64Load32Unsign(_, _) => unimplemented!(),
-        I32Store(_, _) => unimplemented!(),
-        I64Store(_, _) => unimplemented!(),
-        F32Store(_, _) => unimplemented!(),
-        F64Store(_, _) => unimplemented!(),
-        I32Store8(_, _) => unimplemented!(),
-        I32Store16(_, _) => unimplemented!(),
-        I64Store8(_, _) => unimplemented!(),
-        I64Store16(_, _) => unimplemented!(),
-        I64Store32(_, _) => unimplemented!(),
-        MemorySize => unimplemented!(),
-        MemoryGrow => unimplemented!(),
+        I32Load(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I32),
+        I64Load(_, align) => load_op!(self, cxt, align, 64, ValueTypes::I64),
+        F32Load(_, align) => load_op!(self, cxt, align, 32, ValueTypes::F32),
+        F64Load(_, align) => load_op!(self, cxt, align, 64, ValueTypes::F64),
+        I32Load8Sign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I32),
+        I32Load8Unsign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I32),
+        I32Load16Sign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I32),
+        I32Load16Unsign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I32),
+        I64Load8Sign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I64),
+        I64Load8Unsign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I64),
+        I64Load16Sign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I64),
+        I64Load16Unsign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I64),
+        I64Load32Sign(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I64),
+        I64Load32Unsign(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I64),
 
-        I32CountLeadingZero => unimplemented!(),
-        I32CountTrailingZero => unimplemented!(),
-        I32CountNonZero => unimplemented!(),
-        I32Add => bin_op!(stack),
-        I32Sub => bin_op!(stack),
-        I32Mul => bin_op!(stack),
-        I32DivSign => unimplemented!(),
-        I32DivUnsign => unimplemented!(),
-        I32RemSign => unimplemented!(),
-        I32RemUnsign => unimplemented!(),
-        I32And => unimplemented!(),
-        I32Or => unimplemented!(),
-        I32Xor => unimplemented!(),
-        I32ShiftLeft => unimplemented!(),
-        I32ShiftRIghtSign => unimplemented!(),
-        I32ShiftRightUnsign => unimplemented!(),
-        I32RotateLeft => unimplemented!(),
-        I32RotateRight => unimplemented!(),
+        I32Store(_, align) => load_op!(self, cxt, align, 32),
+        I64Store(_, align) => load_op!(self, cxt, align, 64),
+        F32Store(_, align) => load_op!(self, cxt, align, 32),
+        F64Store(_, align) => load_op!(self, cxt, align, 64),
+        I32Store8(_, align) => load_op!(self, cxt, align, 8),
+        I32Store16(_, align) => load_op!(self, cxt, align, 16),
+        I64Store8(_, align) => load_op!(self, cxt, align, 8),
+        I64Store16(_, align) => load_op!(self, cxt, align, 16),
+        I64Store32(_, align) => load_op!(self, cxt, align, 32),
 
-        I64CountLeadingZero => unimplemented!(),
-        I64CountTrailingZero => unimplemented!(),
-        I64CountNonZero => unimplemented!(),
-        I64Add => unimplemented!(),
-        I64Sub => unimplemented!(),
-        I64Mul => unimplemented!(),
-        I64DivSign => unimplemented!(),
-        I64DivUnsign => unimplemented!(),
-        I64RemSign => unimplemented!(),
-        I64RemUnsign => unimplemented!(),
-        I64And => unimplemented!(),
-        I64Or => unimplemented!(),
-        I64Xor => unimplemented!(),
-        I64ShiftLeft => unimplemented!(),
-        I64ShiftRightSign => unimplemented!(),
-        I64ShiftRightUnsign => unimplemented!(),
-        I64RotateLeft => unimplemented!(),
-        I64RotateRight => unimplemented!(),
-
-        I32EqualZero => {
-          if let Some(ValueTypes::I32) = stack.pop() {
-            stack.push(ValueTypes::I32);
-          } else {
-            return Err(TypeError::TypeMismatch);
-          }
+        MemorySize => {
+          self.limits.first().ok_or(TypeError::TypeMismatch)?;
+          cxt.push(ValueTypes::I32);
         }
-        Equal => unimplemented!(),
-        NotEqual => unimplemented!(),
-        LessThanSign => unimplemented!(),
-        LessThanUnsign => unimplemented!(),
-        I32GreaterThanSign => unimplemented!(),
-        I32GreaterThanUnsign => unimplemented!(),
-        I32LessEqualSign => unimplemented!(),
-        I32LessEqualUnsign => unimplemented!(),
-        I32GreaterEqualSign => unimplemented!(),
-        I32GreaterEqualUnsign => unimplemented!(),
+        MemoryGrow => {
+          self.limits.first().ok_or(TypeError::TypeMismatch)?;
+          cxt.pop_i32()?;
+          cxt.push(ValueTypes::I32);
+        }
 
-        I64EqualZero => unimplemented!(),
-        I64Equal => unimplemented!(),
-        I64NotEqual => unimplemented!(),
-        I64LessThanSign => unimplemented!(),
-        I64LessThanUnSign => unimplemented!(),
-        I64GreaterThanSign => unimplemented!(),
-        I64GreaterThanUnSign => unimplemented!(),
-        I64LessEqualSign => unimplemented!(),
-        I64LessEqualUnSign => unimplemented!(),
-        I64GreaterEqualSign => unimplemented!(),
-        I64GreaterEqualUnSign => unimplemented!(),
+        I32CountLeadingZero => un_op!(cxt),
+        I32CountTrailingZero => un_op!(cxt),
+        I32CountNonZero => un_op!(cxt),
+        I64CountLeadingZero => un_op!(cxt),
+        I64CountTrailingZero => un_op!(cxt),
+        I64CountNonZero => un_op!(cxt),
 
-        F32Equal => unimplemented!(),
-        F32NotEqual => unimplemented!(),
-        F32LessThan => unimplemented!(),
-        F32GreaterThan => unimplemented!(),
-        F32LessEqual => unimplemented!(),
-        F32GreaterEqual => unimplemented!(),
-        F64Equal => unimplemented!(),
-        F64NotEqual => unimplemented!(),
-        F64LessThan => unimplemented!(),
-        F64GreaterThan => unimplemented!(),
-        F64LessEqual => unimplemented!(),
-        F64GreaterEqual => unimplemented!(),
+        I32Add => bin_op!(cxt),
+        I32Sub => bin_op!(cxt),
+        I32Mul => bin_op!(cxt),
+        I32DivSign => bin_op!(cxt),
+        I32DivUnsign => bin_op!(cxt),
+        I32RemSign => bin_op!(cxt),
+        I32RemUnsign => bin_op!(cxt),
+        I32And => bin_op!(cxt),
+        I32Or => bin_op!(cxt),
+        I32Xor => bin_op!(cxt),
+        I32ShiftLeft => bin_op!(cxt),
+        I32ShiftRIghtSign => bin_op!(cxt),
+        I32ShiftRightUnsign => bin_op!(cxt),
+        I32RotateLeft => bin_op!(cxt),
+        I32RotateRight => bin_op!(cxt),
 
-        F32Abs => unimplemented!(),
-        F32Neg => unimplemented!(),
-        F32Ceil => unimplemented!(),
-        F32Floor => unimplemented!(),
-        F32Trunc => unimplemented!(),
-        F32Nearest => unimplemented!(),
-        F32Sqrt => unimplemented!(),
-        F32Add => unimplemented!(),
-        F32Sub => unimplemented!(),
-        F32Mul => unimplemented!(),
-        F32Div => unimplemented!(),
-        F32Min => unimplemented!(),
-        F32Max => unimplemented!(),
-        F32Copysign => unimplemented!(),
+        I64Add => bin_op!(cxt),
+        I64Sub => bin_op!(cxt),
+        I64Mul => bin_op!(cxt),
+        I64DivSign => bin_op!(cxt),
+        I64DivUnsign => bin_op!(cxt),
+        I64RemSign => bin_op!(cxt),
+        I64RemUnsign => bin_op!(cxt),
+        I64And => bin_op!(cxt),
+        I64Or => bin_op!(cxt),
+        I64Xor => bin_op!(cxt),
+        I64ShiftLeft => bin_op!(cxt),
+        I64ShiftRightSign => bin_op!(cxt),
+        I64ShiftRightUnsign => bin_op!(cxt),
+        I64RotateLeft => bin_op!(cxt),
+        I64RotateRight => bin_op!(cxt),
 
-        F64Abs => unimplemented!(),
-        F64Neg => unimplemented!(),
-        F64Ceil => unimplemented!(),
-        F64Floor => unimplemented!(),
-        F64Trunc => unimplemented!(),
-        F64Nearest => unimplemented!(),
-        F64Sqrt => unimplemented!(),
-        F64Add => unimplemented!(),
-        F64Sub => unimplemented!(),
-        F64Mul => unimplemented!(),
-        F64Div => unimplemented!(),
-        F64Min => unimplemented!(),
-        F64Max => unimplemented!(),
-        F64Copysign => unimplemented!(),
+        I32EqualZero => test_op!(cxt),
+        I64EqualZero => test_op!(cxt),
 
-        Select => unimplemented!(),
-        DropInst => unimplemented!(),
-        I32WrapI64 => unimplemented!(),
+        Equal => rel_op!(cxt),
+        NotEqual => rel_op!(cxt),
+        LessThanSign => rel_op!(cxt),
+        LessThanUnsign => rel_op!(cxt),
+        I32GreaterThanSign => rel_op!(cxt),
+        I32GreaterThanUnsign => rel_op!(cxt),
+        I32LessEqualSign => rel_op!(cxt),
+        I32LessEqualUnsign => rel_op!(cxt),
+        I32GreaterEqualSign => rel_op!(cxt),
+        I32GreaterEqualUnsign => rel_op!(cxt),
 
-        I32TruncSignF32 => unimplemented!(),
-        I32TruncUnsignF32 => unimplemented!(),
-        I32TruncSignF64 => unimplemented!(),
-        I32TruncUnsignF64 => unimplemented!(),
-        I64ExtendSignI32 => unimplemented!(),
-        I64ExtendUnsignI32 => unimplemented!(),
-        I64TruncSignF32 => unimplemented!(),
-        I64TruncUnsignF32 => unimplemented!(),
-        I64TruncSignF64 => unimplemented!(),
-        I64TruncUnsignF64 => unimplemented!(),
-        F32ConvertSignI32 => unimplemented!(),
-        F32ConvertUnsignI32 => unimplemented!(),
-        F32ConvertSignI64 => unimplemented!(),
-        F32ConvertUnsignI64 => unimplemented!(),
-        F32DemoteF64 => unimplemented!(),
-        F64ConvertSignI32 => unimplemented!(),
-        F64ConvertUnsignI32 => unimplemented!(),
-        F64ConvertSignI64 => unimplemented!(),
-        F64ConvertUnsignI64 => unimplemented!(),
-        F64PromoteF32 => unimplemented!(),
-        I32ReinterpretF32 => unimplemented!(),
-        I64ReinterpretF64 => unimplemented!(),
-        F32ReinterpretI32 => unimplemented!(),
-        F64ReinterpretI64 => unimplemented!(),
+        I64Equal => rel_op!(cxt),
+        I64NotEqual => rel_op!(cxt),
+        I64LessThanSign => rel_op!(cxt),
+        I64LessThanUnSign => rel_op!(cxt),
+        I64GreaterThanSign => rel_op!(cxt),
+        I64GreaterThanUnSign => rel_op!(cxt),
+        I64LessEqualSign => rel_op!(cxt),
+        I64LessEqualUnSign => rel_op!(cxt),
+        I64GreaterEqualSign => rel_op!(cxt),
+        I64GreaterEqualUnSign => rel_op!(cxt),
+
+        F32Equal => rel_op!(cxt),
+        F32NotEqual => rel_op!(cxt),
+        F32LessThan => rel_op!(cxt),
+        F32GreaterThan => rel_op!(cxt),
+        F32LessEqual => rel_op!(cxt),
+        F32GreaterEqual => rel_op!(cxt),
+
+        F64Equal => rel_op!(cxt),
+        F64NotEqual => rel_op!(cxt),
+        F64LessThan => rel_op!(cxt),
+        F64GreaterThan => rel_op!(cxt),
+        F64LessEqual => rel_op!(cxt),
+        F64GreaterEqual => rel_op!(cxt),
+
+        F32Abs => un_op!(cxt),
+        F32Neg => un_op!(cxt),
+        F32Ceil => un_op!(cxt),
+        F32Floor => un_op!(cxt),
+        F32Trunc => un_op!(cxt),
+        F32Nearest => un_op!(cxt),
+        F32Sqrt => un_op!(cxt),
+
+        F32Add => bin_op!(cxt),
+        F32Sub => bin_op!(cxt),
+        F32Mul => bin_op!(cxt),
+        F32Div => bin_op!(cxt),
+        F32Min => bin_op!(cxt),
+        F32Max => bin_op!(cxt),
+        F32Copysign => bin_op!(cxt),
+
+        F64Abs => un_op!(cxt),
+        F64Neg => un_op!(cxt),
+        F64Ceil => un_op!(cxt),
+        F64Floor => un_op!(cxt),
+        F64Trunc => un_op!(cxt),
+        F64Nearest => un_op!(cxt),
+        F64Sqrt => un_op!(cxt),
+        F64Add => bin_op!(cxt),
+        F64Sub => bin_op!(cxt),
+        F64Mul => bin_op!(cxt),
+        F64Div => bin_op!(cxt),
+        F64Min => bin_op!(cxt),
+        F64Max => bin_op!(cxt),
+        F64Copysign => bin_op!(cxt),
+
+        Select => {
+          cxt.pop_type()?;
+          cxt.pop_type()?;
+          let operand = cxt.pop_type()?;
+          cxt.push(operand);
+        }
+        DropInst => {
+          cxt.pop_type()?;
+        }
+
+        // To_convert_name_From
+        // macro(cxt, from, to)
+        I32WrapI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::I32),
+        I32TruncSignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
+        I32TruncUnsignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
+        I32TruncSignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I32),
+        I32TruncUnsignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I32),
+        I64ExtendSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::I64),
+        I64ExtendUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::I64),
+        I64TruncSignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I64),
+        I64TruncUnsignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I64),
+        I64TruncSignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
+        I64TruncUnsignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
+        F32ConvertSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
+        F32ConvertUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
+        F32ConvertSignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F32),
+        F32ConvertUnsignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F32),
+        F32DemoteF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::F32),
+        F64ConvertSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F64),
+        F64ConvertUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F64),
+        F64ConvertSignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
+        F64ConvertUnsignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
+        F64PromoteF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::F64),
+        I32ReinterpretF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
+        I64ReinterpretF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
+        F32ReinterpretI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
+        F64ReinterpretI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
 
         RuntimeValue(_) => unimplemented!(),
       }
     }
+    // Ok([ValueTypes::Empty])
     Ok(())
   }
 
