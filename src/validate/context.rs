@@ -214,7 +214,7 @@ impl<'a> Context<'a> {
   fn validate_function_types(&self) -> Result<()> {
     for fy in self.function_types.iter() {
       if fy.returns().len() > 1 {
-        return Err(TypeError::TypeMismatch);
+        return Err(TypeError::InvalidResultArity);
       }
     }
     Ok(())
