@@ -164,27 +164,6 @@ macro_rules! conv_op {
   }};
 }
 
-macro_rules! load_op {
-  // load
-  ($self: ident, $cxt: ident, $align: ident, $bit_width: expr, $ty: path) => {{
-    $self.limits.first().ok_or(TypeError::TypeMismatch)?;
-    if 2u32.pow(*$align) > $bit_width / 4 {
-      return Err(TypeError::TypeMismatch);
-    };
-    $cxt.pop_i32()?;
-    $cxt.push($ty);
-  }};
-
-  // store
-  ($self: ident, $cxt: ident, $align: ident, $bit_width: expr) => {{
-    $self.limits.first().ok_or(TypeError::TypeMismatch)?;
-    if 2u32.pow(*$align) > $bit_width / 4 {
-      return Err(TypeError::TypeMismatch);
-    };
-    $cxt.pop_i32()?;
-  }};
-}
-
 impl<'a> Context<'a> {
   pub fn new(module: &'a Section) -> Result<Self> {
     Ok(Context {
@@ -224,6 +203,31 @@ impl<'a> Context<'a> {
     for f in self.functions.iter() {
       self.validate_function(f)?;
     }
+    Ok(())
+  }
+
+  fn validate_load(
+    &self,
+    cxt: &TypeStack,
+    align: u32,
+    bit_width: u32,
+    ty: ValueTypes,
+  ) -> Result<()> {
+    self.limits.first().ok_or(TypeError::TypeMismatch)?;
+    if 2u32.pow(align) > bit_width / 8 {
+      return Err(TypeError::INvalidAlignment);
+    };
+    cxt.pop_i32()?;
+    cxt.push(ty);
+    Ok(())
+  }
+
+  fn validate_store(&self, cxt: &TypeStack, align: u32, bit_width: u32) -> Result<()> {
+    self.limits.first().ok_or(TypeError::TypeMismatch)?;
+    if 2u32.pow(align) > bit_width / 8 {
+      return Err(TypeError::INvalidAlignment);
+    };
+    cxt.pop_i32()?;
     Ok(())
   }
 
@@ -340,30 +344,30 @@ impl<'a> Context<'a> {
         GetGlobal(_) => unimplemented!(),
         SetGlobal(_) => unimplemented!(),
 
-        I32Load(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I32),
-        I64Load(_, align) => load_op!(self, cxt, align, 64, ValueTypes::I64),
-        F32Load(_, align) => load_op!(self, cxt, align, 32, ValueTypes::F32),
-        F64Load(_, align) => load_op!(self, cxt, align, 64, ValueTypes::F64),
-        I32Load8Sign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I32),
-        I32Load8Unsign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I32),
-        I32Load16Sign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I32),
-        I32Load16Unsign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I32),
-        I64Load8Sign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I64),
-        I64Load8Unsign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I64),
-        I64Load16Sign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I64),
-        I64Load16Unsign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I64),
-        I64Load32Sign(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I64),
-        I64Load32Unsign(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I64),
+        I32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I32)?,
+        I64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::I64)?,
+        F32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::F32)?,
+        F64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::F64)?,
+        I32Load8Sign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I32)?,
+        I32Load8Unsign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I32)?,
+        I32Load16Sign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I32)?,
+        I32Load16Unsign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I32)?,
+        I64Load8Sign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I64)?,
+        I64Load8Unsign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I64)?,
+        I64Load16Sign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I64)?,
+        I64Load16Unsign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I64)?,
+        I64Load32Sign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
+        I64Load32Unsign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
 
-        I32Store(_, align) => load_op!(self, cxt, align, 32),
-        I64Store(_, align) => load_op!(self, cxt, align, 64),
-        F32Store(_, align) => load_op!(self, cxt, align, 32),
-        F64Store(_, align) => load_op!(self, cxt, align, 64),
-        I32Store8(_, align) => load_op!(self, cxt, align, 8),
-        I32Store16(_, align) => load_op!(self, cxt, align, 16),
-        I64Store8(_, align) => load_op!(self, cxt, align, 8),
-        I64Store16(_, align) => load_op!(self, cxt, align, 16),
-        I64Store32(_, align) => load_op!(self, cxt, align, 32),
+        I32Store(align, _) => self.validate_store(cxt, *align, 32)?,
+        I64Store(align, _) => self.validate_store(cxt, *align, 64)?,
+        F32Store(align, _) => self.validate_store(cxt, *align, 32)?,
+        F64Store(align, _) => self.validate_store(cxt, *align, 64)?,
+        I32Store8(align, _) => self.validate_store(cxt, *align, 8)?,
+        I32Store16(align, _) => self.validate_store(cxt, *align, 16)?,
+        I64Store8(align, _) => self.validate_store(cxt, *align, 8)?,
+        I64Store16(align, _) => self.validate_store(cxt, *align, 16)?,
+        I64Store32(align, _) => self.validate_store(cxt, *align, 32)?,
 
         MemorySize => {
           self.limits.first().ok_or(TypeError::TypeMismatch)?;

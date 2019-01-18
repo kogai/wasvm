@@ -10,6 +10,7 @@ pub enum TypeError {
   IndirectCallTypeMismatch,
   IncompatibleImportType,
   InvalidResultArity,
+  INvalidAlignment,
   // FIXME: Separate TypeError and RuntimeError(Trap) completely.
   Trap(Trap),
 }
@@ -35,6 +36,7 @@ impl From<TypeError> for String {
       IndirectCallTypeMismatch => "indirect call type mismatch".to_string(),
       IncompatibleImportType => "incompatible import type".to_string(),
       InvalidResultArity => "invalid result arity".to_string(),
+      INvalidAlignment => "alignment must not be larger than natural".to_string(),
       Trap(err) => String::from(err),
     }
   }

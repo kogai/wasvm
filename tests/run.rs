@@ -255,7 +255,13 @@ macro_rules! impl_e2e {
             let bytes = module.clone().into_vec();
             let section = decode_module(&bytes);
             let err = validate_module(&section).unwrap_err();
-            assert_eq!(&String::from(err), message);
+            match message.as_ref() {
+              "alignment" => assert_eq!(
+                &String::from(err),
+                "alignment must not be larger than natural"
+              ),
+              _ => assert_eq!(&String::from(err), message),
+            };
           }
           x => unreachable!(
             "there are no other commands apart from that defined above {:?}",
