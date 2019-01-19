@@ -8,7 +8,9 @@ use global::GlobalType;
 use inst::{Indice, Inst};
 use memory::Limit;
 // use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
-use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
+use module::{
+  ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
+};
 // use trap::Trap;
 // use value::Values;
 use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
@@ -106,13 +108,13 @@ pub struct Context<'a> {
   function_types: &'a Vec<FunctionType>,
   functions: Vec<Function<'a>>,
   exports: &'a ExternalInterfaces,
+  imports: &'a ExternalInterfaces,
   datas: &'a Vec<Data>,
   limits: &'a Vec<Limit>,
   tables: &'a Vec<TableType>,
   globals: &'a Vec<(GlobalType, Vec<Inst>)>,
   elements: &'a Vec<Element>,
   //  customs: Vec<(String, Vec<u8>)>,
-  //  imports: ExternalInterfaces,
   //  start: Option<u32>,
   locals: RefCell<Vec<ValueTypes>>,
   labels: RefCell<VecDeque<ResultType>>,
@@ -160,6 +162,7 @@ impl<'a> Context<'a> {
         })
         .collect::<Result<Vec<_>>>()?,
       exports: &module.exports,
+      imports: &module.imports,
       datas: &module.datas,
       globals: &module.globals,
       tables: &module.tables,
@@ -224,7 +227,7 @@ impl<'a> Context<'a> {
         self
           .functions
           .get(*i as usize)
-          .ok_or(TypeError::UnknownFunction(*i))?;
+          .ok_or_else(|| TypeError::UnknownFunction(*i))?;
       }
     }
     Ok(())
@@ -268,6 +271,24 @@ impl<'a> Context<'a> {
     names.dedup();
     if names.len() != self.exports.len() {
       return Err(TypeError::DuplicateExportName);
+    }
+    Ok(())
+  }
+
+  fn validate_imports(&self) -> Result<()> {
+    for ExternalInterface { descriptor, .. } in self.imports.iter() {
+      match descriptor {
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(x)) => {
+          self
+            .function_types
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownFunction(*x))?;
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_ty)) => {}
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(_limit)) => {}
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_ty)) => {}
+        _ => unreachable!(),
+      };
     }
     Ok(())
   }
@@ -441,7 +462,7 @@ impl<'a> Context<'a> {
             if ty != cxt.pop_type()? {
               return Err(TypeError::TypeMismatch);
             };
-          } 
+          }
           for ty in function_type.returns().iter() {
             cxt.push(ty.clone());
           }
@@ -458,7 +479,7 @@ impl<'a> Context<'a> {
             if ty != cxt.pop_type()? {
               return Err(TypeError::TypeMismatch);
             };
-          } 
+          }
           for ty in function_type.returns().iter() {
             cxt.push(ty.clone());
           }
@@ -679,6 +700,7 @@ impl<'a> Context<'a> {
     // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
     // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
     self.validate_exports()?;
+    self.validate_imports()?;
     self.validate_datas()?;
     self.validate_elements()?;
     self.validate_function_types()?;

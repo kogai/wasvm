@@ -186,7 +186,6 @@ impl<'a> E2ETest<'a> {
   }
 
   fn assert_invalid(&self, message: &str, module: &ModuleBinary, line: u64) {
-    println!("Assert invalid at {}:{}.", message, line);
     if self.file_name != "typecheck"
       && self.file_name != "type"
       && self.file_name != "br_only"
@@ -197,9 +196,13 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "exports"
       && self.file_name != "call"
       && self.file_name != "call_indirect"
+      && self.file_name != "func"
+      && self.file_name != "func_ptrs"
     {
+    println!("Skip to assert invalid at {}:{}.", message, line);
       return;
     }
+    println!("Assert invalid at {}:{}.", message, line);
     let bytes = module.clone().into_vec();
     let section = decode_module(&bytes);
     let err = validate_module(&section).unwrap_err();
