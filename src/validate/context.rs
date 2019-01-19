@@ -10,7 +10,7 @@ use memory::Limit;
 // use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
 // use trap::Trap;
 // use value::Values;
-use value_type::ValueTypes;
+use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
 
 type ResultType = [ValueTypes; 1];
 
@@ -275,9 +275,9 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
-  fn validate_convert(&self, cxt: &TypeStack, from: ValueTypes, to: ValueTypes) -> Result<()> {
+  fn validate_convert(&self, cxt: &TypeStack, from: &ValueTypes, to: ValueTypes) -> Result<()> {
     let from_ty = cxt.pop_type()?;
-    if from_ty != from {
+    if &from_ty != from {
       return Err(TypeError::TypeMismatch);
     }
     cxt.push(to);
@@ -400,7 +400,7 @@ impl<'a> Context<'a> {
           let function_type = self
             .function_types
             .get(idx.to_usize())
-            .ok_or(TypeError::UnknownFunctionType(idx.to_u32()))?;
+            .ok_or_else(|| TypeError::UnknownFunctionType(idx.to_u32()))?;
           for ty in function_type.parameters().iter() {
             if ty != &cxt.pop_type()? {
               return Err(TypeError::TypeMismatch);
@@ -588,31 +588,31 @@ impl<'a> Context<'a> {
 
         // To_convert_name_From
         // macro(cxt, from, to)
-        I32WrapI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::I32)?,
-        I32TruncSignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I32)?,
-        I32TruncUnsignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I32)?,
-        I32TruncSignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I32)?,
-        I32TruncUnsignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I32)?,
-        I64ExtendSignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::I64)?,
-        I64ExtendUnsignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::I64)?,
-        I64TruncSignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I64)?,
-        I64TruncUnsignF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I64)?,
-        I64TruncSignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I64)?,
-        I64TruncUnsignF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I64)?,
-        F32ConvertSignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F32)?,
-        F32ConvertUnsignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F32)?,
-        F32ConvertSignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F32)?,
-        F32ConvertUnsignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F32)?,
-        F32DemoteF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::F32)?,
-        F64ConvertSignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F64)?,
-        F64ConvertUnsignI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F64)?,
-        F64ConvertSignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F64)?,
-        F64ConvertUnsignI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F64)?,
-        F64PromoteF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::F64)?,
-        I32ReinterpretF32 => self.validate_convert(cxt, ValueTypes::F32, ValueTypes::I32)?,
-        I64ReinterpretF64 => self.validate_convert(cxt, ValueTypes::F64, ValueTypes::I64)?,
-        F32ReinterpretI32 => self.validate_convert(cxt, ValueTypes::I32, ValueTypes::F32)?,
-        F64ReinterpretI64 => self.validate_convert(cxt, ValueTypes::I64, ValueTypes::F64)?,
+        I32WrapI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::I32)?,
+        I32TruncSignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I32)?,
+        I32TruncUnsignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I32)?,
+        I32TruncSignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I32)?,
+        I32TruncUnsignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I32)?,
+        I64ExtendSignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::I64)?,
+        I64ExtendUnsignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::I64)?,
+        I64TruncSignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I64)?,
+        I64TruncUnsignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I64)?,
+        I64TruncSignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I64)?,
+        I64TruncUnsignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I64)?,
+        F32ConvertSignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
+        F32ConvertUnsignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
+        F32ConvertSignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F32)?,
+        F32ConvertUnsignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F32)?,
+        F32DemoteF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::F32)?,
+        F64ConvertSignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F64)?,
+        F64ConvertUnsignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F64)?,
+        F64ConvertSignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
+        F64ConvertUnsignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
+        F64PromoteF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::F64)?,
+        I32ReinterpretF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I32)?,
+        I64ReinterpretF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I64)?,
+        F32ReinterpretI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
+        F64ReinterpretI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
 
         RuntimeValue(_) => unimplemented!(),
       }

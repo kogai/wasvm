@@ -10,6 +10,11 @@ pub enum ValueTypes {
   F64,
 }
 
+pub const TYPE_I32: ValueTypes = ValueTypes::I32;
+pub const TYPE_I64: ValueTypes = ValueTypes::I64;
+pub const TYPE_F32: ValueTypes = ValueTypes::F32;
+pub const TYPE_F64: ValueTypes = ValueTypes::F64;
+
 impl From<Option<u8>> for ValueTypes {
   fn from(code: Option<u8>) -> Self {
     match code {
