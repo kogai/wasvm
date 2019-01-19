@@ -35,7 +35,7 @@ impl Decodable for Section {
         MEMORY_DESCRIPTOR => ImportDescriptor::Memory(self.decode_limit()?),
         GLOBAL_DESCRIPTOR => {
           let value_type = ValueTypes::from(self.next());
-          let global_type = GlobalType::new(self.next(), value_type);
+          let global_type = GlobalType::new(self.next(), value_type)?;
           ImportDescriptor::Global(global_type)
         }
       };

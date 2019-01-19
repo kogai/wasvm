@@ -6,12 +6,17 @@ use trap::Trap;
 #[derive(Debug, PartialEq)]
 pub enum TypeError {
   NotFound,
+  MultipleTables,
+  MultipleMemories,
   TypeMismatch,
   IndirectCallTypeMismatch,
   IncompatibleImportType,
   InvalidResultArity,
   InvalidAlignment,
+  InvalidMemorySize,
+  InvalidStartFunction,
   UnknownLabel,
+  UnknownLocal,
   UnknownMemory,
   UnknownFunctionType(u32),
   UnknownFunction(u32),
@@ -19,6 +24,7 @@ pub enum TypeError {
   UnknownGlobal(u32),
   ConstantExpressionRequired,
   DuplicateExportName,
+  GlobalIsImmutable,
   // FIXME: Separate TypeError and RuntimeError(Trap) completely.
   Trap(Trap),
 }
@@ -40,12 +46,17 @@ impl From<TypeError> for String {
     use self::TypeError::*;
     match x {
       NotFound => "not found".to_string(),
+      MultipleTables => "multiple tables".to_string(),
+      MultipleMemories => "multiple memories".to_string(),
       TypeMismatch => "type mismatch".to_string(),
       IndirectCallTypeMismatch => "indirect call type mismatch".to_string(),
       IncompatibleImportType => "incompatible import type".to_string(),
       InvalidResultArity => "invalid result arity".to_string(),
       InvalidAlignment => "alignment must not be larger than natural".to_string(),
+      InvalidMemorySize => "invalid memory size".to_string(),
+      InvalidStartFunction => "invalid start function".to_string(),
       UnknownLabel => "unknown label".to_string(),
+      UnknownLocal => "unknown local".to_string(),
       UnknownMemory => "unknown memory 0".to_string(),
       ConstantExpressionRequired => "constant expression required".to_string(),
       UnknownFunction(idx) => format!("unknown function {}", idx),
@@ -53,6 +64,7 @@ impl From<TypeError> for String {
       UnknownTable(idx) => format!("unknown table {}", idx),
       UnknownGlobal(idx) => format!("unknown global {}", idx),
       DuplicateExportName => "duplicate export name".to_string(),
+      GlobalIsImmutable => "global is immutable".to_string(),
       Trap(err) => String::from(err),
     }
   }

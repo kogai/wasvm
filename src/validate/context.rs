@@ -7,10 +7,9 @@ use function::FunctionType;
 use global::GlobalType;
 use inst::{Indice, Inst};
 use memory::Limit;
-// use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
-use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
-// use trap::Trap;
-// use value::Values;
+use module::{
+  ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
+};
 use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
 
 type ResultType = [ValueTypes; 1];
@@ -27,6 +26,10 @@ struct TypeStack(RefCell<Vec<Entry>>);
 impl TypeStack {
   fn new() -> Self {
     TypeStack(RefCell::new(Vec::new()))
+  }
+
+  fn len(&self) -> usize {
+    self.0.borrow().len()
   }
 
   fn push(&self, ty: ValueTypes) {
@@ -106,14 +109,13 @@ pub struct Context<'a> {
   function_types: &'a Vec<FunctionType>,
   functions: Vec<Function<'a>>,
   exports: &'a ExternalInterfaces,
+  imports: &'a ExternalInterfaces,
   datas: &'a Vec<Data>,
   limits: &'a Vec<Limit>,
   tables: &'a Vec<TableType>,
   globals: &'a Vec<(GlobalType, Vec<Inst>)>,
   elements: &'a Vec<Element>,
-  //  customs: Vec<(String, Vec<u8>)>,
-  //  imports: ExternalInterfaces,
-  //  start: Option<u32>,
+  start: &'a Option<u32>,
   locals: RefCell<Vec<ValueTypes>>,
   labels: RefCell<VecDeque<ResultType>>,
   return_type: RefCell<ResultType>,
@@ -160,11 +162,13 @@ impl<'a> Context<'a> {
         })
         .collect::<Result<Vec<_>>>()?,
       exports: &module.exports,
+      imports: &module.imports,
       datas: &module.datas,
       globals: &module.globals,
       tables: &module.tables,
       elements: &module.elements,
       limits: &module.limits,
+      start: &module.start,
 
       locals: RefCell::new(Vec::new()),
       labels: RefCell::new(VecDeque::new()),
@@ -174,23 +178,27 @@ impl<'a> Context<'a> {
 
   fn validate_constant(&self, expr: &[Inst]) -> Result<ValueTypes> {
     let type_stack = TypeStack::new();
-    match expr.get(0) {
-      Some(Inst::I32Const(_)) => type_stack.push(ValueTypes::I32),
-      Some(Inst::I64Const(_)) => type_stack.push(ValueTypes::I64),
-      Some(Inst::F32Const(_)) => type_stack.push(ValueTypes::F32),
-      Some(Inst::F64Const(_)) => type_stack.push(ValueTypes::F64),
-      Some(Inst::GetGlobal(idx)) => match self.globals.get(*idx as usize) {
-        Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
-          type_stack.push(ty.clone())
+    for x in expr.iter() {
+      match x {
+        Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
+        Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
+        Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
+        Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
+        Inst::GetGlobal(idx) => match self.globals.get(*idx as usize) {
+          Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
+            type_stack.push(ty.clone())
+          }
+          _ => return Err(TypeError::ConstantExpressionRequired),
+        },
+        Inst::End => {
+          break;
         }
-        _ => return Err(TypeError::TypeMismatch),
-      },
-      _ => return Err(TypeError::ConstantExpressionRequired),
-    };
-    match expr.get(1) {
-      Some(Inst::End) => {}
-      _ => return Err(TypeError::ConstantExpressionRequired),
-    };
+        _ => return Err(TypeError::ConstantExpressionRequired),
+      }
+    }
+    if type_stack.len() > 1 {
+      return Err(TypeError::TypeMismatch);
+    }
     type_stack.pop_type()
   }
 
@@ -224,7 +232,38 @@ impl<'a> Context<'a> {
         self
           .functions
           .get(*i as usize)
-          .ok_or(TypeError::TypeMismatch)?;
+          .ok_or_else(|| TypeError::UnknownFunction(*i))?;
+      }
+    }
+    Ok(())
+  }
+
+  fn validate_globals(&self) -> Result<()> {
+    for (global_type, init) in self.globals.iter() {
+      let type_stack = TypeStack::new();
+      for x in init.iter() {
+        match x {
+          Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
+          Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
+          Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
+          Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
+          Inst::GetGlobal(_) => return Err(TypeError::ConstantExpressionRequired),
+          Inst::End => {
+            break;
+          }
+          _ => return Err(TypeError::ConstantExpressionRequired),
+        }
+      }
+      if type_stack.len() > 1 {
+        return Err(TypeError::TypeMismatch);
+      }
+      let ty = type_stack.pop_type()?;
+      if &ty
+        != match global_type {
+          GlobalType::Const(expect) | GlobalType::Var(expect) => expect,
+        }
+      {
+        return Err(TypeError::TypeMismatch);
       }
     }
     Ok(())
@@ -272,6 +311,84 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
+  fn validate_imports(&self) -> Result<()> {
+    let mut tables = Vec::new();
+    let mut memories = Vec::new();
+    for ExternalInterface { descriptor, .. } in self.imports.iter() {
+      match descriptor {
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(x)) => {
+          self
+            .function_types
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownFunction(*x))?;
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(ty)) => {
+          if !self.tables.is_empty() {
+            return Err(TypeError::MultipleTables);
+          }
+          tables.push(ty);
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)) => {
+          if !self.limits.is_empty() {
+            return Err(TypeError::MultipleMemories);
+          }
+          memories.push(limit);
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_ty)) => {}
+        _ => unreachable!(),
+      };
+    }
+    if tables.len() > 1 {
+      return Err(TypeError::MultipleTables);
+    }
+    if memories.len() > 1 {
+      return Err(TypeError::MultipleMemories);
+    }
+    Ok(())
+  }
+
+  fn validate_tables(&self) -> Result<()> {
+    if self.tables.len() > 1 {
+      return Err(TypeError::MultipleTables);
+    }
+    Ok(())
+  }
+
+  fn validate_memories(&self) -> Result<()> {
+    for limit in self.limits.iter() {
+      match limit {
+        Limit::NoUpperLimit(min) => {
+          if *min > 65536 {
+            return Err(TypeError::InvalidMemorySize);
+          }
+        }
+        Limit::HasUpperLimit(min, max) => {
+          if min > max || *min > 65536 || *max > 65536 {
+            return Err(TypeError::InvalidMemorySize);
+          }
+        }
+      }
+    }
+    if self.limits.len() > 1 {
+      return Err(TypeError::MultipleMemories);
+    }
+    Ok(())
+  }
+
+  fn validate_start(&self) -> Result<()> {
+    if let Some(idx) = self.start {
+      let func = self
+        .functions
+        .get(*idx as usize)
+        .ok_or_else(|| TypeError::UnknownFunction(*idx))?;
+      let ty = func.function_type;
+      if !ty.parameters().is_empty() || !ty.returns().is_empty() {
+        return Err(TypeError::InvalidStartFunction);
+      }
+    }
+    Ok(())
+  }
+
   fn validate_function_types(&self) -> Result<()> {
     for fy in self.function_types.iter() {
       if fy.returns().len() > 1 {
@@ -304,12 +421,22 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
-  fn validate_store(&self, cxt: &TypeStack, align: u32, bit_width: u32) -> Result<()> {
+  fn validate_store(
+    &self,
+    cxt: &TypeStack,
+    align: u32,
+    bit_width: u32,
+    expect: &ValueTypes,
+  ) -> Result<()> {
     self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
       return Err(TypeError::InvalidAlignment);
     };
+    let actual = cxt.pop_type()?;
     cxt.pop_i32()?;
+    if &actual != expect {
+      return Err(TypeError::TypeMismatch);
+    }
     Ok(())
   }
 
@@ -319,8 +446,11 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
-  fn validate_test_inst(&self, cxt: &TypeStack) -> Result<()> {
-    cxt.pop_type()?;
+  fn validate_test_inst(&self, cxt: &TypeStack, expect: &ValueTypes) -> Result<()> {
+    let actual = cxt.pop_type()?;
+    if &actual != expect {
+      return Err(TypeError::TypeMismatch);
+    }
     cxt.push(ValueTypes::I32);
     Ok(())
   }
@@ -339,7 +469,16 @@ impl<'a> Context<'a> {
     let cxt = &function.type_stack;
     let labels = &mut self.labels.borrow_mut();
     let locals = &mut self.locals.borrow_mut();
-    let return_type = &mut self.return_type.borrow_mut();
+    for param in function.function_type.parameters().iter() {
+      locals.push(param.clone());
+    }
+    for local in function.locals.iter() {
+      locals.push(local.clone());
+    }
+    if let Some(ret) = function.function_type.returns().first() {
+      self.return_type.replace([ret.clone(); 1]);
+    };
+    let return_type = &self.return_type.borrow();
 
     labels.push_front(
       [match function.function_type.returns().first() {
@@ -429,6 +568,7 @@ impl<'a> Context<'a> {
           if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
+          cxt.push(actual);
         }
         Call(idx) => {
           let function_type = self
@@ -436,8 +576,9 @@ impl<'a> Context<'a> {
             .get(idx.to_usize())
             .map(|f| f.function_type)
             .ok_or(TypeError::TypeMismatch)?;
-          for ty in function_type.parameters().iter() {
-            if ty != &cxt.pop_type()? {
+          let mut parameters = function_type.parameters().clone();
+          while let Some(ty) = parameters.pop() {
+            if ty != cxt.pop_type()? {
               return Err(TypeError::TypeMismatch);
             };
           }
@@ -451,12 +592,13 @@ impl<'a> Context<'a> {
             .function_types
             .get(idx.to_usize())
             .ok_or_else(|| TypeError::UnknownFunctionType(idx.to_u32()))?;
-          for ty in function_type.parameters().iter() {
-            if ty != &cxt.pop_type()? {
+          let mut parameters = function_type.parameters().clone();
+          cxt.pop_i32()?;
+          while let Some(ty) = parameters.pop() {
+            if ty != cxt.pop_type()? {
               return Err(TypeError::TypeMismatch);
             };
           }
-          cxt.pop_i32()?;
           for ty in function_type.returns().iter() {
             cxt.push(ty.clone());
           }
@@ -468,19 +610,49 @@ impl<'a> Context<'a> {
         F64Const(_) => cxt.push(ValueTypes::F64),
 
         GetLocal(idx) => {
-          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
           cxt.push(actual.clone());
         }
         SetLocal(idx) => {
           let expect = cxt.pop_type()?;
-          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
-        TeeLocal(_) => unimplemented!(),
-        GetGlobal(_) => unimplemented!(),
-        SetGlobal(_) => unimplemented!(),
+        TeeLocal(idx) => {
+          let expect = cxt.pop_type()?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
+          if &expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+          cxt.push(actual.clone());
+        }
+
+        GetGlobal(idx) => {
+          let ty = self
+            .globals
+            .get(*idx as usize)
+            .ok_or_else(|| TypeError::UnknownGlobal(*idx))
+            .map(|(global_type, _)| match global_type {
+              GlobalType::Const(ty) | GlobalType::Var(ty) => ty,
+            })?;
+          cxt.push(ty.clone());
+        }
+        SetGlobal(idx) => {
+          let expect = cxt.pop_type()?;
+          let ty = self
+            .globals
+            .get(*idx as usize)
+            .ok_or_else(|| TypeError::UnknownGlobal(*idx))
+            .and_then(|(global_type, _)| match global_type {
+              GlobalType::Var(ty) => Ok(ty),
+              GlobalType::Const(_) => Err(TypeError::GlobalIsImmutable),
+            })?;
+          if &expect != ty {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
 
         I32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I32)?,
         I64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::I64)?,
@@ -497,15 +669,15 @@ impl<'a> Context<'a> {
         I64Load32Sign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
         I64Load32Unsign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
 
-        I32Store(align, _) => self.validate_store(cxt, *align, 32)?,
-        I64Store(align, _) => self.validate_store(cxt, *align, 64)?,
-        F32Store(align, _) => self.validate_store(cxt, *align, 32)?,
-        F64Store(align, _) => self.validate_store(cxt, *align, 64)?,
-        I32Store8(align, _) => self.validate_store(cxt, *align, 8)?,
-        I32Store16(align, _) => self.validate_store(cxt, *align, 16)?,
-        I64Store8(align, _) => self.validate_store(cxt, *align, 8)?,
-        I64Store16(align, _) => self.validate_store(cxt, *align, 16)?,
-        I64Store32(align, _) => self.validate_store(cxt, *align, 32)?,
+        I32Store(align, _) => self.validate_store(cxt, *align, 32, &TYPE_I32)?,
+        I64Store(align, _) => self.validate_store(cxt, *align, 64, &TYPE_I64)?,
+        F32Store(align, _) => self.validate_store(cxt, *align, 32, &TYPE_F32)?,
+        F64Store(align, _) => self.validate_store(cxt, *align, 64, &TYPE_F64)?,
+        I32Store8(align, _) => self.validate_store(cxt, *align, 8, &TYPE_I32)?,
+        I32Store16(align, _) => self.validate_store(cxt, *align, 16, &TYPE_I32)?,
+        I64Store8(align, _) => self.validate_store(cxt, *align, 8, &TYPE_I64)?,
+        I64Store16(align, _) => self.validate_store(cxt, *align, 16, &TYPE_I64)?,
+        I64Store32(align, _) => self.validate_store(cxt, *align, 32, &TYPE_I64)?,
 
         MemorySize => {
           self.limits.first().ok_or(TypeError::TypeMismatch)?;
@@ -556,8 +728,8 @@ impl<'a> Context<'a> {
         I64RotateLeft => bin_op!(cxt),
         I64RotateRight => bin_op!(cxt),
 
-        I32EqualZero => self.validate_test_inst(cxt)?,
-        I64EqualZero => self.validate_test_inst(cxt)?,
+        I32EqualZero => self.validate_test_inst(cxt, &TYPE_I32)?,
+        I64EqualZero => self.validate_test_inst(cxt, &TYPE_I64)?,
 
         Equal => rel_op!(cxt),
         NotEqual => rel_op!(cxt),
@@ -671,24 +843,16 @@ impl<'a> Context<'a> {
   }
 
   pub fn validate(&self) -> Result<()> {
-    // let grouped_imports = self.module.imports.group_by_kind();
-    // let imports_function = grouped_imports.get(&FUNCTION_DESCRIPTOR)?;
-    // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
-    // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
-    // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
     self.validate_exports()?;
+    self.validate_imports()?;
     self.validate_datas()?;
+    self.validate_tables()?;
+    self.validate_memories()?;
     self.validate_elements()?;
+    self.validate_globals()?;
     self.validate_function_types()?;
     self.validate_functions()?;
-
-    // let global_instances =
-    //   GlobalInstances::new_with_external(globals, &exports, &imports_global, &external_modules)?;
-
-    // unimplemented!(
-    //   "Type system(Also called as `validation`) not implemented yet.\n{:#?}",
-    //   self.module
-    // );
+    self.validate_start()?;
     Ok(())
   }
 }

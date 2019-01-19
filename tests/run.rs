@@ -117,24 +117,28 @@ impl<'a> E2ETest<'a> {
     let expectation = get_expectation(expected);
     assert_eq!(actual, expectation);
   }
-  fn assert_trap(
-    &mut self,
-    field: &str,
-    args: &[Value],
-    module: &Option<String>,
-    message: &str,
-    line: u64,
-  ) {
-    println!("Assert trap at {}:{}.", field, line,);
-    let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
-    let mut vm = vm_ref.borrow_mut();
+  fn assert_trap(&mut self, action: &Action, message: &str, line: u64) {
+    match action {
+      Action::Invoke {
+        ref field,
+        ref args,
+        ref module,
+      } => {
+        println!("Assert trap at {}:{}.", field, line,);
+        let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
+        let mut vm = vm_ref.borrow_mut();
     let actual = vm.run(field, get_args(args));
     match message {
-      "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-      "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
-      "undefined" => assert_eq!(actual, "undefined element"),
-      "uninitialized element 7" | "uninitialized" => assert_eq!(actual, "uninitialized element"),
-      _ => assert_eq!(&actual, message),
+          "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+          "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
+          "undefined" => assert_eq!(actual, "undefined element"),
+          "uninitialized element 7" | "uninitialized" => {
+            assert_eq!(actual, "uninitialized element")
+          }
+          _ => assert_eq!(&actual, message),
+        }
+      }
+      x => unreachable!("{:?}", x),
     }
   }
 
@@ -154,8 +158,6 @@ impl<'a> E2ETest<'a> {
   fn assert_malformed(&self, module: &ModuleBinary, message: &str, line: u64) {
     if (self.file_name == "custom_section" && line == 77)
       || (self.file_name == "custom_section" && line == 94)
-      || (self.file_name == "globals" && line == 335)
-      || (self.file_name == "globals" && line == 347)
       || (self.file_name == "custom" && line == 85)
     {
       println!("Skip {}, it seems can't resolvable yet...", line);
@@ -172,45 +174,65 @@ impl<'a> E2ETest<'a> {
     };
     println!("Assert malformed at {}.", line,);
     match err {
-            UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
-            _ => {
-              if (self.file_name == "globals" && line == 305)
-                || (self.file_name == "globals" && line == 318)
-              {
-                assert_eq!(&String::from(err), "unexpected end");
-              } else {
-                assert_eq!(&String::from(err), message);
-              }
+      UninitializedElement | UnexpectedEnd => {}
+      _ => {
+        assert_eq!(&String::from(err), message);
       }
     };
   }
 
   fn assert_invalid(&self, message: &str, module: &ModuleBinary, line: u64) {
     println!("Assert invalid at {}:{}.", message, line);
-    if self.file_name != "typecheck"
-      && self.file_name != "type"
-      && self.file_name != "br_only"
-      && self.file_name != "align"
-      && self.file_name != "block"
-      && self.file_name != "elem"
-      && self.file_name != "data"
-      && self.file_name != "exports"
-    {
-      return;
-    }
     let bytes = module.clone().into_vec();
     let section = decode_module(&bytes);
     let err = validate_module(&section).unwrap_err();
     match message {
-      "alignment" => assert_eq!(
-        &String::from(err),
-        "alignment must not be larger than natural"
-      ),
-      "unknown function" => {}
-      "unknown global" => {}
-      "unknown memory" => {}
-      "unknown table" => {}
+      "alignment"
+      | "unknown function"
+      | "unknown global"
+      | "unknown memory"
+      | "unknown table"
+      | "start function"
+      | "size minimum must not be greater than maximum"
+      | "memory size must be at most 65536 pages (4GiB)"
+      | "unknown type" => {}
       _ => assert_eq!(&String::from(err), message),
+    };
+  }
+
+  fn assert_nan(&self, action: &Action, line: u64) {
+    match action {
+      Action::Invoke {
+        ref field,
+        ref args,
+        ref module,
+      } => {
+        println!("Assert NaN at '{}:{}'.", field, line);
+        let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
+        let mut vm = vm_ref.borrow_mut();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        assert_eq!(&actual, "NaN");
+      }
+      x => unreachable!("{:?}", x),
+    }
+  }
+
+  fn assert_unlinkable(&self, module: &ModuleBinary, message: &str, line: u64) {
+    let bytes = module.clone().into_vec();
+    let tmp_bytes = bytes.clone();
+    let (magic_numbers, _) = tmp_bytes.split_at(8);
+    if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
+      println!("Assert unlinkable at {}.", line,);
+      let store = init_store();
+      let section = decode_module(&bytes);
+      let err = instantiate_module(store, section, self.external_modules.clone()).unwrap_err();
+      let actual = String::from(err);
+      match message {
+        "incompatible import type" => {}
+        _ => assert_eq!(&actual, message),
+      };
+    } else {
+      println!("Skip unlinkable text form at line:{}.", line);
     };
   }
 
@@ -236,14 +258,9 @@ impl<'a> E2ETest<'a> {
           ref expected,
         } => self.assert_return(action, expected, line),
         CommandKind::AssertTrap {
-          action:
-            Action::Invoke {
-              ref field,
-              ref args,
-              ref module,
-            },
+          ref action,
           ref message,
-        } => self.assert_trap(field, args, module, message, line),
+        } => self.assert_trap(action, message, line),
         CommandKind::AssertUninstantiable {
           ref module,
           ref message,
@@ -252,56 +269,12 @@ impl<'a> E2ETest<'a> {
           ref module,
           ref message,
         } => self.assert_malformed(module, message, line),
-        CommandKind::AssertReturnCanonicalNan {
-          action:
-            Action::Invoke {
-              ref field,
-              ref args,
-              ref module,
-            },
-        } => {
-          println!("Assert canonical NaN at '{}:{}'.", field, line);
-          let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
-          let mut vm = vm_ref.borrow_mut();
-          let actual = vm.run(field.as_ref(), get_args(args));
-          assert_eq!(&actual, "NaN");
-        }
-        CommandKind::AssertReturnArithmeticNan {
-          action:
-            Action::Invoke {
-              ref field,
-              ref args,
-              ref module,
-            },
-        } => {
-          println!("Assert arithmetic NaN at '{}:{}'.", field, line);
-          let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
-          let mut vm = vm_ref.borrow_mut();
-          let actual = vm.run(field.as_ref(), get_args(args));
-          assert_eq!(&actual, "NaN");
-        }
+        CommandKind::AssertReturnCanonicalNan { ref action } => self.assert_nan(action, line),
+        CommandKind::AssertReturnArithmeticNan { ref action } => self.assert_nan(action, line),
         CommandKind::AssertUnlinkable {
           ref module,
           ref message,
-        } => {
-          let bytes = module.clone().into_vec();
-          let tmp_bytes = bytes.clone();
-          let (magic_numbers, _) = tmp_bytes.split_at(8);
-          if magic_numbers == [0u8, 97, 115, 109, 1, 0, 0, 0] {
-            println!("Assert unlinkable at {}.", line,);
-            let store = init_store();
-            let section = decode_module(&bytes);
-            let err =
-              instantiate_module(store, section, self.external_modules.clone()).unwrap_err();
-            let actual = String::from(err);
-            match message.as_ref() {
-              "incompatible import type" => {}
-              _ => assert_eq!(&actual, message),
-            };
-          } else {
-            println!("Skip unlinkable text form at line:{}.", line);
-          };
-        }
+        } => self.assert_unlinkable(module, message, line),
         // FIXME: Enable specs
         CommandKind::AssertExhaustion {
           action: Action::Invoke { ref field, .. },
@@ -381,7 +354,7 @@ impl_e2e!(test_loop, "loop");
 impl_e2e!(test_memory_grow, "memory_grow");
 impl_e2e!(test_memory_redundancy, "memory_redundancy");
 impl_e2e!(test_memory_trap, "memory_trap");
-impl_e2e!(test_memory, "memory");
+impl_e2e!(test_memory_only, "memory");
 impl_e2e!(test_names, "names");
 impl_e2e!(test_nop, "nop");
 impl_e2e!(test_resizing, "resizing");
