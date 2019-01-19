@@ -446,8 +446,11 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
-  fn validate_test_inst(&self, cxt: &TypeStack) -> Result<()> {
-    cxt.pop_type()?;
+  fn validate_test_inst(&self, cxt: &TypeStack, expect: &ValueTypes) -> Result<()> {
+    let actual = cxt.pop_type()?;
+    if &actual != expect {
+      return Err(TypeError::TypeMismatch);
+    }
     cxt.push(ValueTypes::I32);
     Ok(())
   }
@@ -725,8 +728,8 @@ impl<'a> Context<'a> {
         I64RotateLeft => bin_op!(cxt),
         I64RotateRight => bin_op!(cxt),
 
-        I32EqualZero => self.validate_test_inst(cxt)?,
-        I64EqualZero => self.validate_test_inst(cxt)?,
+        I32EqualZero => self.validate_test_inst(cxt, &TYPE_I32)?,
+        I64EqualZero => self.validate_test_inst(cxt, &TYPE_I64)?,
 
         Equal => rel_op!(cxt),
         NotEqual => rel_op!(cxt),
