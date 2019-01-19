@@ -41,15 +41,12 @@ fn get_expectation(expected: &[Value]) -> String {
   }
 }
 
-macro_rules! impl_e2e {
-  ($test_name: ident, $file_name: expr) => {
-    #[test]
-    fn $test_name() {
-      let mut buf = String::new();
-      let test_filename = format!("./testsuite/{}.wast", $file_name);
-      let mut json = File::open(&test_filename).unwrap();
-      json.read_to_string(&mut buf).unwrap();
-      let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
+fn do_test(file_name: &str) {
+  let mut buf = String::new();
+  let test_filename = format!("./testsuite/{}.wast", file_name);
+  let mut json = File::open(&test_filename).unwrap();
+  json.read_to_string(&mut buf).unwrap();
+  let mut parser: ScriptParser<f32, f64> = ScriptParser::from_str(&buf).unwrap();
       let mut current_modules: HashMap<Option<String>, Rc<RefCell<Vm>>> = HashMap::new();
       let mut importable_modules: ExternalModules = ExternalModules::default();
       let spectest = create_spectest();
@@ -156,17 +153,17 @@ macro_rules! impl_e2e {
             };
           }
           CommandKind::AssertMalformed {
-            ref module,
-            ref message,
-          } => {
-            if ($file_name == "custom_section" && line == 77)
-              || ($file_name == "custom_section" && line == 94)
-              || ($file_name == "globals" && line == 335)
-              || ($file_name == "globals" && line == 347)
-              || ($file_name == "custom" && line == 85)
-            {
-              println!("Skip {}, it seems not reasonable...", line);
-              continue;
+        ref module,
+        ref message,
+      } => {
+        if (file_name == "custom_section" && line == 77)
+          || (file_name == "custom_section" && line == 94)
+          || (file_name == "globals" && line == 335)
+          || (file_name == "globals" && line == 347)
+          || (file_name == "custom" && line == 85)
+        {
+          println!("Skip {}, it seems not reasonable...", line);
+          continue;
             };
             let bytes = module.clone().into_vec();
             let store = init_store();
@@ -178,15 +175,13 @@ macro_rules! impl_e2e {
               continue;
             };
             println!("Assert malformed at {}.", line,);
-            match err {
-              UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
-              _ => {
-                if ($file_name == "globals" && line == 305)
-                  || ($file_name == "globals" && line == 318)
-                {
-                  assert_eq!(&String::from(err), "unexpected end");
-                } else {
-                  assert_eq!(&String::from(err), message);
+        match err {
+          UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
+          _ => {
+            if (file_name == "globals" && line == 305) || (file_name == "globals" && line == 318) {
+              assert_eq!(&String::from(err), "unexpected end");
+            } else {
+              assert_eq!(&String::from(err), message);
                 }
               }
             };
@@ -246,18 +241,18 @@ macro_rules! impl_e2e {
           } => println!("Skip exhaustion line:{}:{}.", field, line),
           CommandKind::AssertInvalid {
             ref message,
-            ref module,
-          } => {
-            println!("Assert invalid at {}:{}.", message, line,);
-            if $file_name != "typecheck"
-              && $file_name != "type"
-              && $file_name != "br_only"
-              && $file_name != "align"
-              && $file_name != "block"
-              && $file_name != "elem"
-            {
-              continue;
-            }
+        ref module,
+      } => {
+        println!("Assert invalid at {}:{}.", message, line,);
+        if file_name != "typecheck"
+          && file_name != "type"
+          && file_name != "br_only"
+          && file_name != "align"
+          && file_name != "block"
+          && file_name != "elem"
+        {
+          continue;
+        }
             let bytes = module.clone().into_vec();
             let section = decode_module(&bytes);
             let err = validate_module(&section).unwrap_err();
@@ -273,8 +268,16 @@ macro_rules! impl_e2e {
             "there are no other commands apart from that defined above {:?}",
             x
           ),
-        }
-      }
+    }
+  }
+}
+
+
+macro_rules! impl_e2e {
+  ($test_name: ident, $file_name: expr) => {
+    #[test]
+    fn $test_name() {
+      do_test($file_name);
     }
   };
 }
