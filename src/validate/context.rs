@@ -2,7 +2,7 @@ use super::error::{Result, TypeError};
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use decode::{Element, Section, TableType};
+use decode::{Data, Element, Section, TableType};
 use function::FunctionType;
 use global::GlobalType;
 use inst::{Indice, Inst};
@@ -105,8 +105,7 @@ pub struct Context<'a> {
   function_types: &'a Vec<FunctionType>,
   functions: Vec<Function<'a>>,
   //  exports: ExternalInterfaces,
-  //  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  //  datas: Vec<Data>,
+  datas: &'a Vec<Data>,
   limits: &'a Vec<Limit>,
   tables: &'a Vec<TableType>,
   globals: &'a Vec<(GlobalType, Vec<Inst>)>,
@@ -159,6 +158,7 @@ impl<'a> Context<'a> {
           Ok(Function::new(function_type, locals, body))
         })
         .collect::<Result<Vec<_>>>()?,
+      datas: &module.datas,
       globals: &module.globals,
       tables: &module.tables,
       elements: &module.elements,
@@ -190,6 +190,13 @@ impl<'a> Context<'a> {
       _ => return Err(TypeError::ConstantExpressionRequired),
     };
     type_stack.pop_type()
+  }
+
+  fn validate_datas(&self) -> Result<()> {
+    for data in self.datas.iter() {
+      self.limits.first().ok_or(TypeError::UnknownMemory)?;
+    }
+    Ok(())
   }
 
   fn validate_elements(&self) -> Result<()> {
@@ -238,7 +245,7 @@ impl<'a> Context<'a> {
     bit_width: u32,
     ty: ValueTypes,
   ) -> Result<()> {
-    self.limits.first().ok_or(TypeError::TypeMismatch)?;
+    self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
       return Err(TypeError::InvalidAlignment);
     };
@@ -248,7 +255,7 @@ impl<'a> Context<'a> {
   }
 
   fn validate_store(&self, cxt: &TypeStack, align: u32, bit_width: u32) -> Result<()> {
-    self.limits.first().ok_or(TypeError::TypeMismatch)?;
+    self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
       return Err(TypeError::InvalidAlignment);
     };
@@ -373,8 +380,37 @@ impl<'a> Context<'a> {
             return Err(TypeError::TypeMismatch);
           }
         }
-        Call(_) => unimplemented!(),
-        CallIndirect(_) => unimplemented!(),
+        Call(idx) => {
+          let function_type = self
+            .functions
+            .get(idx.to_usize())
+            .map(|f| f.function_type)
+            .ok_or(TypeError::TypeMismatch)?;
+          for ty in function_type.parameters().iter() {
+            if ty != &cxt.pop_type()? {
+              return Err(TypeError::TypeMismatch);
+            };
+          }
+          for ty in function_type.returns().iter() {
+            cxt.push(ty.clone());
+          }
+        }
+        CallIndirect(idx) => {
+          self.tables.first().ok_or(TypeError::UnknownTable(0))?;
+          let function_type = self
+            .function_types
+            .get(idx.to_usize())
+            .ok_or(TypeError::UnknownFunctionType(idx.to_u32()))?;
+          for ty in function_type.parameters().iter() {
+            if ty != &cxt.pop_type()? {
+              return Err(TypeError::TypeMismatch);
+            };
+          }
+          cxt.pop_i32()?;
+          for ty in function_type.returns().iter() {
+            cxt.push(ty.clone());
+          }
+        }
 
         I32Const(_) => cxt.push(ValueTypes::I32),
         I64Const(_) => cxt.push(ValueTypes::I64),
@@ -470,8 +506,8 @@ impl<'a> Context<'a> {
         I64RotateLeft => bin_op!(cxt),
         I64RotateRight => bin_op!(cxt),
 
-        I32EqualZero => self.validate_test_inst(cxt),
-        I64EqualZero => self.validate_test_inst(cxt),
+        I32EqualZero => self.validate_test_inst(cxt)?,
+        I64EqualZero => self.validate_test_inst(cxt)?,
 
         Equal => rel_op!(cxt),
         NotEqual => rel_op!(cxt),
@@ -590,6 +626,7 @@ impl<'a> Context<'a> {
     // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
     // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
     // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
+    self.validate_datas()?;
     self.validate_elements()?;
     self.validate_function_types()?;
     self.validate_functions()?;

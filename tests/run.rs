@@ -249,7 +249,13 @@ macro_rules! impl_e2e {
             ref module,
           } => {
             println!("Assert invalid at {}:{}.", message, line,);
-            if $file_name != "typecheck" {
+            if $file_name != "typecheck"
+              && $file_name != "type"
+              && $file_name != "br_only"
+              && $file_name != "align"
+              && $file_name != "block"
+              && $file_name != "elem"
+            {
               continue;
             }
             let bytes = module.clone().into_vec();

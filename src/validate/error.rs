@@ -12,6 +12,9 @@ pub enum TypeError {
   InvalidResultArity,
   InvalidAlignment,
   UnknownLabel,
+  UnknownMemory,
+  UnknownFunctionType(u32),
+  UnknownFunction(u32),
   UnknownTable(u32),
   ConstantExpressionRequired,
   // FIXME: Separate TypeError and RuntimeError(Trap) completely.
@@ -41,7 +44,10 @@ impl From<TypeError> for String {
       InvalidResultArity => "invalid result arity".to_string(),
       InvalidAlignment => "alignment must not be larger than natural".to_string(),
       UnknownLabel => "unknown label".to_string(),
+      UnknownMemory => "unknown memory 0".to_string(),
       ConstantExpressionRequired => "constant expression required".to_string(),
+      UnknownFunction(idx) => format!("unknown function {}", idx),
+      UnknownFunctionType(idx) => format!("unknown function type {}", idx),
       UnknownTable(idx) => format!("unknown table {}", idx),
       Trap(err) => String::from(err),
     }
