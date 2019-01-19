@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 use alloc::prelude::*;
 use decode::{ElementType, TableType};
 use function::{FunctionInstance, FunctionType};

@@ -1,5 +1,7 @@
 use super::error::{Result, TypeError};
 use alloc::collections::VecDeque;
+#[cfg(not(test))]
+use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use decode::{Data, Element, Section, TableType};

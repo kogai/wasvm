@@ -1,3 +1,5 @@
+#[cfg(not(test))]
+use alloc::prelude::*;
 use decode::{Byte, Section};
 use frame::Frame;
 use module::ExternalModules;

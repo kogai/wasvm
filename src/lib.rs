@@ -2,12 +2,22 @@
 #![feature(try_from)]
 #![feature(int_to_from_bytes)]
 #![feature(alloc)]
+#![feature(core_intrinsics)]
 // #![no_std]
+#![cfg_attr(not(test), no_std)]
 
+#[cfg(test)]
+#[macro_use]
+extern crate std as alloc;
+
+#[cfg(not(test))]
 #[macro_use]
 extern crate alloc;
+
+#[cfg(test)]
 #[macro_use]
 extern crate core;
+
 extern crate hashbrown;
 
 #[macro_use]
