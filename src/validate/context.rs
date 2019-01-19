@@ -360,6 +360,12 @@ impl<'a> Context<'a> {
     let cxt = &function.type_stack;
     let labels = &mut self.labels.borrow_mut();
     let locals = &mut self.locals.borrow_mut();
+    for param in function.function_type.parameters().iter() {
+      locals.push(param.clone());
+    }
+    for local in function.locals.iter() {
+      locals.push(local.clone());
+    }
     let return_type = &mut self.return_type.borrow_mut();
 
     labels.push_front(
@@ -491,12 +497,12 @@ impl<'a> Context<'a> {
         F64Const(_) => cxt.push(ValueTypes::F64),
 
         GetLocal(idx) => {
-          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
           cxt.push(actual.clone());
         }
         SetLocal(idx) => {
           let expect = cxt.pop_type()?;
-          let actual = locals.get(*idx as usize).ok_or(TypeError::TypeMismatch)?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
           }
