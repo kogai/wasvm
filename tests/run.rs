@@ -70,26 +70,26 @@ fn do_test(file_name: &str) {
           CommandKind::PerformAction(Action::Invoke {
             ref field,
             ref args,
-            ref module,
-          }) => {
-            println!("Perform action at {}:{}.", field, line);
-            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
-            let mut vm = vm_ref.borrow_mut();
-            vm.run(field.as_ref(), get_args(args));
-          }
+        ref module,
+      }) => {
+        println!("Perform action at {}:{}.", field, line);
+        let vm_ref: Rc<RefCell<Vm>> = current_modules[module].clone();
+        let mut vm = vm_ref.borrow_mut();
+        vm.run(field.as_ref(), get_args(args));
+      }
           CommandKind::Register {
             ref name,
             ref as_name,
             ..
           } => {
             println!(
-              "Register importable module, key={:?} import_name={}.",
-              name, as_name
-            );
-            let mut vm_ref: Rc<RefCell<Vm>> = current_modules.get(name).unwrap().clone();
-            let vm = vm_ref.borrow();
-            let importable_module = vm.export_module();
-            importable_modules.register_module(Some(as_name.clone()), importable_module);
+          "Register importable module, key={:?} import_name={}.",
+          name, as_name
+        );
+        let mut vm_ref: Rc<RefCell<Vm>> = current_modules[name].clone();
+        let vm = vm_ref.borrow();
+        let importable_module = vm.export_module();
+        importable_modules.register_module(Some(as_name.clone()), importable_module);
           }
 
           CommandKind::AssertReturn {
@@ -105,13 +105,13 @@ fn do_test(file_name: &str) {
               Action::Get {
                 ref field,
                 ref module,
-              } => (field, vec![], module),
-            };
-            println!("Assert return at {}:{}.", field, line);
-            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
-            let mut vm = vm_ref.borrow_mut();
-            let actual = vm.run(field.as_ref(), args);
-            let expectation = get_expectation(expected);
+          } => (field, vec![], module),
+        };
+        println!("Assert return at {}:{}.", field, line);
+        let vm_ref: Rc<RefCell<Vm>> = current_modules[module].clone();
+        let mut vm = vm_ref.borrow_mut();
+        let actual = vm.run(field.as_ref(), args);
+        let expectation = get_expectation(expected);
             assert_eq!(actual, expectation);
           }
           CommandKind::AssertTrap {
@@ -121,13 +121,13 @@ fn do_test(file_name: &str) {
                 ref args,
                 ref module,
               },
-            ref message,
-          } => {
-            println!("Assert trap at {}:{}.", field, line,);
-            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
-            let mut vm = vm_ref.borrow_mut();
-            let actual = vm.run(field.as_ref(), get_args(args));
-            match message.as_ref() {
+        ref message,
+      } => {
+        println!("Assert trap at {}:{}.", field, line,);
+        let vm_ref: Rc<RefCell<Vm>> = current_modules[module].clone();
+        let mut vm = vm_ref.borrow_mut();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        match message.as_ref() {
               "unreachable" => assert_eq!(actual, format!("{} executed", message)),
               "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
               "undefined" => assert_eq!(actual, "undefined element"),
@@ -192,13 +192,13 @@ fn do_test(file_name: &str) {
                 ref field,
                 ref args,
                 ref module,
-              },
-          } => {
-            println!("Assert canonical NaN at '{}:{}'.", field, line);
-            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
-            let mut vm = vm_ref.borrow_mut();
-            let actual = vm.run(field.as_ref(), get_args(args));
-            assert_eq!(&actual, "NaN");
+          },
+      } => {
+        println!("Assert canonical NaN at '{}:{}'.", field, line);
+        let vm_ref: Rc<RefCell<Vm>> = current_modules[module].clone();
+        let mut vm = vm_ref.borrow_mut();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        assert_eq!(&actual, "NaN");
           }
           CommandKind::AssertReturnArithmeticNan {
             action:
@@ -206,13 +206,13 @@ fn do_test(file_name: &str) {
                 ref field,
                 ref args,
                 ref module,
-              },
-          } => {
-            println!("Assert arithmetic NaN at '{}:{}'.", field, line);
-            let vm_ref: Rc<RefCell<Vm>> = current_modules.get(module).unwrap().clone();
-            let mut vm = vm_ref.borrow_mut();
-            let actual = vm.run(field.as_ref(), get_args(args));
-            assert_eq!(&actual, "NaN");
+          },
+      } => {
+        println!("Assert arithmetic NaN at '{}:{}'.", field, line);
+        let vm_ref: Rc<RefCell<Vm>> = current_modules[module].clone();
+        let mut vm = vm_ref.borrow_mut();
+        let actual = vm.run(field.as_ref(), get_args(args));
+        assert_eq!(&actual, "NaN");
           }
           CommandKind::AssertUnlinkable {
             ref module,
@@ -271,7 +271,6 @@ fn do_test(file_name: &str) {
     }
   }
 }
-
 
 macro_rules! impl_e2e {
   ($test_name: ident, $file_name: expr) => {
