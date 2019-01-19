@@ -199,6 +199,7 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "get_local"
       && self.file_name != "globals"
       && self.file_name != "imports"
+      && self.file_name != "memory"
     {
     println!("Skip to assert invalid at {}:{}.", message, line);
       return;
@@ -208,15 +209,14 @@ impl<'a> E2ETest<'a> {
     let section = decode_module(&bytes);
     let err = validate_module(&section).unwrap_err();
     match message {
-      "alignment" => assert_eq!(
-        &String::from(err),
-        "alignment must not be larger than natural"
-      ),
-      "unknown function" => {}
-      "unknown global" => {}
-      "unknown memory" => {}
-      "unknown table" => {}
-      "unknown type" => {}
+      "alignment"
+      | "unknown function"
+      | "unknown global"
+      | "unknown memory"
+      | "unknown table"
+      | "size minimum must not be greater than maximum"
+      | "memory size must be at most 65536 pages (4GiB)"
+      | "unknown type" => {}
       _ => assert_eq!(&String::from(err), message),
     };
   }
@@ -388,7 +388,7 @@ impl_e2e!(test_loop, "loop");
 impl_e2e!(test_memory_grow, "memory_grow");
 impl_e2e!(test_memory_redundancy, "memory_redundancy");
 impl_e2e!(test_memory_trap, "memory_trap");
-impl_e2e!(test_memory, "memory");
+impl_e2e!(test_memory_only, "memory");
 impl_e2e!(test_names, "names");
 impl_e2e!(test_nop, "nop");
 impl_e2e!(test_resizing, "resizing");

@@ -358,6 +358,21 @@ impl<'a> Context<'a> {
   }
 
   fn validate_memories(&self) -> Result<()> {
+    for limit in self.limits.iter() {
+      match limit {
+        Limit::NoUpperLimit(min) => {
+          if *min > 65536 {
+            return Err(TypeError::InvalidMemorySize);
+          }
+        }
+        Limit::HasUpperLimit(min, max) => {
+          if min > max || *min > 65536 || *max > 65536 {
+            return Err(TypeError::InvalidMemorySize);
+          }
+        }
+      }
+      //
+    }
     if self.limits.len() > 1 {
       return Err(TypeError::MultipleMemories);
     }
