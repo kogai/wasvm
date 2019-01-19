@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
-use wabt::script::{Action, Command, CommandKind, ScriptParser, Value};
+use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
 use wasvm::{
   create_spectest, decode_module, init_store, instantiate_module, validate_module, ExternalModules,
   Trap, Values, Vm,
@@ -67,56 +67,41 @@ impl<'a> E2ETest<'a> {
     }
   }
 
-  fn do_test(&mut self) {
-    while let Ok(Some(Command { kind, line, .. })) = self.parser.next() {
-      match kind {
-        CommandKind::Module {
-          ref module,
-          ref name,
-        } => {
-          let bytes = module.clone().into_vec();
-          let store = init_store();
-          let section = decode_module(&bytes);
+  fn do_instantiate(&mut self, module: &ModuleBinary, name: &Option<String>) {
+    let bytes = module.clone().into_vec();
+    let store = init_store();
+    let section = decode_module(&bytes);
           let vm_ref = Rc::new(RefCell::new(
             instantiate_module(store, section, self.external_modules.clone()).unwrap(),
           ));
-          self.modules.insert(None, vm_ref.clone());
-          self.modules.insert(name.clone(), vm_ref.clone());
-        }
-        CommandKind::PerformAction(Action::Invoke {
-          ref field,
-          ref args,
-          ref module,
-        }) => {
-          println!("Perform action at {}:{}.", field, line);
-          let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
-          let mut vm = vm_ref.borrow_mut();
-          vm.run(field.as_ref(), get_args(args));
-        }
-        CommandKind::Register {
-          ref name,
-          ref as_name,
-          ..
-        } => {
-          println!(
-            "Register importable module, key={:?} import_name={}.",
-            name, as_name
-          );
-          let mut vm_ref: Rc<RefCell<Vm>> = self.modules[name].clone();
-          let vm = vm_ref.borrow();
-          let importable_module = vm.export_module();
-          self
-            .external_modules
-            .register_module(Some(as_name.clone()), importable_module);
-        }
+    self.modules.insert(None, vm_ref.clone());
+    self.modules.insert(name.clone(), vm_ref.clone());
+  }
 
-        CommandKind::AssertReturn {
-          ref action,
-          ref expected,
-        } => {
-          let (field, args, module) = match action {
-            Action::Invoke {
-              ref field,
+  fn do_action(&mut self, field: &str, args: &[Value], module: &Option<String>, line: u64) {
+    println!("Perform action at {}:{}.", field, line);
+    let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
+    let mut vm = vm_ref.borrow_mut();
+    vm.run(field, get_args(args));
+  }
+
+  fn do_register(&mut self, name: &Option<String>, as_name: &str) {
+    println!(
+      "Register importable module, key={:?} import_name={}.",
+      name, as_name
+    );
+    let vm_ref: Rc<RefCell<Vm>> = self.modules[name].clone();
+    let vm = vm_ref.borrow();
+    let importable_module = vm.export_module();
+    self
+      .external_modules
+      .register_module(Some(as_name.to_owned()), importable_module);
+  }
+
+  fn assert_return(&self, action: &Action, expected: &[Value], line: u64) {
+    let (field, args, module) = match action {
+      Action::Invoke {
+        ref field,
               ref args,
               ref module,
             } => (field, get_args(args), module),
@@ -129,71 +114,64 @@ impl<'a> E2ETest<'a> {
           let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
           let mut vm = vm_ref.borrow_mut();
           let actual = vm.run(field.as_ref(), args);
-          let expectation = get_expectation(expected);
-          assert_eq!(actual, expectation);
-        }
-        CommandKind::AssertTrap {
-          action:
-            Action::Invoke {
-              ref field,
-              ref args,
-              ref module,
-            },
-          ref message,
-        } => {
-          println!("Assert trap at {}:{}.", field, line,);
-          let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
-          let mut vm = vm_ref.borrow_mut();
-          let actual = vm.run(field.as_ref(), get_args(args));
-          match message.as_ref() {
-            "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-            "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
-            "undefined" => assert_eq!(actual, "undefined element"),
-            "uninitialized element 7" | "uninitialized" => {
-              assert_eq!(actual, "uninitialized element")
-            }
-            _ => assert_eq!(&actual, message),
-          }
-        }
-        CommandKind::AssertUninstantiable {
-          ref module,
-          ref message,
-        } => {
-          println!("Assert uninstantiable at line:{}.", line);
-          let bytes = module.clone().into_vec();
-          let store = init_store();
-          let module = decode_module(&bytes);
-          let err = instantiate_module(store, module, Default::default()).unwrap_err();
-          let actual = String::from(err);
-          match message.as_ref() {
-            "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-            _ => assert_eq!(&actual, message),
-          };
-        }
-        CommandKind::AssertMalformed {
-          ref module,
-          ref message,
-        } => {
-          if (self.file_name == "custom_section" && line == 77)
-            || (self.file_name == "custom_section" && line == 94)
-            || (self.file_name == "globals" && line == 335)
+    let expectation = get_expectation(expected);
+    assert_eq!(actual, expectation);
+  }
+  fn assert_trap(
+    &mut self,
+    field: &str,
+    args: &[Value],
+    module: &Option<String>,
+    message: &str,
+    line: u64,
+  ) {
+    println!("Assert trap at {}:{}.", field, line,);
+    let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
+    let mut vm = vm_ref.borrow_mut();
+    let actual = vm.run(field, get_args(args));
+    match message {
+      "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+      "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
+      "undefined" => assert_eq!(actual, "undefined element"),
+      "uninitialized element 7" | "uninitialized" => assert_eq!(actual, "uninitialized element"),
+      _ => assert_eq!(&actual, message),
+    }
+  }
+
+  fn assert_uninstantiable(&mut self, module: &ModuleBinary, message: &str, line: u64) {
+    println!("Assert uninstantiable at line:{}.", line);
+    let bytes = module.clone().into_vec();
+    let store = init_store();
+    let module = decode_module(&bytes);
+    let err = instantiate_module(store, module, Default::default()).unwrap_err();
+    let actual = String::from(err);
+    match message {
+      "unreachable" => assert_eq!(actual, format!("{} executed", message)),
+      _ => assert_eq!(&actual, message),
+    };
+  }
+
+  fn assert_malformed(&self, module: &ModuleBinary, message: &str, line: u64) {
+    if (self.file_name == "custom_section" && line == 77)
+      || (self.file_name == "custom_section" && line == 94)
+      || (self.file_name == "globals" && line == 335)
             || (self.file_name == "globals" && line == 347)
-            || (self.file_name == "custom" && line == 85)
-          {
-            println!("Skip {}, it seems not reasonable...", line);
-            continue;
-          };
-          let bytes = module.clone().into_vec();
-          let store = init_store();
+      || (self.file_name == "custom" && line == 85)
+    {
+      println!("Skip {}, it seems not reasonable...", line);
+      return;
+    };
+    let bytes = module.clone().into_vec();
+    let store = init_store();
           let module = decode_module(&bytes);
           let err = instantiate_module(store, module, Default::default()).unwrap_err();
-          use self::Trap::*;
-          if let UnsupportedTextform = err {
-            println!("Skip malformed text form at line:{}.", line);
-            continue;
-          };
-          println!("Assert malformed at {}.", line,);
-          match err {
+    use self::Trap::*;
+    if let UnsupportedTextform = err {
+      println!("Skip malformed text form at line:{}.", line);
+      return;
+    };
+    println!("Assert malformed at {}.", line,);
+    match err {
             UninitializedElement => assert_eq!(&String::from(err), "uninitialized element"),
             _ => {
               if (self.file_name == "globals" && line == 305)
@@ -203,9 +181,48 @@ impl<'a> E2ETest<'a> {
               } else {
                 assert_eq!(&String::from(err), message);
               }
-            }
-          };
-        }
+      }
+    };
+  }
+
+  fn do_test(&mut self) {
+    while let Ok(Some(Command { kind, line, .. })) = self.parser.next() {
+      match kind {
+        CommandKind::Module {
+          ref module,
+          ref name,
+        } => self.do_instantiate(module, name),
+        CommandKind::PerformAction(Action::Invoke {
+          ref field,
+          ref args,
+          ref module,
+        }) => self.do_action(field, args, module, line),
+        CommandKind::Register {
+          ref name,
+          ref as_name,
+          ..
+        } => self.do_register(name, as_name),
+        CommandKind::AssertReturn {
+          ref action,
+          ref expected,
+        } => self.assert_return(action, expected, line),
+        CommandKind::AssertTrap {
+          action:
+            Action::Invoke {
+              ref field,
+              ref args,
+              ref module,
+            },
+          ref message,
+        } => self.assert_trap(field, args, module, message, line),
+        CommandKind::AssertUninstantiable {
+          ref module,
+          ref message,
+        } => self.assert_uninstantiable(module, message, line),
+        CommandKind::AssertMalformed {
+          ref module,
+          ref message,
+        } => self.assert_malformed(module, message, line),
         CommandKind::AssertReturnCanonicalNan {
           action:
             Action::Invoke {
