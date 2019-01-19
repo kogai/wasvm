@@ -17,7 +17,7 @@ before_install:
 before_script:
   - rustup target add thumbv6m-none-eabi thumbv7m-none-eabi thumbv7em-none-eabi thumbv7em-none-eabihf
   - rustup component add clippy-preview llvm-tools-preview
-  - cargo install cargo-binutils
+  - cargo install --force cargo-binutils
 script:
   - cargo clippy
   - cargo test
