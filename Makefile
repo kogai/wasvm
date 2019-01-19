@@ -75,3 +75,6 @@ tmp/snappy_compress.wasm:
 install:
 	packer -S wabt --noconfirm
 	cargo install wasm-gc
+	sudo pacman -S \
+		arm-none-eabi-gdb \
+		qemu-arch-extra

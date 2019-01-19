@@ -4,10 +4,8 @@ rust:
   - nightly-2018-11-23
 matrix:
   include:
-  - os: linux
-  - os: osx
-  # FIXME: Disable windows build until wabt-rs support it.
-  # - os: windows
+    - os: linux
+    # - os: osx
 notifications:
   email:
     on_success: change
@@ -17,16 +15,12 @@ git:
 before_install:
   - ./submodule.sh
 before_script:
-  - echo "Hello" > sample.txt
-  - rustup component add clippy-preview
+  - rustup target add thumbv6m-none-eabi thumbv7m-none-eabi thumbv7em-none-eabi thumbv7em-none-eabihf
+  - rustup component add clippy-preview llvm-tools-preview
+  - cargo install cargo-binutils
 script:
   - cargo clippy
   - cargo test
-addons:
-  artifacts:
-    s3_region: ap-northeast-1
-  paths:
-    - $HOME/sample.txt
 env:
   global:
     secure: >-
