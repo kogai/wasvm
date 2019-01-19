@@ -7,12 +7,9 @@ use function::FunctionType;
 use global::GlobalType;
 use inst::{Indice, Inst};
 use memory::Limit;
-// use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
 };
-// use trap::Trap;
-// use value::Values;
 use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
 
 type ResultType = [ValueTypes; 1];
@@ -118,7 +115,6 @@ pub struct Context<'a> {
   tables: &'a Vec<TableType>,
   globals: &'a Vec<(GlobalType, Vec<Inst>)>,
   elements: &'a Vec<Element>,
-  //  customs: Vec<(String, Vec<u8>)>,
   start: &'a Option<u32>,
   locals: RefCell<Vec<ValueTypes>>,
   labels: RefCell<VecDeque<ResultType>>,
@@ -431,6 +427,7 @@ impl<'a> Context<'a> {
       return Err(TypeError::InvalidAlignment);
     };
     cxt.pop_i32()?;
+    cxt.pop_type()?;
     Ok(())
   }
 
@@ -834,11 +831,6 @@ impl<'a> Context<'a> {
   }
 
   pub fn validate(&self) -> Result<()> {
-    // let grouped_imports = self.module.imports.group_by_kind();
-    // let imports_function = grouped_imports.get(&FUNCTION_DESCRIPTOR)?;
-    // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
-    // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
-    // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
     self.validate_exports()?;
     self.validate_imports()?;
     self.validate_datas()?;
@@ -849,14 +841,6 @@ impl<'a> Context<'a> {
     self.validate_function_types()?;
     self.validate_functions()?;
     self.validate_start()?;
-
-    // let global_instances =
-    //   GlobalInstances::new_with_external(globals, &exports, &imports_global, &external_modules)?;
-
-    // unimplemented!(
-    //   "Type system(Also called as `validation`) not implemented yet.\n{:#?}",
-    //   self.module
-    // );
     Ok(())
   }
 }

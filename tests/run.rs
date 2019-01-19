@@ -202,6 +202,7 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "memory"
       && self.file_name != "set_local"
       && self.file_name != "start"
+      && self.file_name != "store_retval"
       && self.file_name != "tee_local"
       && self.file_name != "unreached_invalid"
     {
