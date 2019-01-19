@@ -193,8 +193,14 @@ impl<'a> Context<'a> {
   }
 
   fn validate_datas(&self) -> Result<()> {
-    for data in self.datas.iter() {
-      self.limits.first().ok_or(TypeError::UnknownMemory)?;
+    for Data { memidx, offset, .. } in self.datas.iter() {
+      self
+        .limits
+        .get(*memidx as usize)
+        .ok_or(TypeError::UnknownMemory)?;
+      if ValueTypes::I32 != self.validate_constant(offset)? {
+        return Err(TypeError::TypeMismatch);
+      }
     }
     Ok(())
   }

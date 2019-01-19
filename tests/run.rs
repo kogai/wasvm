@@ -155,10 +155,10 @@ impl<'a> E2ETest<'a> {
     if (self.file_name == "custom_section" && line == 77)
       || (self.file_name == "custom_section" && line == 94)
       || (self.file_name == "globals" && line == 335)
-            || (self.file_name == "globals" && line == 347)
+      || (self.file_name == "globals" && line == 347)
       || (self.file_name == "custom" && line == 85)
     {
-      println!("Skip {}, it seems not reasonable...", line);
+      println!("Skip {}, it seems can't resolvable yet...", line);
       return;
     };
     let bytes = module.clone().into_vec();
@@ -182,6 +182,30 @@ impl<'a> E2ETest<'a> {
                 assert_eq!(&String::from(err), message);
               }
       }
+    };
+  }
+
+  fn assert_invalid(&self, message: &str, module: &ModuleBinary, line: u64) {
+    println!("Assert invalid at {}:{}.", message, line);
+    if self.file_name != "typecheck"
+      && self.file_name != "type"
+      && self.file_name != "br_only"
+      && self.file_name != "align"
+      && self.file_name != "block"
+      && self.file_name != "elem"
+      && self.file_name != "data"
+    {
+      return;
+    }
+    let bytes = module.clone().into_vec();
+    let section = decode_module(&bytes);
+    let err = validate_module(&section).unwrap_err();
+    match message {
+      "alignment" => assert_eq!(
+        &String::from(err),
+        "alignment must not be larger than natural"
+      ),
+      _ => assert_eq!(&String::from(err), message),
     };
   }
 
@@ -280,28 +304,7 @@ impl<'a> E2ETest<'a> {
         CommandKind::AssertInvalid {
           ref message,
           ref module,
-        } => {
-          println!("Assert invalid at {}:{}.", message, line,);
-          if self.file_name != "typecheck"
-            && self.file_name != "type"
-            && self.file_name != "br_only"
-            && self.file_name != "align"
-            && self.file_name != "block"
-            && self.file_name != "elem"
-          {
-            continue;
-          }
-          let bytes = module.clone().into_vec();
-          let section = decode_module(&bytes);
-          let err = validate_module(&section).unwrap_err();
-          match message.as_ref() {
-            "alignment" => assert_eq!(
-              &String::from(err),
-              "alignment must not be larger than natural"
-            ),
-            _ => assert_eq!(&String::from(err), message),
-          };
-        }
+        } => self.assert_invalid(message, module, line),
         x => unreachable!(
           "there are no other commands apart from that defined above {:?}",
           x
