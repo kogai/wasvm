@@ -421,13 +421,22 @@ impl<'a> Context<'a> {
     Ok(())
   }
 
-  fn validate_store(&self, cxt: &TypeStack, align: u32, bit_width: u32) -> Result<()> {
+  fn validate_store(
+    &self,
+    cxt: &TypeStack,
+    align: u32,
+    bit_width: u32,
+    expect: &ValueTypes,
+  ) -> Result<()> {
     self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
       return Err(TypeError::InvalidAlignment);
     };
+    let actual = cxt.pop_type()?;
     cxt.pop_i32()?;
-    cxt.pop_type()?;
+    if &actual != expect {
+      return Err(TypeError::TypeMismatch);
+    }
     Ok(())
   }
 
@@ -657,15 +666,15 @@ impl<'a> Context<'a> {
         I64Load32Sign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
         I64Load32Unsign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
 
-        I32Store(align, _) => self.validate_store(cxt, *align, 32)?,
-        I64Store(align, _) => self.validate_store(cxt, *align, 64)?,
-        F32Store(align, _) => self.validate_store(cxt, *align, 32)?,
-        F64Store(align, _) => self.validate_store(cxt, *align, 64)?,
-        I32Store8(align, _) => self.validate_store(cxt, *align, 8)?,
-        I32Store16(align, _) => self.validate_store(cxt, *align, 16)?,
-        I64Store8(align, _) => self.validate_store(cxt, *align, 8)?,
-        I64Store16(align, _) => self.validate_store(cxt, *align, 16)?,
-        I64Store32(align, _) => self.validate_store(cxt, *align, 32)?,
+        I32Store(align, _) => self.validate_store(cxt, *align, 32, &TYPE_I32)?,
+        I64Store(align, _) => self.validate_store(cxt, *align, 64, &TYPE_I64)?,
+        F32Store(align, _) => self.validate_store(cxt, *align, 32, &TYPE_F32)?,
+        F64Store(align, _) => self.validate_store(cxt, *align, 64, &TYPE_F64)?,
+        I32Store8(align, _) => self.validate_store(cxt, *align, 8, &TYPE_I32)?,
+        I32Store16(align, _) => self.validate_store(cxt, *align, 16, &TYPE_I32)?,
+        I64Store8(align, _) => self.validate_store(cxt, *align, 8, &TYPE_I64)?,
+        I64Store16(align, _) => self.validate_store(cxt, *align, 16, &TYPE_I64)?,
+        I64Store32(align, _) => self.validate_store(cxt, *align, 32, &TYPE_I64)?,
 
         MemorySize => {
           self.limits.first().ok_or(TypeError::TypeMismatch)?;
