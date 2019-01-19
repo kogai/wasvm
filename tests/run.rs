@@ -154,8 +154,6 @@ impl<'a> E2ETest<'a> {
   fn assert_malformed(&self, module: &ModuleBinary, message: &str, line: u64) {
     if (self.file_name == "custom_section" && line == 77)
       || (self.file_name == "custom_section" && line == 94)
-      || (self.file_name == "globals" && line == 335)
-      || (self.file_name == "globals" && line == 347)
       || (self.file_name == "custom" && line == 85)
     {
       println!("Skip {}, it seems can't resolvable yet...", line);
@@ -199,6 +197,7 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "func"
       && self.file_name != "func_ptrs"
       && self.file_name != "get_local"
+      && self.file_name != "globals"
     {
     println!("Skip to assert invalid at {}:{}.", message, line);
       return;

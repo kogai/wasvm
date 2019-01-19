@@ -31,6 +31,10 @@ impl TypeStack {
     TypeStack(RefCell::new(Vec::new()))
   }
 
+  fn len(&self) -> usize {
+    self.0.borrow().len()
+  }
+
   fn push(&self, ty: ValueTypes) {
     self.0.borrow_mut().push(Entry::Type(ty));
   }
@@ -177,23 +181,27 @@ impl<'a> Context<'a> {
 
   fn validate_constant(&self, expr: &[Inst]) -> Result<ValueTypes> {
     let type_stack = TypeStack::new();
-    match expr.get(0) {
-      Some(Inst::I32Const(_)) => type_stack.push(ValueTypes::I32),
-      Some(Inst::I64Const(_)) => type_stack.push(ValueTypes::I64),
-      Some(Inst::F32Const(_)) => type_stack.push(ValueTypes::F32),
-      Some(Inst::F64Const(_)) => type_stack.push(ValueTypes::F64),
-      Some(Inst::GetGlobal(idx)) => match self.globals.get(*idx as usize) {
-        Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
-          type_stack.push(ty.clone())
+    for x in expr.iter() {
+      match x {
+        Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
+        Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
+        Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
+        Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
+        Inst::GetGlobal(idx) => match self.globals.get(*idx as usize) {
+          Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
+            type_stack.push(ty.clone())
+          }
+          _ => return Err(TypeError::ConstantExpressionRequired),
+        },
+        Inst::End => {
+          break;
         }
-        _ => return Err(TypeError::TypeMismatch),
-      },
-      _ => return Err(TypeError::ConstantExpressionRequired),
-    };
-    match expr.get(1) {
-      Some(Inst::End) => {}
-      _ => return Err(TypeError::ConstantExpressionRequired),
-    };
+        _ => return Err(TypeError::ConstantExpressionRequired),
+      }
+    }
+    if type_stack.len() > 1 {
+      return Err(TypeError::TypeMismatch);
+    }
     type_stack.pop_type()
   }
 
@@ -228,6 +236,37 @@ impl<'a> Context<'a> {
           .functions
           .get(*i as usize)
           .ok_or_else(|| TypeError::UnknownFunction(*i))?;
+      }
+    }
+    Ok(())
+  }
+
+  fn validate_globals(&self) -> Result<()> {
+    for (global_type, init) in self.globals.iter() {
+      let type_stack = TypeStack::new();
+      for x in init.iter() {
+        match x {
+          Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
+          Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
+          Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
+          Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
+          Inst::GetGlobal(_) => return Err(TypeError::ConstantExpressionRequired),
+          Inst::End => {
+            break;
+          }
+          _ => return Err(TypeError::ConstantExpressionRequired),
+        }
+      }
+      if type_stack.len() > 1 {
+        return Err(TypeError::TypeMismatch);
+      }
+      let ty = type_stack.pop_type()?;
+      if &ty
+        != match global_type {
+          GlobalType::Const(expect) | GlobalType::Var(expect) => expect,
+        }
+      {
+        return Err(TypeError::TypeMismatch);
       }
     }
     Ok(())
@@ -507,9 +546,39 @@ impl<'a> Context<'a> {
             return Err(TypeError::TypeMismatch);
           }
         }
-        TeeLocal(_) => unimplemented!(),
-        GetGlobal(_) => unimplemented!(),
-        SetGlobal(_) => unimplemented!(),
+        TeeLocal(idx) => {
+          let expect = cxt.pop_type()?;
+          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
+          if &expect != actual {
+            return Err(TypeError::TypeMismatch);
+          }
+          cxt.push(actual.clone());
+        }
+
+        GetGlobal(idx) => {
+          let ty = self
+            .globals
+            .get(*idx as usize)
+            .ok_or_else(|| TypeError::UnknownGlobal(*idx))
+            .map(|(global_type, _)| match global_type {
+              GlobalType::Const(ty) | GlobalType::Var(ty) => ty,
+            })?;
+          cxt.push(ty.clone());
+        }
+        SetGlobal(idx) => {
+          let expect = cxt.pop_type()?;
+          let ty = self
+            .globals
+            .get(*idx as usize)
+            .ok_or_else(|| TypeError::UnknownGlobal(*idx))
+            .and_then(|(global_type, _)| match global_type {
+              GlobalType::Var(ty) => Ok(ty),
+              GlobalType::Const(_) => Err(TypeError::GlobalIsImmutable),
+            })?;
+          if &expect != ty {
+            return Err(TypeError::TypeMismatch);
+          }
+        }
 
         I32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I32)?,
         I64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::I64)?,
@@ -709,6 +778,7 @@ impl<'a> Context<'a> {
     self.validate_imports()?;
     self.validate_datas()?;
     self.validate_elements()?;
+    self.validate_globals()?;
     self.validate_function_types()?;
     self.validate_functions()?;
 

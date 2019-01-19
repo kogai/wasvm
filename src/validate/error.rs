@@ -20,6 +20,7 @@ pub enum TypeError {
   UnknownGlobal(u32),
   ConstantExpressionRequired,
   DuplicateExportName,
+  GlobalIsImmutable,
   // FIXME: Separate TypeError and RuntimeError(Trap) completely.
   Trap(Trap),
 }
@@ -55,6 +56,7 @@ impl From<TypeError> for String {
       UnknownTable(idx) => format!("unknown table {}", idx),
       UnknownGlobal(idx) => format!("unknown global {}", idx),
       DuplicateExportName => "duplicate export name".to_string(),
+      GlobalIsImmutable => "global is immutable".to_string(),
       Trap(err) => String::from(err),
     }
   }

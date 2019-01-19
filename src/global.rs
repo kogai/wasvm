@@ -18,11 +18,11 @@ pub enum GlobalType {
 }
 
 impl GlobalType {
-  pub fn new(code: Option<u8>, v: ValueTypes) -> Self {
+  pub fn new(code: Option<u8>, v: ValueTypes) -> Result<Self> {
     match code {
-      Some(0x00) => GlobalType::Const(v),
-      Some(0x01) => GlobalType::Var(v),
-      x => unreachable!("Expected global type code, got {:?}", x),
+      Some(0x00) => Ok(GlobalType::Const(v)),
+      Some(0x01) => Ok(GlobalType::Var(v)),
+      _ => Err(Trap::InvalidMutability),
     }
   }
 }

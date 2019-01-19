@@ -22,7 +22,7 @@ impl Decodable for Section {
     (0..count_of_section)
       .map(|_| {
         let value_type = ValueTypes::from(self.next());
-        let global_type = GlobalType::new(self.next(), value_type);
+        let global_type = GlobalType::new(self.next(), value_type)?;
         let init = self.decode_instructions()?;
         Ok((global_type, init))
       })
