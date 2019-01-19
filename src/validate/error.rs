@@ -6,6 +6,8 @@ use trap::Trap;
 #[derive(Debug, PartialEq)]
 pub enum TypeError {
   NotFound,
+  MultipleTables,
+  MultipleMemories,
   TypeMismatch,
   IndirectCallTypeMismatch,
   IncompatibleImportType,
@@ -42,6 +44,8 @@ impl From<TypeError> for String {
     use self::TypeError::*;
     match x {
       NotFound => "not found".to_string(),
+      MultipleTables => "multiple tables".to_string(),
+      MultipleMemories => "multiple memories".to_string(),
       TypeMismatch => "type mismatch".to_string(),
       IndirectCallTypeMismatch => "indirect call type mismatch".to_string(),
       IncompatibleImportType => "incompatible import type".to_string(),

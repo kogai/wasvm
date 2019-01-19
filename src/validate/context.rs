@@ -315,6 +315,8 @@ impl<'a> Context<'a> {
   }
 
   fn validate_imports(&self) -> Result<()> {
+    let mut tables = Vec::new();
+    let mut memories = Vec::new();
     for ExternalInterface { descriptor, .. } in self.imports.iter() {
       match descriptor {
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(x)) => {
@@ -323,11 +325,41 @@ impl<'a> Context<'a> {
             .get(*x as usize)
             .ok_or_else(|| TypeError::UnknownFunction(*x))?;
         }
-        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(_ty)) => {}
-        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(_limit)) => {}
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(ty)) => {
+          if !self.tables.is_empty() {
+            return Err(TypeError::MultipleTables);
+          }
+          tables.push(ty);
+        }
+        ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)) => {
+          if !self.limits.is_empty() {
+            return Err(TypeError::MultipleMemories);
+          }
+          memories.push(limit);
+        }
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Global(_ty)) => {}
         _ => unreachable!(),
       };
+    }
+    if tables.len() > 1 {
+      return Err(TypeError::MultipleTables);
+    }
+    if memories.len() > 1 {
+      return Err(TypeError::MultipleMemories);
+    }
+    Ok(())
+  }
+
+  fn validate_tables(&self) -> Result<()> {
+    if self.tables.len() > 1 {
+      return Err(TypeError::MultipleTables);
+    }
+    Ok(())
+  }
+
+  fn validate_memories(&self) -> Result<()> {
+    if self.limits.len() > 1 {
+      return Err(TypeError::MultipleMemories);
     }
     Ok(())
   }
@@ -777,6 +809,8 @@ impl<'a> Context<'a> {
     self.validate_exports()?;
     self.validate_imports()?;
     self.validate_datas()?;
+    self.validate_tables()?;
+    self.validate_memories()?;
     self.validate_elements()?;
     self.validate_globals()?;
     self.validate_function_types()?;

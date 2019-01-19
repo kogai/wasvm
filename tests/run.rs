@@ -198,6 +198,7 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "func_ptrs"
       && self.file_name != "get_local"
       && self.file_name != "globals"
+      && self.file_name != "imports"
     {
     println!("Skip to assert invalid at {}:{}.", message, line);
       return;
