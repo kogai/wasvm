@@ -195,6 +195,8 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "elem"
       && self.file_name != "data"
       && self.file_name != "exports"
+      && self.file_name != "call"
+      && self.file_name != "call_indirect"
     {
       return;
     }
@@ -210,6 +212,7 @@ impl<'a> E2ETest<'a> {
       "unknown global" => {}
       "unknown memory" => {}
       "unknown table" => {}
+      "unknown type" => {}
       _ => assert_eq!(&String::from(err), message),
     };
   }

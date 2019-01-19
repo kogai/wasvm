@@ -224,7 +224,7 @@ impl<'a> Context<'a> {
         self
           .functions
           .get(*i as usize)
-          .ok_or(TypeError::TypeMismatch)?;
+          .ok_or(TypeError::UnknownFunction(*i))?;
       }
     }
     Ok(())
@@ -436,11 +436,12 @@ impl<'a> Context<'a> {
             .get(idx.to_usize())
             .map(|f| f.function_type)
             .ok_or(TypeError::TypeMismatch)?;
-          for ty in function_type.parameters().iter() {
-            if ty != &cxt.pop_type()? {
+          let mut parameters = function_type.parameters().clone();
+          while let Some(ty) = parameters.pop() {
+            if ty != cxt.pop_type()? {
               return Err(TypeError::TypeMismatch);
             };
-          }
+          } 
           for ty in function_type.returns().iter() {
             cxt.push(ty.clone());
           }
@@ -451,12 +452,13 @@ impl<'a> Context<'a> {
             .function_types
             .get(idx.to_usize())
             .ok_or_else(|| TypeError::UnknownFunctionType(idx.to_u32()))?;
-          for ty in function_type.parameters().iter() {
-            if ty != &cxt.pop_type()? {
+          let mut parameters = function_type.parameters().clone();
+          cxt.pop_i32()?;
+          while let Some(ty) = parameters.pop() {
+            if ty != cxt.pop_type()? {
               return Err(TypeError::TypeMismatch);
             };
-          }
-          cxt.pop_i32()?;
+          } 
           for ty in function_type.returns().iter() {
             cxt.push(ty.clone());
           }
