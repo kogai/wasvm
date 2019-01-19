@@ -3,7 +3,6 @@
 #![feature(int_to_from_bytes)]
 #![feature(alloc)]
 #![feature(core_intrinsics)]
-// #![no_std]
 #![cfg_attr(not(test), no_std)]
 
 #[cfg(test)]
