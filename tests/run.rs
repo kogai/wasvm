@@ -200,6 +200,9 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "globals"
       && self.file_name != "imports"
       && self.file_name != "memory"
+      && self.file_name != "set_local"
+      && self.file_name != "tee_local"
+      && self.file_name != "unreached_invalid"
     {
     println!("Skip to assert invalid at {}:{}.", message, line);
       return;
