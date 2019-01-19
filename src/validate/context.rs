@@ -119,7 +119,7 @@ pub struct Context<'a> {
   globals: &'a Vec<(GlobalType, Vec<Inst>)>,
   elements: &'a Vec<Element>,
   //  customs: Vec<(String, Vec<u8>)>,
-  //  start: Option<u32>,
+  start: &'a Option<u32>,
   locals: RefCell<Vec<ValueTypes>>,
   labels: RefCell<VecDeque<ResultType>>,
   return_type: RefCell<ResultType>,
@@ -172,6 +172,7 @@ impl<'a> Context<'a> {
       tables: &module.tables,
       elements: &module.elements,
       limits: &module.limits,
+      start: &module.start,
 
       locals: RefCell::new(Vec::new()),
       labels: RefCell::new(VecDeque::new()),
@@ -371,10 +372,23 @@ impl<'a> Context<'a> {
           }
         }
       }
-      //
     }
     if self.limits.len() > 1 {
       return Err(TypeError::MultipleMemories);
+    }
+    Ok(())
+  }
+
+  fn validate_start(&self) -> Result<()> {
+    if let Some(idx) = self.start {
+      let func = self
+        .functions
+        .get(*idx as usize)
+        .ok_or_else(|| TypeError::UnknownFunction(*idx))?;
+      let ty = func.function_type;
+      if !ty.parameters().is_empty() || !ty.returns().is_empty() {
+        return Err(TypeError::InvalidStartFunction);
+      }
     }
     Ok(())
   }
@@ -452,7 +466,10 @@ impl<'a> Context<'a> {
     for local in function.locals.iter() {
       locals.push(local.clone());
     }
-    let return_type = &mut self.return_type.borrow_mut();
+    if let Some(ret) = function.function_type.returns().first() {
+      self.return_type.replace([ret.clone(); 1]);
+    };
+    let return_type = &self.return_type.borrow();
 
     labels.push_front(
       [match function.function_type.returns().first() {
@@ -542,6 +559,7 @@ impl<'a> Context<'a> {
           if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
+          cxt.push(actual);
         }
         Call(idx) => {
           let function_type = self
@@ -830,6 +848,7 @@ impl<'a> Context<'a> {
     self.validate_globals()?;
     self.validate_function_types()?;
     self.validate_functions()?;
+    self.validate_start()?;
 
     // let global_instances =
     //   GlobalInstances::new_with_external(globals, &exports, &imports_global, &external_modules)?;

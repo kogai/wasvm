@@ -201,6 +201,7 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "imports"
       && self.file_name != "memory"
       && self.file_name != "set_local"
+      && self.file_name != "start"
       && self.file_name != "tee_local"
       && self.file_name != "unreached_invalid"
     {
@@ -217,6 +218,7 @@ impl<'a> E2ETest<'a> {
       | "unknown global"
       | "unknown memory"
       | "unknown table"
+      | "start function"
       | "size minimum must not be greater than maximum"
       | "memory size must be at most 65536 pages (4GiB)"
       | "unknown type" => {}
