@@ -194,6 +194,7 @@ impl<'a> E2ETest<'a> {
       && self.file_name != "block"
       && self.file_name != "elem"
       && self.file_name != "data"
+      && self.file_name != "exports"
     {
       return;
     }
@@ -205,6 +206,10 @@ impl<'a> E2ETest<'a> {
         &String::from(err),
         "alignment must not be larger than natural"
       ),
+      "unknown function" => {}
+      "unknown global" => {}
+      "unknown memory" => {}
+      "unknown table" => {}
       _ => assert_eq!(&String::from(err), message),
     };
   }

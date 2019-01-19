@@ -8,6 +8,7 @@ use global::GlobalType;
 use inst::{Indice, Inst};
 use memory::Limit;
 // use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
+use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
 // use trap::Trap;
 // use value::Values;
 use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
@@ -104,7 +105,7 @@ impl<'a> Function<'a> {
 pub struct Context<'a> {
   function_types: &'a Vec<FunctionType>,
   functions: Vec<Function<'a>>,
-  //  exports: ExternalInterfaces,
+  exports: &'a ExternalInterfaces,
   datas: &'a Vec<Data>,
   limits: &'a Vec<Limit>,
   tables: &'a Vec<TableType>,
@@ -158,6 +159,7 @@ impl<'a> Context<'a> {
           Ok(Function::new(function_type, locals, body))
         })
         .collect::<Result<Vec<_>>>()?,
+      exports: &module.exports,
       datas: &module.datas,
       globals: &module.globals,
       tables: &module.tables,
@@ -224,6 +226,48 @@ impl<'a> Context<'a> {
           .get(*i as usize)
           .ok_or(TypeError::TypeMismatch)?;
       }
+    }
+    Ok(())
+  }
+
+  fn validate_exports(&self) -> Result<()> {
+    let mut names = Vec::with_capacity(self.exports.len());
+    for ExternalInterface {
+      descriptor, name, ..
+    } in self.exports.iter()
+    {
+      match descriptor {
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
+          self
+            .functions
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownFunction(*x))?;
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
+          self
+            .tables
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownTable(*x))?;
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
+          self
+            .limits
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownMemory)?;
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
+          self
+            .globals
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownGlobal(*x))?;
+        }
+        _ => unreachable!(),
+      };
+      names.push(name);
+    }
+    names.dedup();
+    if names.len() != self.exports.len() {
+      return Err(TypeError::DuplicateExportName);
     }
     Ok(())
   }
@@ -632,6 +676,7 @@ impl<'a> Context<'a> {
     // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
     // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
     // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
+    self.validate_exports()?;
     self.validate_datas()?;
     self.validate_elements()?;
     self.validate_function_types()?;
