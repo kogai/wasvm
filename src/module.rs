@@ -105,6 +105,10 @@ impl ExternalInterfaces {
     self.0.push(value);
   }
 
+  pub fn len(&self) -> usize {
+    self.0.len()
+  }
+
   pub fn find_kind_by_idx(
     &self,
     idx: u32,

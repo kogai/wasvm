@@ -2,14 +2,16 @@ use super::error::{Result, TypeError};
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use decode::Section;
+use decode::{Data, Element, Section, TableType};
 use function::FunctionType;
+use global::GlobalType;
 use inst::{Indice, Inst};
 use memory::Limit;
 // use module::{FUNCTION_DESCRIPTOR, GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR};
+use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
 // use trap::Trap;
 // use value::Values;
-use value_type::ValueTypes;
+use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
 
 type ResultType = [ValueTypes; 1];
 
@@ -103,26 +105,18 @@ impl<'a> Function<'a> {
 pub struct Context<'a> {
   function_types: &'a Vec<FunctionType>,
   functions: Vec<Function<'a>>,
-  //  exports: ExternalInterfaces,
-  //  codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
-  //  datas: Vec<Data>,
+  exports: &'a ExternalInterfaces,
+  datas: &'a Vec<Data>,
   limits: &'a Vec<Limit>,
-  //  tables: Vec<TableType>,
-  //  globals: Vec<(GlobalType, Vec<Inst>)>,
-  //  elements: Vec<Element>,
+  tables: &'a Vec<TableType>,
+  globals: &'a Vec<(GlobalType, Vec<Inst>)>,
+  elements: &'a Vec<Element>,
   //  customs: Vec<(String, Vec<u8>)>,
   //  imports: ExternalInterfaces,
   //  start: Option<u32>,
   locals: RefCell<Vec<ValueTypes>>,
   labels: RefCell<VecDeque<ResultType>>,
   return_type: RefCell<ResultType>,
-}
-
-macro_rules! un_op {
-  ($stack: ident) => {{
-    let t = $stack.pop_type()?;
-    $stack.push(t);
-  }};
 }
 
 macro_rules! bin_op {
@@ -136,13 +130,6 @@ macro_rules! bin_op {
   }};
 }
 
-macro_rules! test_op {
-  ($stack: ident) => {{
-    $stack.pop_type()?;
-    $stack.push(ValueTypes::I32);
-  }};
-}
-
 macro_rules! rel_op {
   ($stack: ident) => {{
     let l = $stack.pop_type()?;
@@ -151,37 +138,6 @@ macro_rules! rel_op {
       return Err(TypeError::TypeMismatch);
     }
     $stack.push(ValueTypes::I32);
-  }};
-}
-
-macro_rules! conv_op {
-  ($stack: ident, $from: path, $to: path) => {{
-    let from_ty = $stack.pop_type()?;
-    if from_ty != $from {
-      return Err(TypeError::TypeMismatch);
-    }
-    $stack.push($to);
-  }};
-}
-
-macro_rules! load_op {
-  // load
-  ($self: ident, $cxt: ident, $align: ident, $bit_width: expr, $ty: path) => {{
-    $self.limits.first().ok_or(TypeError::TypeMismatch)?;
-    if 2u32.pow(*$align) > $bit_width / 4 {
-      return Err(TypeError::TypeMismatch);
-    };
-    $cxt.pop_i32()?;
-    $cxt.push($ty);
-  }};
-
-  // store
-  ($self: ident, $cxt: ident, $align: ident, $bit_width: expr) => {{
-    $self.limits.first().ok_or(TypeError::TypeMismatch)?;
-    if 2u32.pow(*$align) > $bit_width / 4 {
-      return Err(TypeError::TypeMismatch);
-    };
-    $cxt.pop_i32()?;
   }};
 }
 
@@ -203,6 +159,11 @@ impl<'a> Context<'a> {
           Ok(Function::new(function_type, locals, body))
         })
         .collect::<Result<Vec<_>>>()?,
+      exports: &module.exports,
+      datas: &module.datas,
+      globals: &module.globals,
+      tables: &module.tables,
+      elements: &module.elements,
       limits: &module.limits,
 
       locals: RefCell::new(Vec::new()),
@@ -211,10 +172,110 @@ impl<'a> Context<'a> {
     })
   }
 
+  fn validate_constant(&self, expr: &[Inst]) -> Result<ValueTypes> {
+    let type_stack = TypeStack::new();
+    match expr.get(0) {
+      Some(Inst::I32Const(_)) => type_stack.push(ValueTypes::I32),
+      Some(Inst::I64Const(_)) => type_stack.push(ValueTypes::I64),
+      Some(Inst::F32Const(_)) => type_stack.push(ValueTypes::F32),
+      Some(Inst::F64Const(_)) => type_stack.push(ValueTypes::F64),
+      Some(Inst::GetGlobal(idx)) => match self.globals.get(*idx as usize) {
+        Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
+          type_stack.push(ty.clone())
+        }
+        _ => return Err(TypeError::TypeMismatch),
+      },
+      _ => return Err(TypeError::ConstantExpressionRequired),
+    };
+    match expr.get(1) {
+      Some(Inst::End) => {}
+      _ => return Err(TypeError::ConstantExpressionRequired),
+    };
+    type_stack.pop_type()
+  }
+
+  fn validate_datas(&self) -> Result<()> {
+    for Data { memidx, offset, .. } in self.datas.iter() {
+      self
+        .limits
+        .get(*memidx as usize)
+        .ok_or(TypeError::UnknownMemory)?;
+      if ValueTypes::I32 != self.validate_constant(offset)? {
+        return Err(TypeError::TypeMismatch);
+      }
+    }
+    Ok(())
+  }
+
+  fn validate_elements(&self) -> Result<()> {
+    for Element {
+      table_idx,
+      offset,
+      init,
+    } in self.elements.iter()
+    {
+      if self.tables.get(*table_idx as usize).is_none() {
+        return Err(TypeError::UnknownTable(*table_idx));
+      }
+      if ValueTypes::I32 != self.validate_constant(offset)? {
+        return Err(TypeError::TypeMismatch);
+      }
+      for i in init.iter() {
+        self
+          .functions
+          .get(*i as usize)
+          .ok_or(TypeError::TypeMismatch)?;
+      }
+    }
+    Ok(())
+  }
+
+  fn validate_exports(&self) -> Result<()> {
+    let mut names = Vec::with_capacity(self.exports.len());
+    for ExternalInterface {
+      descriptor, name, ..
+    } in self.exports.iter()
+    {
+      match descriptor {
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
+          self
+            .functions
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownFunction(*x))?;
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
+          self
+            .tables
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownTable(*x))?;
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
+          self
+            .limits
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownMemory)?;
+        }
+        ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
+          self
+            .globals
+            .get(*x as usize)
+            .ok_or_else(|| TypeError::UnknownGlobal(*x))?;
+        }
+        _ => unreachable!(),
+      };
+      names.push(name);
+    }
+    names.dedup();
+    if names.len() != self.exports.len() {
+      return Err(TypeError::DuplicateExportName);
+    }
+    Ok(())
+  }
+
   fn validate_function_types(&self) -> Result<()> {
     for fy in self.function_types.iter() {
       if fy.returns().len() > 1 {
-        return Err(TypeError::TypeMismatch);
+        return Err(TypeError::InvalidResultArity);
       }
     }
     Ok(())
@@ -224,6 +285,52 @@ impl<'a> Context<'a> {
     for f in self.functions.iter() {
       self.validate_function(f)?;
     }
+    Ok(())
+  }
+
+  fn validate_load(
+    &self,
+    cxt: &TypeStack,
+    align: u32,
+    bit_width: u32,
+    ty: ValueTypes,
+  ) -> Result<()> {
+    self.limits.first().ok_or(TypeError::UnknownMemory)?;
+    if 2u32.pow(align) > bit_width / 8 {
+      return Err(TypeError::InvalidAlignment);
+    };
+    cxt.pop_i32()?;
+    cxt.push(ty);
+    Ok(())
+  }
+
+  fn validate_store(&self, cxt: &TypeStack, align: u32, bit_width: u32) -> Result<()> {
+    self.limits.first().ok_or(TypeError::UnknownMemory)?;
+    if 2u32.pow(align) > bit_width / 8 {
+      return Err(TypeError::InvalidAlignment);
+    };
+    cxt.pop_i32()?;
+    Ok(())
+  }
+
+  fn validate_unary(&self, cxt: &TypeStack) -> Result<()> {
+    let t = cxt.pop_type()?;
+    cxt.push(t);
+    Ok(())
+  }
+
+  fn validate_test_inst(&self, cxt: &TypeStack) -> Result<()> {
+    cxt.pop_type()?;
+    cxt.push(ValueTypes::I32);
+    Ok(())
+  }
+
+  fn validate_convert(&self, cxt: &TypeStack, from: &ValueTypes, to: ValueTypes) -> Result<()> {
+    let from_ty = cxt.pop_type()?;
+    if &from_ty != from {
+      return Err(TypeError::TypeMismatch);
+    }
+    cxt.push(to);
     Ok(())
   }
 
@@ -242,10 +349,9 @@ impl<'a> Context<'a> {
     );
 
     while let Some(inst) = function.pop() {
-      // println!("{:?}", inst);
       match inst {
-        Unreachable => unimplemented!(),
-        Nop => unimplemented!(),
+        Unreachable => {}
+        Nop => {}
         Block(_) => {
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
@@ -273,23 +379,30 @@ impl<'a> Context<'a> {
         }
         End => {
           let expect = labels.pop_front().ok_or(TypeError::TypeMismatch)?[0].clone();
-          let actual = cxt.pop_type()?;
-          if expect != actual {
-            return Err(TypeError::TypeMismatch);
-          }
-          cxt.pop_until_label()?;
-          // println!("{:?}", labels);
+          match cxt.pop() {
+            Some(Entry::Type(actual)) => {
+              if expect != actual {
+                return Err(TypeError::TypeMismatch);
+              };
+              cxt.pop_until_label()?;
+            }
+            _ => {
+              if expect != ValueTypes::Empty {
+                return Err(TypeError::TypeMismatch);
+              }
+            }
+          };
         }
 
         Br(idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
         BrIf(idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           cxt.pop_i32()?;
           if expect != actual {
@@ -297,9 +410,9 @@ impl<'a> Context<'a> {
           }
         }
         BrTable(indices, idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
           for i in indices.iter() {
-            let actual = labels.get(*i as usize).ok_or(TypeError::TypeMismatch)?[0].clone();
+            let actual = labels.get(*i as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
             if expect != actual {
               return Err(TypeError::TypeMismatch);
             }
@@ -317,8 +430,37 @@ impl<'a> Context<'a> {
             return Err(TypeError::TypeMismatch);
           }
         }
-        Call(_) => unimplemented!(),
-        CallIndirect(_) => unimplemented!(),
+        Call(idx) => {
+          let function_type = self
+            .functions
+            .get(idx.to_usize())
+            .map(|f| f.function_type)
+            .ok_or(TypeError::TypeMismatch)?;
+          for ty in function_type.parameters().iter() {
+            if ty != &cxt.pop_type()? {
+              return Err(TypeError::TypeMismatch);
+            };
+          }
+          for ty in function_type.returns().iter() {
+            cxt.push(ty.clone());
+          }
+        }
+        CallIndirect(idx) => {
+          self.tables.first().ok_or(TypeError::UnknownTable(0))?;
+          let function_type = self
+            .function_types
+            .get(idx.to_usize())
+            .ok_or_else(|| TypeError::UnknownFunctionType(idx.to_u32()))?;
+          for ty in function_type.parameters().iter() {
+            if ty != &cxt.pop_type()? {
+              return Err(TypeError::TypeMismatch);
+            };
+          }
+          cxt.pop_i32()?;
+          for ty in function_type.returns().iter() {
+            cxt.push(ty.clone());
+          }
+        }
 
         I32Const(_) => cxt.push(ValueTypes::I32),
         I64Const(_) => cxt.push(ValueTypes::I64),
@@ -340,30 +482,30 @@ impl<'a> Context<'a> {
         GetGlobal(_) => unimplemented!(),
         SetGlobal(_) => unimplemented!(),
 
-        I32Load(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I32),
-        I64Load(_, align) => load_op!(self, cxt, align, 64, ValueTypes::I64),
-        F32Load(_, align) => load_op!(self, cxt, align, 32, ValueTypes::F32),
-        F64Load(_, align) => load_op!(self, cxt, align, 64, ValueTypes::F64),
-        I32Load8Sign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I32),
-        I32Load8Unsign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I32),
-        I32Load16Sign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I32),
-        I32Load16Unsign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I32),
-        I64Load8Sign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I64),
-        I64Load8Unsign(_, align) => load_op!(self, cxt, align, 8, ValueTypes::I64),
-        I64Load16Sign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I64),
-        I64Load16Unsign(_, align) => load_op!(self, cxt, align, 16, ValueTypes::I64),
-        I64Load32Sign(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I64),
-        I64Load32Unsign(_, align) => load_op!(self, cxt, align, 32, ValueTypes::I64),
+        I32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I32)?,
+        I64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::I64)?,
+        F32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::F32)?,
+        F64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::F64)?,
+        I32Load8Sign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I32)?,
+        I32Load8Unsign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I32)?,
+        I32Load16Sign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I32)?,
+        I32Load16Unsign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I32)?,
+        I64Load8Sign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I64)?,
+        I64Load8Unsign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I64)?,
+        I64Load16Sign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I64)?,
+        I64Load16Unsign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I64)?,
+        I64Load32Sign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
+        I64Load32Unsign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
 
-        I32Store(_, align) => load_op!(self, cxt, align, 32),
-        I64Store(_, align) => load_op!(self, cxt, align, 64),
-        F32Store(_, align) => load_op!(self, cxt, align, 32),
-        F64Store(_, align) => load_op!(self, cxt, align, 64),
-        I32Store8(_, align) => load_op!(self, cxt, align, 8),
-        I32Store16(_, align) => load_op!(self, cxt, align, 16),
-        I64Store8(_, align) => load_op!(self, cxt, align, 8),
-        I64Store16(_, align) => load_op!(self, cxt, align, 16),
-        I64Store32(_, align) => load_op!(self, cxt, align, 32),
+        I32Store(align, _) => self.validate_store(cxt, *align, 32)?,
+        I64Store(align, _) => self.validate_store(cxt, *align, 64)?,
+        F32Store(align, _) => self.validate_store(cxt, *align, 32)?,
+        F64Store(align, _) => self.validate_store(cxt, *align, 64)?,
+        I32Store8(align, _) => self.validate_store(cxt, *align, 8)?,
+        I32Store16(align, _) => self.validate_store(cxt, *align, 16)?,
+        I64Store8(align, _) => self.validate_store(cxt, *align, 8)?,
+        I64Store16(align, _) => self.validate_store(cxt, *align, 16)?,
+        I64Store32(align, _) => self.validate_store(cxt, *align, 32)?,
 
         MemorySize => {
           self.limits.first().ok_or(TypeError::TypeMismatch)?;
@@ -375,12 +517,12 @@ impl<'a> Context<'a> {
           cxt.push(ValueTypes::I32);
         }
 
-        I32CountLeadingZero => un_op!(cxt),
-        I32CountTrailingZero => un_op!(cxt),
-        I32CountNonZero => un_op!(cxt),
-        I64CountLeadingZero => un_op!(cxt),
-        I64CountTrailingZero => un_op!(cxt),
-        I64CountNonZero => un_op!(cxt),
+        I32CountLeadingZero => self.validate_unary(cxt)?,
+        I32CountTrailingZero => self.validate_unary(cxt)?,
+        I32CountNonZero => self.validate_unary(cxt)?,
+        I64CountLeadingZero => self.validate_unary(cxt)?,
+        I64CountTrailingZero => self.validate_unary(cxt)?,
+        I64CountNonZero => self.validate_unary(cxt)?,
 
         I32Add => bin_op!(cxt),
         I32Sub => bin_op!(cxt),
@@ -414,8 +556,8 @@ impl<'a> Context<'a> {
         I64RotateLeft => bin_op!(cxt),
         I64RotateRight => bin_op!(cxt),
 
-        I32EqualZero => test_op!(cxt),
-        I64EqualZero => test_op!(cxt),
+        I32EqualZero => self.validate_test_inst(cxt)?,
+        I64EqualZero => self.validate_test_inst(cxt)?,
 
         Equal => rel_op!(cxt),
         NotEqual => rel_op!(cxt),
@@ -453,13 +595,13 @@ impl<'a> Context<'a> {
         F64LessEqual => rel_op!(cxt),
         F64GreaterEqual => rel_op!(cxt),
 
-        F32Abs => un_op!(cxt),
-        F32Neg => un_op!(cxt),
-        F32Ceil => un_op!(cxt),
-        F32Floor => un_op!(cxt),
-        F32Trunc => un_op!(cxt),
-        F32Nearest => un_op!(cxt),
-        F32Sqrt => un_op!(cxt),
+        F32Abs => self.validate_unary(cxt)?,
+        F32Neg => self.validate_unary(cxt)?,
+        F32Ceil => self.validate_unary(cxt)?,
+        F32Floor => self.validate_unary(cxt)?,
+        F32Trunc => self.validate_unary(cxt)?,
+        F32Nearest => self.validate_unary(cxt)?,
+        F32Sqrt => self.validate_unary(cxt)?,
 
         F32Add => bin_op!(cxt),
         F32Sub => bin_op!(cxt),
@@ -469,13 +611,13 @@ impl<'a> Context<'a> {
         F32Max => bin_op!(cxt),
         F32Copysign => bin_op!(cxt),
 
-        F64Abs => un_op!(cxt),
-        F64Neg => un_op!(cxt),
-        F64Ceil => un_op!(cxt),
-        F64Floor => un_op!(cxt),
-        F64Trunc => un_op!(cxt),
-        F64Nearest => un_op!(cxt),
-        F64Sqrt => un_op!(cxt),
+        F64Abs => self.validate_unary(cxt)?,
+        F64Neg => self.validate_unary(cxt)?,
+        F64Ceil => self.validate_unary(cxt)?,
+        F64Floor => self.validate_unary(cxt)?,
+        F64Trunc => self.validate_unary(cxt)?,
+        F64Nearest => self.validate_unary(cxt)?,
+        F64Sqrt => self.validate_unary(cxt)?,
         F64Add => bin_op!(cxt),
         F64Sub => bin_op!(cxt),
         F64Mul => bin_op!(cxt),
@@ -496,36 +638,35 @@ impl<'a> Context<'a> {
 
         // To_convert_name_From
         // macro(cxt, from, to)
-        I32WrapI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::I32),
-        I32TruncSignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
-        I32TruncUnsignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
-        I32TruncSignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I32),
-        I32TruncUnsignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I32),
-        I64ExtendSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::I64),
-        I64ExtendUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::I64),
-        I64TruncSignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I64),
-        I64TruncUnsignF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I64),
-        I64TruncSignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
-        I64TruncUnsignF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
-        F32ConvertSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
-        F32ConvertUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
-        F32ConvertSignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F32),
-        F32ConvertUnsignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F32),
-        F32DemoteF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::F32),
-        F64ConvertSignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F64),
-        F64ConvertUnsignI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F64),
-        F64ConvertSignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
-        F64ConvertUnsignI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
-        F64PromoteF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::F64),
-        I32ReinterpretF32 => conv_op!(cxt, ValueTypes::F32, ValueTypes::I32),
-        I64ReinterpretF64 => conv_op!(cxt, ValueTypes::F64, ValueTypes::I64),
-        F32ReinterpretI32 => conv_op!(cxt, ValueTypes::I32, ValueTypes::F32),
-        F64ReinterpretI64 => conv_op!(cxt, ValueTypes::I64, ValueTypes::F64),
+        I32WrapI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::I32)?,
+        I32TruncSignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I32)?,
+        I32TruncUnsignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I32)?,
+        I32TruncSignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I32)?,
+        I32TruncUnsignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I32)?,
+        I64ExtendSignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::I64)?,
+        I64ExtendUnsignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::I64)?,
+        I64TruncSignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I64)?,
+        I64TruncUnsignF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I64)?,
+        I64TruncSignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I64)?,
+        I64TruncUnsignF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I64)?,
+        F32ConvertSignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
+        F32ConvertUnsignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
+        F32ConvertSignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F32)?,
+        F32ConvertUnsignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F32)?,
+        F32DemoteF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::F32)?,
+        F64ConvertSignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F64)?,
+        F64ConvertUnsignI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F64)?,
+        F64ConvertSignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
+        F64ConvertUnsignI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
+        F64PromoteF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::F64)?,
+        I32ReinterpretF32 => self.validate_convert(cxt, &TYPE_F32, ValueTypes::I32)?,
+        I64ReinterpretF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I64)?,
+        F32ReinterpretI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
+        F64ReinterpretI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
 
         RuntimeValue(_) => unimplemented!(),
       }
     }
-    // Ok([ValueTypes::Empty])
     Ok(())
   }
 
@@ -535,6 +676,9 @@ impl<'a> Context<'a> {
     // let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
     // let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;
     // let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
+    self.validate_exports()?;
+    self.validate_datas()?;
+    self.validate_elements()?;
     self.validate_function_types()?;
     self.validate_functions()?;
 
