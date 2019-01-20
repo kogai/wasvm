@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 use alloc::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;

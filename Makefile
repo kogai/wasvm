@@ -6,9 +6,10 @@ BENCH_DIR := life/bench/cases
 C_WASMS=$(CSRCS:.c=.wasm)
 WASMS=$(WASTS:.wast=.wasm)
 TEST_CASES=$(WASTS:.wast=.json)
+TARGET := thumbv7m-none-eabi
 
 all: $(C_WASMS) $(TEST_CASES)
-
+discovery: discovery/target/$(TARGET)/release/$(NAME)
 dist: $(C_WASMS)
 
 $(C_WASMS): $(CSRCS)
@@ -17,7 +18,9 @@ $(C_WASMS): $(CSRCS)
 	wasm2wat dist/$(shell basename $@) -o dist/$(shell basename $@ .wasm).wat
 	rm ./$(shell basename $@ .wasm).*
 
-new_dist: $(TEST_CASES)
+discovery/target/$(TARGET)/release/$(NAME): $(SRC)
+	cd discovery
+	cargo build --release --target=$(TARGET)
 
 $(TEST_CASES): $(WASTS)
 	# wast2json testsuite/$(shell basename $@ .json).wast -o dist/$(shell basename $@)
@@ -75,3 +78,6 @@ tmp/snappy_compress.wasm:
 install:
 	packer -S wabt --noconfirm
 	cargo install wasm-gc
+	sudo pacman -S \
+		arm-none-eabi-gdb \
+		qemu-arch-extra

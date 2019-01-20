@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{RefCell, RefMut};
