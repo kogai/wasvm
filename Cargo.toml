@@ -1,27 +1,11 @@
 [package]
 name = "wasvm"
-version = "0.2.1"
+version = "0.2.0"
 authors = ["Shinichi Kogai <kogai0121@gmail.com>"]
 
 [dependencies]
-cortex-m = "0.5.8"
-cortex-m-rt = "0.6.5"
-cortex-m-semihosting = "0.3.2"
-panic-halt = "0.2.0"
-
-# Uncomment for the panic example.
-# panic-itm = "0.4.0"
-
-# Uncomment for the allocator example.
-alloc-cortex-m = "0.3.5"
-
-# Uncomment for the device example.
-# [dependencies.stm32f30x]
-# features = ["rt"]
-# version = "0.7.1"
 
 [dependencies.hashbrown]
-# hashbrown = "0.1"
 version = "0.1"
 features = ["nightly"]
 
@@ -32,9 +16,3 @@ flame = "0.2.2"
 [[bin]]
 name = "main"
 path = "bin/main.rs"
-
-[profile.release]
-opt-level = 'z'  # Optimize for size.
-lto = true
-codegen-units = 1
-panic = 'abort'

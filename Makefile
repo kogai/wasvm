@@ -9,7 +9,7 @@ TEST_CASES=$(WASTS:.wast=.json)
 TARGET := thumbv7m-none-eabi
 
 all: $(C_WASMS) $(TEST_CASES)
-release: target/$(TARGET)/release/$(NAME)
+discovery: discovery/target/$(TARGET)/release/$(NAME)
 dist: $(C_WASMS)
 
 $(C_WASMS): $(CSRCS)
@@ -18,8 +18,9 @@ $(C_WASMS): $(CSRCS)
 	wasm2wat dist/$(shell basename $@) -o dist/$(shell basename $@ .wasm).wat
 	rm ./$(shell basename $@ .wasm).*
 
-target/$(TARGET)/release/$(NAME): $(SRC)
-	cargo build --bin main --release --target=$(TARGET)
+discovery/target/$(TARGET)/release/$(NAME): $(SRC)
+	cd discovery
+	cargo build --release --target=$(TARGET)
 
 $(TEST_CASES): $(WASTS)
 	# wast2json testsuite/$(shell basename $@ .json).wast -o dist/$(shell basename $@)
