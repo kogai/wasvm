@@ -19,7 +19,7 @@ $(C_WASMS): $(CSRCS)
 	rm ./$(shell basename $@ .wasm).*
 
 discovery/target/$(TARGET)/release/$(NAME): $(SRC)
-	cd discovery
+	cd discovery && \
 	cargo build --release --target=$(TARGET)
 
 $(TEST_CASES): $(WASTS)
@@ -77,7 +77,7 @@ tmp/snappy_compress.wasm:
 # Prefer to replace Docker container
 install:
 	packer -S wabt --noconfirm
-	cargo install wasm-gc
+	cargo install wasm-gc cargo-binutils cargo-bloat
 	sudo pacman -S \
 		arm-none-eabi-gdb \
 		qemu-arch-extra
