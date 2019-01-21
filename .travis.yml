@@ -6,10 +6,15 @@ rust:
 matrix:
   include:
     - env: TARGET=thumbv6m-none-eabi
+      if: (branch = master)
     - env: TARGET=thumbv7m-none-eabi
+      if: (branch = master)
     - env: TARGET=thumbv7em-none-eabi
+      if: (branch = master)
     - env: TARGET=thumbv7em-none-eabihf
+      if: (branch = master)
     - env: TARGET=thumbv8m.main-none-eabi
+      if: (branch = master)
     - env: TARGET=x86_64-unknown-linux-gnu
 
 notifications:
