@@ -1,11 +1,13 @@
 set -euxo pipefail
 
 main() {
-    cargo check --target $TARGET
 
     if [ $TARGET = x86_64-unknown-linux-gnu ]; then
         cargo clippy
         cargo test --target $TARGET
+    else 
+      cd discovery
+      cargo check --target $TARGET
     fi
 }
 
