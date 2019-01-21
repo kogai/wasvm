@@ -22,11 +22,9 @@ before_install:
   - ci/submodule.sh
 install:
   - ci/install.sh
-before_script:
   - rustup component add clippy-preview llvm-tools-preview
 script:
-  - cargo clippy
-  - cargo test
+  - ci/script.sh
 env:
   global:
     secure: >-
