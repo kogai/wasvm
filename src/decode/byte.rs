@@ -98,7 +98,10 @@ mod tests {
           .unwrap()
           .complete(&ExternalModules::default(), &mut store)
           .unwrap();
-        assert_eq!(store.get_function_instance(0).unwrap(), $fn_insts);
+        assert_eq!(
+          store.get_function_instance(&From::from(0u32)).unwrap(),
+          $fn_insts
+        );
       }
     };
   }
@@ -143,7 +146,12 @@ mod tests {
         vec![ValueTypes::I32],
       ),
       vec![],
-      vec![GetLocal(1), GetLocal(0), I32Add, End],
+      vec![
+        GetLocal(From::from(1u32)),
+        GetLocal(From::from(0u32)),
+        I32Add,
+        End
+      ],
     )
   );
   test_decode!(
@@ -153,7 +161,7 @@ mod tests {
       Some("_subject".to_owned()),
       FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![],
-      vec![I32Const(100), GetLocal(0), I32Sub, End],
+      vec![I32Const(100), GetLocal(From::from(0u32)), I32Sub, End],
     )
   );
   test_decode!(
@@ -166,7 +174,14 @@ mod tests {
         vec![ValueTypes::I32],
       ),
       vec![],
-      vec![GetLocal(0), I32Const(10), I32Add, GetLocal(1), I32Add, End],
+      vec![
+        GetLocal(From::from(0u32)),
+        I32Const(10),
+        I32Add,
+        GetLocal(From::from(1u32)),
+        I32Add,
+        End
+      ],
     )
   );
 
@@ -178,27 +193,27 @@ mod tests {
       FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![ValueTypes::I32],
       vec![
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(10),
         LessThanSign,
         If(6, 14),
         RuntimeValue(ValueTypes::I32),
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(10),
         I32Add,
         Else,
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(15),
         I32Add,
-        SetLocal(1),
-        GetLocal(0),
+        SetLocal(From::from(1u32)),
+        GetLocal(From::from(0u32)),
         I32Const(10),
         Equal,
         If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(15),
         Else,
-        GetLocal(1),
+        GetLocal(From::from(1u32)),
         End,
         End,
         End,
@@ -213,27 +228,27 @@ mod tests {
       FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![ValueTypes::I32],
       vec![
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(10),
         I32GreaterThanSign,
         If(6, 14),
         RuntimeValue(ValueTypes::I32),
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(10),
         I32Add,
         Else,
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(15),
         I32Add,
-        SetLocal(1),
-        GetLocal(0),
+        SetLocal(From::from(1u32)),
+        GetLocal(From::from(0u32)),
         I32Const(10),
         Equal,
         If(4, 2),
         RuntimeValue(ValueTypes::I32),
         I32Const(15),
         Else,
-        GetLocal(1),
+        GetLocal(From::from(1u32)),
         End,
         End,
         End,
@@ -248,7 +263,7 @@ mod tests {
       FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![],
       vec![
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(10),
         Equal,
         If(4, 2),
@@ -257,7 +272,7 @@ mod tests {
         Else,
         I32Const(10),
         End,
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Add,
         End,
       ],
@@ -271,7 +286,7 @@ mod tests {
       FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
       vec![ValueTypes::I32],
       vec![
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(0),
         I32LessEqualSign,
         If(5, 0),
@@ -279,19 +294,19 @@ mod tests {
         I32Const(0),
         Return,
         End,
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(-1),
         I32Add,
-        TeeLocal(1),
-        GetLocal(0),
+        TeeLocal(From::from(1u32)),
+        GetLocal(From::from(0u32)),
         I32Const(1),
         I32Add,
         I32Mul,
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Add,
-        GetLocal(1),
+        GetLocal(From::from(1u32)),
         I64ExtendUnsignI32,
-        GetLocal(0),
+        GetLocal(From::from(0u32)),
         I32Const(-2),
         I32Add,
         I64ExtendUnsignI32,

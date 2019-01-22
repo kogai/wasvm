@@ -8,7 +8,7 @@ use core::clone::Clone;
 use decode::{Element, TableType};
 use function::FunctionInstance;
 use global::GlobalInstances;
-use inst::Inst;
+use inst::{Indice, Inst};
 use memory::Limit;
 use trap::{Result, Trap};
 
@@ -39,7 +39,7 @@ impl TableInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -73,7 +73,7 @@ impl TableInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -125,9 +125,9 @@ impl TableInstances {
     }
   }
 
-  pub fn get_table_at(&self, idx: u32) -> Option<TableInstance> {
+  pub fn get_table_at(&self, idx: &Indice) -> Option<TableInstance> {
     let table_instances = self.0.borrow();
-    table_instances.get(idx as usize).cloned()
+    table_instances.get(idx.to_usize()).cloned()
   }
 
   pub fn link(
@@ -143,7 +143,7 @@ impl TableInstances {
     for el in elements.iter() {
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => *offset,
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -171,7 +171,7 @@ impl TableInstances {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
         x => unreachable!("Expected offset value of table, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);

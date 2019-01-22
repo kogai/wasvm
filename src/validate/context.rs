@@ -186,7 +186,7 @@ impl<'a> Context<'a> {
         Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
         Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
         Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
-        Inst::GetGlobal(idx) => match self.globals.get(*idx as usize) {
+        Inst::GetGlobal(idx) => match self.globals.get(idx.to_usize()) {
           Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
             type_stack.push(ty.clone())
           }
@@ -224,8 +224,8 @@ impl<'a> Context<'a> {
       init,
     } in self.elements.iter()
     {
-      if self.tables.get(*table_idx as usize).is_none() {
-        return Err(TypeError::UnknownTable(*table_idx));
+      if self.tables.get(table_idx.to_usize()).is_none() {
+        return Err(TypeError::UnknownTable(table_idx.to_u32()));
       }
       if ValueTypes::I32 != self.validate_constant(offset)? {
         return Err(TypeError::TypeMismatch);
@@ -233,8 +233,8 @@ impl<'a> Context<'a> {
       for i in init.iter() {
         self
           .functions
-          .get(*i as usize)
-          .ok_or_else(|| TypeError::UnknownFunction(*i))?;
+          .get(i.to_usize())
+          .ok_or_else(|| TypeError::UnknownFunction(i.to_u32()))?;
       }
     }
     Ok(())
@@ -281,26 +281,26 @@ impl<'a> Context<'a> {
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
           self
             .functions
-            .get(*x as usize)
-            .ok_or_else(|| TypeError::UnknownFunction(*x))?;
+            .get(x.to_usize())
+            .ok_or_else(|| TypeError::UnknownFunction(x.to_u32()))?;
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
           self
             .tables
-            .get(*x as usize)
-            .ok_or_else(|| TypeError::UnknownTable(*x))?;
+            .get(x.to_usize())
+            .ok_or_else(|| TypeError::UnknownTable(x.to_u32()))?;
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
           self
             .limits
-            .get(*x as usize)
+            .get(x.to_usize())
             .ok_or_else(|| TypeError::UnknownMemory)?;
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
           self
             .globals
-            .get(*x as usize)
-            .ok_or_else(|| TypeError::UnknownGlobal(*x))?;
+            .get(x.to_usize())
+            .ok_or_else(|| TypeError::UnknownGlobal(x.to_u32()))?;
         }
         _ => unreachable!(),
       };
@@ -321,8 +321,8 @@ impl<'a> Context<'a> {
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Function(x)) => {
           self
             .function_types
-            .get(*x as usize)
-            .ok_or_else(|| TypeError::UnknownFunction(*x))?;
+            .get(x.to_usize())
+            .ok_or_else(|| TypeError::UnknownFunction(x.to_u32()))?;
         }
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(ty)) => {
           if !self.tables.is_empty() {
@@ -536,14 +536,14 @@ impl<'a> Context<'a> {
         }
 
         Br(idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
+          let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
         BrIf(idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
+          let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           cxt.pop_i32()?;
           if expect != actual {
@@ -551,9 +551,9 @@ impl<'a> Context<'a> {
           }
         }
         BrTable(indices, idx) => {
-          let expect = labels.get(*idx as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
+          let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           for i in indices.iter() {
-            let actual = labels.get(*i as usize).ok_or(TypeError::UnknownLabel)?[0].clone();
+            let actual = labels.get(i.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
             if expect != actual {
               return Err(TypeError::TypeMismatch);
             }
@@ -612,19 +612,19 @@ impl<'a> Context<'a> {
         F64Const(_) => cxt.push(ValueTypes::F64),
 
         GetLocal(idx) => {
-          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
+          let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           cxt.push(actual.clone());
         }
         SetLocal(idx) => {
           let expect = cxt.pop_type()?;
-          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
+          let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
         TeeLocal(idx) => {
           let expect = cxt.pop_type()?;
-          let actual = locals.get(*idx as usize).ok_or(TypeError::UnknownLocal)?;
+          let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
           }
@@ -634,8 +634,8 @@ impl<'a> Context<'a> {
         GetGlobal(idx) => {
           let ty = self
             .globals
-            .get(*idx as usize)
-            .ok_or_else(|| TypeError::UnknownGlobal(*idx))
+            .get(idx.to_usize())
+            .ok_or_else(|| TypeError::UnknownGlobal(idx.to_u32()))
             .map(|(global_type, _)| match global_type {
               GlobalType::Const(ty) | GlobalType::Var(ty) => ty,
             })?;
@@ -645,8 +645,8 @@ impl<'a> Context<'a> {
           let expect = cxt.pop_type()?;
           let ty = self
             .globals
-            .get(*idx as usize)
-            .ok_or_else(|| TypeError::UnknownGlobal(*idx))
+            .get(idx.to_usize())
+            .ok_or_else(|| TypeError::UnknownGlobal(idx.to_u32()))
             .and_then(|(global_type, _)| match global_type {
               GlobalType::Var(ty) => Ok(ty),
               GlobalType::Const(_) => Err(TypeError::GlobalIsImmutable),

@@ -18,7 +18,7 @@ use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
 pub enum ImportDescriptor {
-  Function(u32), // NOTE: Index of FunctionTypes
+  Function(Indice), // NOTE: Index of FunctionTypes
   Table(TableType),
   Memory(Limit),
   Global(GlobalType),
@@ -26,20 +26,20 @@ pub enum ImportDescriptor {
 
 #[derive(Debug, Clone)]
 pub enum ExportDescriptor {
-  Function(u32), // FIXME: Use Indice type.
-  Table(u32),
-  Memory(u32),
-  Global(u32),
+  Function(Indice), // FIXME: Use Indice type.
+  Table(Indice),
+  Memory(Indice),
+  Global(Indice),
 }
 
 impl From<(Option<u8>, u32)> for ExportDescriptor {
   fn from(codes: (Option<u8>, u32)) -> Self {
     use self::ExportDescriptor::*;
     match codes.0 {
-      Some(0x00) => Function(codes.1),
-      Some(0x01) => Table(codes.1),
-      Some(0x02) => Memory(codes.1),
-      Some(0x03) => Global(codes.1),
+      Some(0x00) => Function(From::from(codes.1)),
+      Some(0x01) => Table(From::from(codes.1)),
+      Some(0x02) => Memory(From::from(codes.1)),
+      Some(0x03) => Global(From::from(codes.1)),
       x => unreachable!("Expected exports descriptor, got {:?}", x),
     }
   }
@@ -119,16 +119,16 @@ impl ExternalInterfaces {
       .iter()
       .find(|ExternalInterface { descriptor, .. }| match descriptor {
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Function(x)) => {
-          &FUNCTION_DESCRIPTOR == kind && *x == idx
+          &FUNCTION_DESCRIPTOR == kind && x.to_u32() == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Table(x)) => {
-          &TABLE_DESCRIPTOR == kind && *x == idx
+          &TABLE_DESCRIPTOR == kind && x.to_u32() == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Memory(x)) => {
-          &MEMORY_DESCRIPTOR == kind && *x == idx
+          &MEMORY_DESCRIPTOR == kind && x.to_u32() == idx
         }
         ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(x)) => {
-          &GLOBAL_DESCRIPTOR == kind && *x == idx
+          &GLOBAL_DESCRIPTOR == kind && x.to_u32() == idx
         }
         _ => unreachable!(),
       })
@@ -234,7 +234,7 @@ impl ExternalModule {
         name,
         module_name,
       } => {
-        let expected_type = function_types.get(*idx as usize)?;
+        let expected_type = function_types.get(idx.to_usize())?;
         let instance = self
           .function_instances
           .iter()
@@ -318,7 +318,11 @@ impl ExternalModules {
     self.0.borrow_mut().insert(key, value);
   }
 
-  pub fn get_table_instance(&self, module_name: &ModuleName, idx: u32) -> Result<TableInstance> {
+  pub fn get_table_instance(
+    &self,
+    module_name: &ModuleName,
+    idx: &Indice,
+  ) -> Result<TableInstance> {
     self
       .0
       .borrow()

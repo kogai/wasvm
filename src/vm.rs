@@ -105,6 +105,7 @@ macro_rules! impl_binary_inst {
     }};
 }
 
+// FIXME: Define as methods.
 macro_rules! impl_try_binary_inst {
     ($self: ident, $op: ident) => {{
         let right = $self.stack.pop_value_ext();
@@ -157,43 +158,43 @@ impl Vm {
     }
 
     pub fn get_function_instance(&self, idx: &Indice) -> Option<FunctionInstance> {
-        self.store.get_function_instance(idx.to_usize())
+        self.store.get_function_instance(idx)
     }
 
     pub fn export_module(&self) -> ExternalModule {
         ExternalModule::from(&self.store)
     }
 
-    fn get_local(&mut self, idx: u32) -> Result<()> {
+    fn get_local(&mut self, idx: &Indice) -> Result<()> {
         let frame_ptr = self.stack.get_frame_ptr();
-        let index = (idx as usize) + frame_ptr;
+        let index = idx.to_usize() + frame_ptr;
         let value = self.stack.get(index)?;
         self.stack.push(value)?;
         Ok(())
     }
 
-    fn set_local(&mut self, idx: u32) -> Result<()> {
+    fn set_local(&mut self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        self.stack.set(idx.to_usize() + frame_ptr, value)?;
         Ok(())
     }
 
-    fn tee_local(&mut self, idx: u32) -> Result<()> {
+    fn tee_local(&mut self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         self.stack.push(value.clone())?;
         let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        self.stack.set(idx.to_usize() + frame_ptr, value)?;
         Ok(())
     }
 
-    fn get_global(&mut self, idx: u32) -> Result<()> {
+    fn get_global(&mut self, idx: &Indice) -> Result<()> {
         let value = self.store.get_global(idx)?;
         self.stack.push(StackEntry::new_value(value))?;
         Ok(())
     }
 
-    fn set_global(&mut self, idx: u32) -> Result<()> {
+    fn set_global(&mut self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop_value_ext();
         self.store.set_global(idx, value);
         Ok(())
@@ -294,13 +295,13 @@ impl Vm {
                     }
                 }
                 Br(label) => {
-                    let continuation = self.stack.jump_to_label(*label)?;
+                    let continuation = self.stack.jump_to_label(label)?;
                     frame.jump_to(continuation);
                 }
                 BrIf(l) => {
                     let cond = &self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        let continuation = self.stack.jump_to_label(*l)?;
+                        let continuation = self.stack.jump_to_label(l)?;
                         frame.jump_to(continuation);
                     };
                 }
@@ -311,7 +312,7 @@ impl Vm {
                     } else {
                         idx
                     };
-                    let continuation = self.stack.jump_to_label(*l)?;
+                    let continuation = self.stack.jump_to_label(l)?;
                     frame.jump_to(continuation);
                 }
                 Call(idx) => {
@@ -321,7 +322,7 @@ impl Vm {
                             // FIXME: Drop owning of name to search something.
                             .get_function_instance(&Some(module_name.to_owned()), idx.to_usize())
                             .map(|x| x.clone())?,
-                        None => self.store.get_function_instance(idx.to_usize())?,
+                        None => self.store.get_function_instance(idx)?,
                     };
                     let arity = function_instance.get_arity();
                     let mut arguments = vec![];
@@ -343,8 +344,8 @@ impl Vm {
                     let table = match &source_of_frame {
                         Some(module_name) => self
                             .external_modules
-                            .get_table_instance(&Some(module_name.to_owned()), ta)?,
-                        None => self.store.get_table_at(ta)?,
+                            .get_table_instance(&Some(module_name.to_owned()), &ta)?,
+                        None => self.store.get_table_at(&ta)?,
                     };
                     let i = self.stack.pop_value_ext_i32();
                     if i > table.len() as i32 {
@@ -357,7 +358,7 @@ impl Vm {
                             Some(module_name) => self
                                 .external_modules
                                 .get_function_type(&Some(module_name.to_owned()), idx.to_u32())?,
-                            None => self.store.get_function_type(idx.to_u32())?.clone(),
+                            None => self.store.get_function_type(idx)?.clone(),
                         };
                         if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
@@ -377,11 +378,11 @@ impl Vm {
                     self.stack.push_frame(frame)?;
                     break;
                 }
-                GetLocal(idx) => self.get_local(*idx)?,
-                SetLocal(idx) => self.set_local(*idx)?,
-                TeeLocal(idx) => self.tee_local(*idx)?,
-                GetGlobal(idx) => self.get_global(*idx)?,
-                SetGlobal(idx) => self.set_global(*idx)?,
+                GetLocal(idx) => self.get_local(idx)?,
+                SetLocal(idx) => self.set_local(idx)?,
+                TeeLocal(idx) => self.tee_local(idx)?,
+                GetGlobal(idx) => self.get_global(idx)?,
+                SetGlobal(idx) => self.set_global(idx)?,
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
                 F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,
@@ -616,6 +617,7 @@ impl Vm {
         match self
             .internal_module
             .get_export_by_key(invoke)
+            // FIXME: Remove to owning.
             .map(|x| x.to_owned())
         {
             Some(ExternalInterface {
@@ -626,7 +628,7 @@ impl Vm {
                 while let Some(argument) = arguments.pop() {
                     argument_entries.push(StackEntry::new_value(argument));
                 }
-                let function_instance = self.store.get_function_instance(idx as usize).unwrap();
+                let function_instance = self.store.get_function_instance(&idx).unwrap();
                 let frame = Frame::new(
                     self.stack.stack_ptr,
                     self.stack.frame_ptr,
@@ -645,7 +647,7 @@ impl Vm {
             Some(ExternalInterface {
                 descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(idx)),
                 ..
-            }) => match self.store.get_global(idx) {
+            }) => match self.store.get_global(&idx) {
                 Ok(v) => String::from(v),
                 Err(_) => "".to_owned(),
             },

@@ -5,6 +5,7 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
 use frame::Frame;
+use inst::Indice;
 use label::{Label, LabelKind};
 use trap::{Result, Trap};
 use value::Values;
@@ -256,10 +257,10 @@ impl Stack {
     Ok(entry_buffer)
   }
 
-  pub fn jump_to_label(&mut self, depth_of_label: u32) -> Result<u32> /* point to continue */ {
+  pub fn jump_to_label(&mut self, depth_of_label: &Indice) -> Result<u32> /* point to continue */ {
     let mut buf_values = vec![];
     let mut label = None;
-    for _ in 0..=depth_of_label {
+    for _ in 0..=depth_of_label.to_u32() {
       let mut bufs = self.pop_until_label()?;
       buf_values.append(&mut bufs);
       label = Some(self.pop_label_ext());
