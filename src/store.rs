@@ -48,7 +48,7 @@ impl Store {
       .map(|x| x.get_function_type())
   }
 
-  pub fn get_global(&mut self, idx: &Indice) -> Result<Values> {
+  pub fn get_global(&self, idx: &Indice) -> Result<Values> {
     self.global_instances.get_global(idx)
   }
 

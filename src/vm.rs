@@ -19,7 +19,7 @@ use value_type::ValueTypes;
 
 macro_rules! impl_load_inst {
     ($fn_name: ident, $load_fn: ident, $ty: ty) => {
-        fn $fn_name(&mut self, offset: u32, load_data_width: u32, source_of_frame: &ModuleName) -> Result<$ty> {
+        fn $fn_name(&self, offset: u32, load_data_width: u32, source_of_frame: &ModuleName) -> Result<$ty> {
             let memory_instances = self.get_memory_instances(source_of_frame)?;
             let width = load_data_width / 8;
             let i = self.stack.pop_value_ext_i32() as u32;
@@ -57,7 +57,7 @@ macro_rules! impl_load_to {
 
 macro_rules! impl_unary_inst {
     ($op: ident) => {
-        fn $op(&mut self) -> Result<()> {
+        fn $op(&self) -> Result<()> {
             let popped = self.stack.pop_value_ext();
             let value = popped.$op();
             self.stack.push(StackEntry::new_value(value))?;
@@ -68,7 +68,7 @@ macro_rules! impl_unary_inst {
 
 macro_rules! impl_try_unary_inst {
     ($op: ident) => {
-        fn $op(&mut self) -> Result<()> {
+        fn $op(&self) -> Result<()> {
             let popped = self.stack.pop_value_ext();
             let value = popped.$op();
             match value {
@@ -86,7 +86,7 @@ macro_rules! impl_try_unary_inst {
 
 macro_rules! impl_binary_inst {
     ($op: ident) => {
-        fn $op(&mut self) -> Result<()> {
+        fn $op(&self) -> Result<()> {
             let right = self.stack.pop_value_ext();
             let left = self.stack.pop_value_ext();
             let value = left.$op(&right);
@@ -98,7 +98,7 @@ macro_rules! impl_binary_inst {
 
 macro_rules! impl_try_binary_inst {
     ($op: ident) => {
-        fn $op(&mut self) -> Result<()> {
+        fn $op(&self) -> Result<()> {
             let right = self.stack.pop_value_ext();
             let left = self.stack.pop_value_ext();
             let value = left.$op(&right);
@@ -198,7 +198,7 @@ impl Vm {
     impl_try_binary_inst!(rem_s);
     impl_try_binary_inst!(rem_u);
 
-    fn store(&mut self, data_width: u32, offset: u32, source_of_frame: &ModuleName) -> Result<()> {
+    fn store(&self, data_width: u32, offset: u32, source_of_frame: &ModuleName) -> Result<()> {
         let memory_instances = self.get_memory_instances(source_of_frame)?;
         let c = self.stack.pop_value_ext();
         let width = data_width / 8;
@@ -240,30 +240,30 @@ impl Vm {
         ExternalModule::from(&self.store)
     }
 
-    fn get_local(&mut self, idx: &Indice) -> Result<()> {
-        let frame_ptr = self.stack.get_frame_ptr();
+    fn get_local(&self, idx: &Indice) -> Result<()> {
+        let frame_ptr = self.stack.frame_ptr();
         let index = idx.to_usize() + frame_ptr;
         let value = self.stack.get(index)?;
         self.stack.push(value)?;
         Ok(())
     }
 
-    fn set_local(&mut self, idx: &Indice) -> Result<()> {
+    fn set_local(&self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
-        let frame_ptr = self.stack.get_frame_ptr();
+        let frame_ptr = self.stack.frame_ptr();
         self.stack.set(idx.to_usize() + frame_ptr, value)?;
         Ok(())
     }
 
-    fn tee_local(&mut self, idx: &Indice) -> Result<()> {
+    fn tee_local(&self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         self.stack.push(value.clone())?;
-        let frame_ptr = self.stack.get_frame_ptr();
+        let frame_ptr = self.stack.frame_ptr();
         self.stack.set(idx.to_usize() + frame_ptr, value)?;
         Ok(())
     }
 
-    fn get_global(&mut self, idx: &Indice) -> Result<()> {
+    fn get_global(&self, idx: &Indice) -> Result<()> {
         let value = self.store.get_global(idx)?;
         self.stack.push(StackEntry::new_value(value))?;
         Ok(())
@@ -405,8 +405,8 @@ impl Vm {
                         arguments.push(self.stack.pop()?);
                     }
                     let frame = Frame::new(
-                        self.stack.stack_ptr,
-                        self.stack.frame_ptr,
+                        self.stack.stack_ptr(),
+                        self.stack.frame_ptr(),
                         function_instance,
                         &mut arguments,
                     );
@@ -445,8 +445,8 @@ impl Vm {
                         arg
                     };
                     let frame = Frame::new(
-                        self.stack.stack_ptr,
-                        self.stack.frame_ptr,
+                        self.stack.stack_ptr(),
+                        self.stack.frame_ptr(),
                         function_instance,
                         &mut arguments,
                     );
@@ -656,7 +656,7 @@ impl Vm {
                     .first()
                     .map_or(ValueTypes::Empty, |x| x.to_owned());
                 let label = StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
-                self.stack.frame_ptr = frame.return_ptr;
+                self.stack.frame_ptr.set(frame.return_ptr);
                 self.stack.push_entries(&mut frame.get_local_variables())?;
                 self.stack.push(label)?;
             }
@@ -695,8 +695,8 @@ impl Vm {
                 }
                 let function_instance = self.store.get_function_instance(&idx).unwrap();
                 let frame = Frame::new(
-                    self.stack.stack_ptr,
-                    self.stack.frame_ptr,
+                    self.stack.stack_ptr(),
+                    self.stack.frame_ptr(),
                     function_instance,
                     &mut argument_entries,
                 );
