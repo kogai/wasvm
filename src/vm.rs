@@ -55,24 +55,6 @@ macro_rules! impl_load_to {
     };
 }
 
-macro_rules! impl_store_inst {
-    ($data_width: expr, $self: ident, $offset: ident, $source_of_frame: expr) => {{
-        let mut memory_instances = $self.get_memory_instances($source_of_frame)?;
-        let c = $self.stack.pop_value_ext();
-        let width = $data_width / 8;
-        let i = $self.stack.pop_value_ext_i32() as u32;
-        let (effective_address, overflowed) = i.overflowing_add(*$offset);
-        if overflowed {
-            return Err(Trap::MemoryAccessOutOfBounds);
-        };
-        let (ptr, overflowed) = effective_address.overflowing_add(width);
-        if overflowed || memory_instances.data_size_small_than(ptr) {
-            return Err(Trap::MemoryAccessOutOfBounds);
-        };
-        memory_instances.store_data(effective_address, ptr, &c);
-    }};
-}
-
 macro_rules! impl_unary_inst {
     ($op: ident) => {
         fn $op(&mut self) -> Result<()> {
@@ -215,6 +197,23 @@ impl Vm {
     impl_try_binary_inst!(div_s);
     impl_try_binary_inst!(rem_s);
     impl_try_binary_inst!(rem_u);
+
+    fn store(&mut self, data_width: u32, offset: u32, source_of_frame: &ModuleName) -> Result<()> {
+        let memory_instances = self.get_memory_instances(source_of_frame)?;
+        let c = self.stack.pop_value_ext();
+        let width = data_width / 8;
+        let i = self.stack.pop_value_ext_i32() as u32;
+        let (effective_address, overflowed) = i.overflowing_add(offset);
+        if overflowed {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        let (ptr, overflowed) = effective_address.overflowing_add(width);
+        if overflowed || memory_instances.data_size_small_than(ptr) {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        memory_instances.store_data(effective_address, ptr, &c);
+        Ok(())
+    }
 
     pub fn start_index(&self) -> &Option<Indice> {
         &self.internal_module.start
@@ -590,15 +589,15 @@ impl Vm {
                         .push(StackEntry::new_value(Values::F64(value as f64)))?;
                 }
 
-                I32Store(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
-                F32Store(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
-                I64Store(_, offset) => impl_store_inst!(64, self, offset, &source_of_frame),
-                F64Store(_, offset) => impl_store_inst!(64, self, offset, &source_of_frame),
-                I32Store8(_, offset) => impl_store_inst!(8, self, offset, &source_of_frame),
-                I32Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
-                I64Store8(_, offset) => impl_store_inst!(8, self, offset, &source_of_frame),
-                I64Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
-                I64Store32(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
+                I32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
+                F32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
+                I64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
+                F64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
+                I32Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
+                I32Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
+                I64Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
+                I64Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
+                I64Store32(_, offset) => self.store(32, *offset, &source_of_frame)?,
 
                 MemorySize => {
                     let memory_instances = self.get_memory_instances(&source_of_frame)?;
