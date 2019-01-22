@@ -97,12 +97,15 @@ macro_rules! impl_try_unary_inst {
 }
 
 macro_rules! impl_binary_inst {
-    ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value_ext();
-        let left = $self.stack.pop_value_ext();
-        let value = left.$op(&right);
-        $self.stack.push(StackEntry::new_value(value))?;
-    }};
+    ($op: ident) => {
+        fn $op(&mut self) -> Result<()> {
+            let right = self.stack.pop_value_ext();
+            let left = self.stack.pop_value_ext();
+            let value = left.$op(&right);
+            self.stack.push(StackEntry::new_value(value))?;
+            Ok(())
+        }
+    };
 }
 
 macro_rules! impl_try_binary_inst {
@@ -146,6 +149,33 @@ impl Vm {
     impl_try_binary_inst!(div_s);
     impl_try_binary_inst!(rem_s);
     impl_try_binary_inst!(rem_u);
+
+    impl_binary_inst!(add);
+    impl_binary_inst!(sub);
+    impl_binary_inst!(mul);
+    impl_binary_inst!(div_f);
+    impl_binary_inst!(min);
+    impl_binary_inst!(max);
+
+    impl_binary_inst!(less_than);
+    impl_binary_inst!(less_than_unsign);
+    impl_binary_inst!(less_than_equal);
+    impl_binary_inst!(less_than_equal_unsign);
+    impl_binary_inst!(greater_than);
+    impl_binary_inst!(greater_than_equal);
+    impl_binary_inst!(greater_than_unsign);
+    impl_binary_inst!(greater_than_equal_unsign);
+    impl_binary_inst!(equal);
+    impl_binary_inst!(not_equal);
+    impl_binary_inst!(or);
+    impl_binary_inst!(xor);
+    impl_binary_inst!(and);
+    impl_binary_inst!(shift_left);
+    impl_binary_inst!(shift_right_sign);
+    impl_binary_inst!(shift_right_unsign);
+    impl_binary_inst!(wasm_rotate_left);
+    impl_binary_inst!(wasm_rotate_right);
+    impl_binary_inst!(copy_sign);
 
     pub fn start_index(&self) -> &Option<Indice> {
         &self.internal_module.start
@@ -394,23 +424,53 @@ impl Vm {
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
                 F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,
                 F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n)))?,
-                I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
-                I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
-                I32Mul | I64Mul | F32Mul | F64Mul => impl_binary_inst!(self, mul),
 
                 I32DivUnsign | I64DivUnsign => self.div_u()?,
                 I32DivSign | I64DivSign => self.div_s()?,
                 I32RemSign | I64RemSign => self.rem_s()?,
                 I32RemUnsign | I64RemUnsign => self.rem_u()?,
 
-                F32Div | F64Div => impl_binary_inst!(self, div_f),
-                F32Min | F64Min => impl_binary_inst!(self, min),
-                F32Max | F64Max => impl_binary_inst!(self, max),
                 F32Sqrt | F64Sqrt => impl_unary_inst!(self, sqrt),
                 F32Ceil | F64Ceil => impl_unary_inst!(self, ceil),
                 F32Floor | F64Floor => impl_unary_inst!(self, floor),
                 F32Trunc | F64Trunc => impl_unary_inst!(self, trunc),
                 F32Nearest | F64Nearest => impl_unary_inst!(self, nearest),
+
+                I32Add | I64Add | F32Add | F64Add => self.add()?,
+                I32Sub | I64Sub | F32Sub | F64Sub => self.sub()?,
+                I32Mul | I64Mul | F32Mul | F64Mul => self.mul()?,
+                F32Div | F64Div => self.div_f()?,
+                F32Min | F64Min => self.min()?,
+                F32Max | F64Max => self.max()?,
+
+                LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => self.less_than()?,
+                LessThanUnsign | I64LessThanUnSign => self.less_than_unsign()?,
+                I32LessEqualSign | I64LessEqualSign | F32LessEqual | F64LessEqual => {
+                    self.less_than_equal()?
+                }
+                I32LessEqualUnsign | I64LessEqualUnSign => self.less_than_equal_unsign()?,
+                I32GreaterEqualSign | I64GreaterEqualSign | F64GreaterEqual | F32GreaterEqual => {
+                    self.greater_than_equal()?
+                }
+                I32GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
+                    self.greater_than()?
+                }
+                I32GreaterThanUnsign | I64GreaterThanUnSign => self.greater_than_unsign()?,
+                I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
+                    self.greater_than_equal_unsign()?
+                }
+                Equal | I64Equal | F32Equal | F64Equal => self.equal()?,
+                NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => self.not_equal()?,
+                I32Or | I64Or => self.or()?,
+                I32Xor | I64Xor => self.xor()?,
+                I32And | I64And => self.and()?,
+                I32ShiftLeft | I64ShiftLeft => self.shift_left()?,
+                I32ShiftRIghtSign | I64ShiftRightSign => self.shift_right_sign()?,
+                I32ShiftRightUnsign | I64ShiftRightUnsign => self.shift_right_unsign()?,
+                I32RotateLeft | I64RotateLeft => self.wasm_rotate_left()?,
+                I32RotateRight | I64RotateRight => self.wasm_rotate_right()?,
+                F32Copysign | F64Copysign => self.copy_sign()?,
+
                 Select => {
                     let cond = &self.stack.pop_value_ext();
                     let false_br = self.stack.pop_value_ext();
@@ -424,40 +484,6 @@ impl Vm {
                 DropInst => {
                     self.stack.pop_value_ext();
                 }
-                LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => {
-                    impl_binary_inst!(self, less_than)
-                }
-                LessThanUnsign | I64LessThanUnSign => impl_binary_inst!(self, less_than_unsign),
-                I32LessEqualSign | I64LessEqualSign | F32LessEqual | F64LessEqual => {
-                    impl_binary_inst!(self, less_than_equal)
-                }
-                I32LessEqualUnsign | I64LessEqualUnSign => {
-                    impl_binary_inst!(self, less_than_equal_unsign)
-                }
-                I32GreaterEqualSign | I64GreaterEqualSign | F64GreaterEqual | F32GreaterEqual => {
-                    impl_binary_inst!(self, greater_than_equal)
-                }
-                I32GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
-                    impl_binary_inst!(self, greater_than)
-                }
-                I32GreaterThanUnsign | I64GreaterThanUnSign => {
-                    impl_binary_inst!(self, greater_than_unsign)
-                }
-                I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
-                    impl_binary_inst!(self, greater_than_equal_unsign)
-                }
-                Equal | I64Equal | F32Equal | F64Equal => impl_binary_inst!(self, equal),
-                NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => {
-                    impl_binary_inst!(self, not_equal)
-                }
-                I32Or | I64Or => impl_binary_inst!(self, or),
-                I32Xor | I64Xor => impl_binary_inst!(self, xor),
-                I32And | I64And => impl_binary_inst!(self, and),
-                I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
-                I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
-                I32ShiftRightUnsign | I64ShiftRightUnsign => {
-                    impl_binary_inst!(self, shift_right_unsign)
-                }
                 I32WrapI64 => {
                     let i = &self.stack.pop_value_ext();
                     match i {
@@ -469,8 +495,6 @@ impl Vm {
                         x => unreachable!("Expected i64 value, got {:?}", x),
                     }
                 }
-                I32RotateLeft | I64RotateLeft => impl_binary_inst!(self, wasm_rotate_left),
-                I32RotateRight | I64RotateRight => impl_binary_inst!(self, wasm_rotate_right),
                 I32CountLeadingZero | I64CountLeadingZero => {
                     impl_unary_inst!(self, count_leading_zero)
                 }
@@ -536,7 +560,6 @@ impl Vm {
                 I64Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
                 I64Store32(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
 
-                F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
                 F32Abs | F64Abs => impl_unary_inst!(self, abs),
                 F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 MemorySize => {
