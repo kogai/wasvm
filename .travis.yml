@@ -2,10 +2,19 @@ language: rust
 cache: cargo
 rust:
   - nightly-2018-11-23
+
 matrix:
   include:
-    - os: linux
-    # - os: osx
+    - env: TARGET=thumbv6m-none-eabi
+      if: (type = push AND branch = master)
+    - env: TARGET=thumbv7m-none-eabi
+      if: (type = push AND branch = master)
+    - env: TARGET=thumbv7em-none-eabi
+      if: (type = push AND branch = master)
+    - env: TARGET=thumbv7em-none-eabihf
+      if: (type = push AND branch = master)
+    - env: TARGET=x86_64-unknown-linux-gnu
+
 notifications:
   email:
     on_success: change
@@ -13,14 +22,12 @@ notifications:
 git:
   submodules: false
 before_install:
-  - ./submodule.sh
-before_script:
-  - rustup target add thumbv6m-none-eabi thumbv7m-none-eabi thumbv7em-none-eabi thumbv7em-none-eabihf
+  - ci/submodule.sh
+install:
+  - ci/install.sh
   - rustup component add clippy-preview llvm-tools-preview
-  - cargo install --force cargo-binutils
 script:
-  - cargo clippy
-  - cargo test
+  - ci/script.sh
 env:
   global:
     secure: >-

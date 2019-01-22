@@ -36,13 +36,14 @@ fn main() -> ! {
         0x63, 0x65, 0x00, 0x74, 0x0a, 0x00, 0x01, 0x09, 0x00, 0x07, 0x01, 0x20, 0x00, 0x20, 0x0b,
         0x6a,
     ];
-    let store = init_store();
-    let section = decode_module(&bytes);
-    let external_modules = ExternalModules::default();
-    let mut vm = instantiate_module(store, section, external_modules).unwrap();
-    vm.run("_subject", [Values::I32(10), Values::I32(20)].to_vec());
 
-    loop {}
+    loop {
+        let store = init_store();
+        let section = decode_module(&bytes);
+        let external_modules = ExternalModules::default();
+        let mut vm = instantiate_module(store, section, external_modules).unwrap();
+        vm.run("_subject", [Values::I32(10), Values::I32(20)].to_vec());
+    }
 }
 
 #[alloc_error_handler]
