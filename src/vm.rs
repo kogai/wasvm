@@ -74,26 +74,32 @@ macro_rules! impl_store_inst {
 }
 
 macro_rules! impl_unary_inst {
-    ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value_ext();
-        let value = popped.$op();
-        $self.stack.push(StackEntry::new_value(value))?;
-    }};
+    ($op: ident) => {
+        fn $op(&mut self) -> Result<()> {
+            let popped = self.stack.pop_value_ext();
+            let value = popped.$op();
+            self.stack.push(StackEntry::new_value(value))?;
+            Ok(())
+        }
+    };
 }
 
 macro_rules! impl_try_unary_inst {
-    ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value_ext();
-        let value = popped.$op();
-        match value {
-            Ok(result) => {
-                $self.stack.push(StackEntry::new_value(result))?;
-            }
-            Err(trap) => {
-                return Err(trap);
+    ($op: ident) => {
+        fn $op(&mut self) -> Result<()> {
+            let popped = self.stack.pop_value_ext();
+            let value = popped.$op();
+            match value {
+                Ok(result) => {
+                    self.stack.push(StackEntry::new_value(result))?;
+                    Ok(())
+                }
+                Err(trap) => {
+                    Err(trap)
+                }
             }
         }
-    }};
+    };
 }
 
 macro_rules! impl_binary_inst {
@@ -145,10 +151,39 @@ impl Vm {
     impl_load_to!(load_data_to_i32, load_data_32, Values::I32, i32);
     impl_load_to!(load_data_to_i64, load_data_64, Values::I64, i64);
 
-    impl_try_binary_inst!(div_u);
-    impl_try_binary_inst!(div_s);
-    impl_try_binary_inst!(rem_s);
-    impl_try_binary_inst!(rem_u);
+    impl_unary_inst!(sqrt);
+    impl_unary_inst!(ceil);
+    impl_unary_inst!(floor);
+    impl_unary_inst!(trunc);
+    impl_unary_inst!(nearest);
+    impl_unary_inst!(count_leading_zero);
+    impl_unary_inst!(count_trailing_zero);
+    impl_unary_inst!(pop_count);
+    impl_unary_inst!(equal_zero);
+    impl_unary_inst!(reinterpret);
+    impl_unary_inst!(abs);
+    impl_unary_inst!(neg);
+    impl_unary_inst!(extend_u32_to_i64);
+    impl_unary_inst!(extend_i32_to_i64);
+    impl_unary_inst!(convert_sign_i32_to_f32);
+    impl_unary_inst!(convert_unsign_i32_to_f32);
+    impl_unary_inst!(convert_sign_i64_to_f64);
+    impl_unary_inst!(convert_unsign_i64_to_f64);
+    impl_unary_inst!(convert_sign_i32_to_f64);
+    impl_unary_inst!(convert_unsign_i32_to_f64);
+    impl_unary_inst!(convert_sign_i64_to_f32);
+    impl_unary_inst!(convert_unsign_i64_to_f32);
+    impl_unary_inst!(promote_f32_to_f64);
+    impl_unary_inst!(demote_f64_to_f32);
+
+    impl_try_unary_inst!(trunc_f32_to_sign_i32);
+    impl_try_unary_inst!(trunc_f32_to_unsign_i32);
+    impl_try_unary_inst!(trunc_f64_to_sign_i64);
+    impl_try_unary_inst!(trunc_f64_to_unsign_i64);
+    impl_try_unary_inst!(trunc_f64_to_sign_i32);
+    impl_try_unary_inst!(trunc_f64_to_unsign_i32);
+    impl_try_unary_inst!(trunc_f32_to_sign_i64);
+    impl_try_unary_inst!(trunc_f32_to_unsign_i64);
 
     impl_binary_inst!(add);
     impl_binary_inst!(sub);
@@ -156,7 +191,6 @@ impl Vm {
     impl_binary_inst!(div_f);
     impl_binary_inst!(min);
     impl_binary_inst!(max);
-
     impl_binary_inst!(less_than);
     impl_binary_inst!(less_than_unsign);
     impl_binary_inst!(less_than_equal);
@@ -176,6 +210,11 @@ impl Vm {
     impl_binary_inst!(wasm_rotate_left);
     impl_binary_inst!(wasm_rotate_right);
     impl_binary_inst!(copy_sign);
+
+    impl_try_binary_inst!(div_u);
+    impl_try_binary_inst!(div_s);
+    impl_try_binary_inst!(rem_s);
+    impl_try_binary_inst!(rem_u);
 
     pub fn start_index(&self) -> &Option<Indice> {
         &self.internal_module.start
@@ -430,12 +469,6 @@ impl Vm {
                 I32RemSign | I64RemSign => self.rem_s()?,
                 I32RemUnsign | I64RemUnsign => self.rem_u()?,
 
-                F32Sqrt | F64Sqrt => impl_unary_inst!(self, sqrt),
-                F32Ceil | F64Ceil => impl_unary_inst!(self, ceil),
-                F32Floor | F64Floor => impl_unary_inst!(self, floor),
-                F32Trunc | F64Trunc => impl_unary_inst!(self, trunc),
-                F32Nearest | F64Nearest => impl_unary_inst!(self, nearest),
-
                 I32Add | I64Add | F32Add | F64Add => self.add()?,
                 I32Sub | I64Sub | F32Sub | F64Sub => self.sub()?,
                 I32Mul | I64Mul | F32Mul | F64Mul => self.mul()?,
@@ -495,14 +528,21 @@ impl Vm {
                         x => unreachable!("Expected i64 value, got {:?}", x),
                     }
                 }
-                I32CountLeadingZero | I64CountLeadingZero => {
-                    impl_unary_inst!(self, count_leading_zero)
+                F32Sqrt | F64Sqrt => self.sqrt()?,
+                F32Ceil | F64Ceil => self.ceil()?,
+                F32Floor | F64Floor => self.floor()?,
+                F32Trunc | F64Trunc => self.trunc()?,
+                F32Nearest | F64Nearest => self.nearest()?,
+
+                I32CountLeadingZero | I64CountLeadingZero => self.count_leading_zero()?,
+                I32CountTrailingZero | I64CountTrailingZero => self.count_trailing_zero()?,
+                I32CountNonZero | I64CountNonZero => self.pop_count()?,
+                I32EqualZero | I64EqualZero => self.equal_zero()?,
+                F32Abs | F64Abs => self.abs()?,
+                F64Neg | F32Neg => self.neg()?,
+                I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
+                    self.reinterpret()?
                 }
-                I32CountTrailingZero | I64CountTrailingZero => {
-                    impl_unary_inst!(self, count_trailing_zero)
-                }
-                I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
-                I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
 
                 I32Load(_, offset) => self.load_data_to_i32(*offset, 32, true, &source_of_frame)?,
                 I32Load8Unsign(_, offset) => {
@@ -560,8 +600,6 @@ impl Vm {
                 I64Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
                 I64Store32(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
 
-                F32Abs | F64Abs => impl_unary_inst!(self, abs),
-                F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 MemorySize => {
                     let memory_instances = self.get_memory_instances(&source_of_frame)?;
                     let page_size = memory_instances.size_by_pages();
@@ -581,32 +619,28 @@ impl Vm {
                         .push(StackEntry::new_value(Values::I32(result)))?;
                 }
 
-                I64ExtendUnsignI32 => impl_unary_inst!(self, extend_u32_to_i64),
-                I64ExtendSignI32 => impl_unary_inst!(self, extend_i32_to_i64),
-                F32ConvertSignI32 => impl_unary_inst!(self, convert_sign_i32_to_f32),
-                F32ConvertUnsignI32 => impl_unary_inst!(self, convert_unsign_i32_to_f32),
-                F64ConvertSignI64 => impl_unary_inst!(self, convert_sign_i64_to_f64),
-                F64ConvertUnsignI64 => impl_unary_inst!(self, convert_unsign_i64_to_f64),
-                F64ConvertSignI32 => impl_unary_inst!(self, convert_sign_i32_to_f64),
-                F64ConvertUnsignI32 => impl_unary_inst!(self, convert_unsign_i32_to_f64),
-                F32ConvertSignI64 => impl_unary_inst!(self, convert_sign_i64_to_f32),
-                F32ConvertUnsignI64 => impl_unary_inst!(self, convert_unsign_i64_to_f32),
+                I64ExtendUnsignI32 => self.extend_u32_to_i64()?,
+                I64ExtendSignI32 => self.extend_i32_to_i64()?,
+                F32ConvertSignI32 => self.convert_sign_i32_to_f32()?,
+                F32ConvertUnsignI32 => self.convert_unsign_i32_to_f32()?,
+                F64ConvertSignI64 => self.convert_sign_i64_to_f64()?,
+                F64ConvertUnsignI64 => self.convert_unsign_i64_to_f64()?,
+                F64ConvertSignI32 => self.convert_sign_i32_to_f64()?,
+                F64ConvertUnsignI32 => self.convert_unsign_i32_to_f64()?,
+                F32ConvertSignI64 => self.convert_sign_i64_to_f32()?,
+                F32ConvertUnsignI64 => self.convert_unsign_i64_to_f32()?,
+                F64PromoteF32 => self.promote_f32_to_f64()?,
+                F32DemoteF64 => self.demote_f64_to_f32()?,
 
-                I32TruncSignF32 => impl_try_unary_inst!(self, trunc_f32_to_sign_i32),
-                I32TruncUnsignF32 => impl_try_unary_inst!(self, trunc_f32_to_unsign_i32),
-                I64TruncSignF64 => impl_try_unary_inst!(self, trunc_f64_to_sign_i64),
-                I64TruncUnsignF64 => impl_try_unary_inst!(self, trunc_f64_to_unsign_i64),
-                I32TruncSignF64 => impl_try_unary_inst!(self, trunc_f64_to_sign_i32),
-                I32TruncUnsignF64 => impl_try_unary_inst!(self, trunc_f64_to_unsign_i32),
-                I64TruncSignF32 => impl_try_unary_inst!(self, trunc_f32_to_sign_i64),
-                I64TruncUnsignF32 => impl_try_unary_inst!(self, trunc_f32_to_unsign_i64),
+                I32TruncSignF32 => self.trunc_f32_to_sign_i32()?,
+                I32TruncUnsignF32 => self.trunc_f32_to_unsign_i32()?,
+                I64TruncSignF64 => self.trunc_f64_to_sign_i64()?,
+                I64TruncUnsignF64 => self.trunc_f64_to_unsign_i64()?,
+                I32TruncSignF64 => self.trunc_f64_to_sign_i32()?,
+                I32TruncUnsignF64 => self.trunc_f64_to_unsign_i32()?,
+                I64TruncSignF32 => self.trunc_f32_to_sign_i64()?,
+                I64TruncUnsignF32 => self.trunc_f32_to_unsign_i64()?,
 
-                F64PromoteF32 => impl_unary_inst!(self, promote_f32_to_f64),
-                F32DemoteF64 => impl_unary_inst!(self, demote_f64_to_f32),
-
-                I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
-                    impl_unary_inst!(self, reinterpret)
-                }
                 RuntimeValue(t) => unreachable!("Expected calculatable operation, got {:?}", t),
             };
         }
