@@ -105,21 +105,23 @@ macro_rules! impl_binary_inst {
     }};
 }
 
-// FIXME: Define as methods.
 macro_rules! impl_try_binary_inst {
-    ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value_ext();
-        let left = $self.stack.pop_value_ext();
-        let value = left.$op(&right);
-        match value {
-            Ok(result) => {
-                $self.stack.push(StackEntry::new_value(result))?;
-            }
-            Err(trap) => {
-                return Err(trap);
+    ($op: ident) => {
+        fn $op(&mut self) -> Result<()> {
+            let right = self.stack.pop_value_ext();
+            let left = self.stack.pop_value_ext();
+            let value = left.$op(&right);
+            match value {
+                Ok(result) => {
+                    self.stack.push(StackEntry::new_value(result))?;
+                    Ok(())
+                }
+                Err(trap) => {
+                    Err(trap)
+                }
             }
         }
-    }};
+    };
 }
 
 // FIXME: May rename to `ModuleInstance`
@@ -139,6 +141,11 @@ impl Vm {
 
     impl_load_to!(load_data_to_i32, load_data_32, Values::I32, i32);
     impl_load_to!(load_data_to_i64, load_data_64, Values::I64, i64);
+
+    impl_try_binary_inst!(div_u);
+    impl_try_binary_inst!(div_s);
+    impl_try_binary_inst!(rem_s);
+    impl_try_binary_inst!(rem_u);
 
     pub fn start_index(&self) -> &Option<Indice> {
         &self.internal_module.start
@@ -390,11 +397,13 @@ impl Vm {
                 I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
                 I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
                 I32Mul | I64Mul | F32Mul | F64Mul => impl_binary_inst!(self, mul),
-                I32DivUnsign | I64DivUnsign => impl_try_binary_inst!(self, div_u),
-                I32DivSign | I64DivSign => impl_try_binary_inst!(self, div_s),
+
+                I32DivUnsign | I64DivUnsign => self.div_u()?,
+                I32DivSign | I64DivSign => self.div_s()?,
+                I32RemSign | I64RemSign => self.rem_s()?,
+                I32RemUnsign | I64RemUnsign => self.rem_u()?,
+
                 F32Div | F64Div => impl_binary_inst!(self, div_f),
-                I32RemSign | I64RemSign => impl_try_binary_inst!(self, rem_s),
-                I32RemUnsign | I64RemUnsign => impl_try_binary_inst!(self, rem_u),
                 F32Min | F64Min => impl_binary_inst!(self, min),
                 F32Max | F64Max => impl_binary_inst!(self, max),
                 F32Sqrt | F64Sqrt => impl_unary_inst!(self, sqrt),
