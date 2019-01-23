@@ -27,7 +27,7 @@ impl Decodable for Section {
       let module_name = self.decode_name()?;
       let name = self.decode_name()?;
       let import_descriptor = match From::from(self.next()) {
-        FUNCTION_DESCRIPTOR => ImportDescriptor::Function(self.decode_leb128_u32()?),
+        FUNCTION_DESCRIPTOR => ImportDescriptor::Function(From::from(self.decode_leb128_u32()?)),
         TABLE_DESCRIPTOR => ImportDescriptor::Table(TableType::new(
           ElementType::from(self.next()),
           self.decode_limit()?,

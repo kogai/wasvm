@@ -5,7 +5,7 @@ use core::cell::{RefCell, RefMut};
 use core::fmt;
 use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
-use inst::Inst;
+use inst::{Indice, Inst};
 use stack::StackEntry;
 use value_type::ValueTypes;
 
@@ -109,8 +109,8 @@ impl Frame {
     self.jump_to(last_ptr);
   }
 
-  pub fn get_table_address(&self) -> u32 {
-    0
+  pub fn get_table_address(&self) -> Indice {
+    From::from(0u32)
   }
 }
 

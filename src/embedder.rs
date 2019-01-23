@@ -36,8 +36,8 @@ pub fn instantiate_module(
   if let Some(idx) = vm.start_index().clone() {
     let function_instance = vm.get_function_instance(&idx)?;
     let frame = Frame::new(
-      vm.stack.stack_ptr,
-      vm.stack.frame_ptr,
+      vm.stack.stack_ptr(),
+      vm.stack.frame_ptr(),
       function_instance,
       &mut vec![],
     );

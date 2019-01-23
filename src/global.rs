@@ -4,7 +4,7 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
-use inst::Inst;
+use inst::{Indice, Inst};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
   GLOBAL_DESCRIPTOR,
@@ -114,7 +114,7 @@ impl GlobalInstances {
         | Some(Inst::I64Const(_))
         | Some(Inst::F32Const(_))
         | Some(Inst::F64Const(_)) => init_first?.get_value_ext(),
-        Some(Inst::GetGlobal(idx)) => global_instances.get(*idx as usize)?.get_value(),
+        Some(Inst::GetGlobal(idx)) => global_instances.get(idx.to_usize())?.get_value(),
         x => unreachable!("Expected initial value of global, got {:?}", x),
       };
       global_instances.push(GlobalInstance::new(global_type, value, export_name));
@@ -131,16 +131,16 @@ impl GlobalInstances {
       .cloned()
   }
 
-  pub fn get_global(&self, idx: u32) -> Result<Values> {
+  pub fn get_global(&self, idx: &Indice) -> Result<Values> {
     self
       .0
       .borrow()
-      .get(idx as usize)
+      .get(idx.to_usize())
       .map(|g| g.get_value().to_owned())
       .ok_or(Trap::Notfound)
   }
 
-  pub fn get_global_ext(&self, idx: u32) -> i32 {
+  pub fn get_global_ext(&self, idx: &Indice) -> i32 {
     self
       .get_global(idx)
       .map(|g| match g {
@@ -150,8 +150,8 @@ impl GlobalInstances {
       .unwrap_or_else(|_| panic!("Expect to get {:?} of global instances, got None", idx))
   }
 
-  pub fn set_global(&self, idx: u32, value: Values) {
-    if let Some(g) = self.0.borrow_mut().get_mut(idx as usize) {
+  pub fn set_global(&self, idx: &Indice, value: Values) {
+    if let Some(g) = self.0.borrow_mut().get_mut(idx.to_usize()) {
       g.set_value(value)
     };
   }

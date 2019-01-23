@@ -2,9 +2,10 @@
 use alloc::prelude::*;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use core::cell::RefCell;
+use core::cell::{Cell, RefCell};
 use core::fmt;
 use frame::Frame;
+use inst::Indice;
 use label::{Label, LabelKind};
 use trap::{Result, Trap};
 use value::Values;
@@ -68,7 +69,7 @@ impl StackEntry {
 
 macro_rules! impl_pop {
   ($name: ident, $name_ext: ident, $path: path, $ret: ty, $error_decription: expr) => {
-    pub fn $name(&mut self) -> Result<$ret> {
+    pub fn $name(&self) -> Result<$ret> {
       let value = self.pop()?;
       match *value.0 {
         $path(ref v) => Ok(v.to_owned()),
@@ -79,7 +80,7 @@ macro_rules! impl_pop {
       }
     }
 
-    pub fn $name_ext(&mut self) -> $ret {
+    pub fn $name_ext(&self) -> $ret {
       self
         .$name()
         .expect($error_decription)
@@ -89,7 +90,7 @@ macro_rules! impl_pop {
 
 macro_rules! impl_pop_value_ext {
   ($name: ident, $path: path, $ret: ty) => {
-    pub fn $name(&mut self) -> $ret {
+    pub fn $name(&self) -> $ret {
       match self.pop_value_ext() {
         $path(n) => n,
         _ => unreachable!(),
@@ -123,8 +124,8 @@ pub struct Stack {
   stack_size: usize,
   operand_stack: RefCell<Vec<StackEntry>>,
   call_stack: RefCell<Vec<Frame>>,
-  pub(crate) stack_ptr: usize,
-  pub(crate) frame_ptr: usize,
+  pub(crate) stack_ptr: Cell<usize>,
+  pub(crate) frame_ptr: Cell<usize>,
 }
 
 impl Stack {
@@ -135,16 +136,24 @@ impl Stack {
       stack_size,
       operand_stack,
       call_stack,
-      stack_ptr: 0,
-      frame_ptr: 0,
+      stack_ptr: Cell::new(0),
+      frame_ptr: Cell::new(0),
     }
+  }
+
+  pub(crate) fn stack_ptr(&self) -> usize {
+    self.stack_ptr.get()
+  }
+
+  pub(crate) fn frame_ptr(&self) -> usize {
+    self.frame_ptr.get()
   }
 
   pub fn get(&self, ptr: usize) -> Option<StackEntry> {
     self.operand_stack.borrow().get(ptr).cloned()
   }
 
-  pub fn set(&mut self, ptr: usize, entry: StackEntry) -> Result<()> {
+  pub fn set(&self, ptr: usize, entry: StackEntry) -> Result<()> {
     if ptr >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
@@ -152,12 +161,12 @@ impl Stack {
     Ok(())
   }
 
-  pub fn push(&mut self, entry: StackEntry) -> Result<()> {
-    if self.stack_ptr >= self.stack_size {
+  pub fn push(&self, entry: StackEntry) -> Result<()> {
+    if self.stack_ptr() >= self.stack_size {
       return Err(Trap::StackOverflow);
     }
-    self.operand_stack.borrow_mut()[self.stack_ptr] = entry;
-    self.stack_ptr += 1;
+    self.operand_stack.borrow_mut()[self.stack_ptr()] = entry;
+    self.stack_ptr.set(self.stack_ptr() + 1);
     Ok(())
   }
 
@@ -172,16 +181,16 @@ impl Stack {
   /// +---------+
   /// | Val0    |
   /// +---------+
-  pub fn push_entries(&mut self, entries: &mut Vec<StackEntry>) -> Result<()> {
+  pub fn push_entries(&self, entries: &mut Vec<StackEntry>) -> Result<()> {
     let len = entries.len();
-    if self.stack_ptr + len >= self.stack_size {
+    let stack_ptr = self.stack_ptr();
+    let stack_ptr_end = stack_ptr + len;
+    if stack_ptr_end >= self.stack_size {
       Err(Trap::StackOverflow)
     } else {
       entries.reverse();
-      entries.swap_with_slice(
-        &mut self.operand_stack.borrow_mut()[self.stack_ptr..self.stack_ptr + len],
-      );
-      self.stack_ptr += len;
+      entries.swap_with_slice(&mut self.operand_stack.borrow_mut()[stack_ptr..stack_ptr_end]);
+      self.stack_ptr.set(stack_ptr_end);
       Ok(())
     }
   }
@@ -209,25 +218,25 @@ impl Stack {
   }
 
   pub fn peek(&self) -> Option<StackEntry> {
-    if self.stack_ptr >= self.stack_size {
+    if self.stack_ptr() >= self.stack_size {
       return None;
     }
-    if self.stack_ptr == 0 {
+    if self.stack_ptr() == 0 {
       return None;
     }
     self
       .operand_stack
       .borrow_mut()
-      .get(self.stack_ptr - 1)
+      .get(self.stack_ptr() - 1)
       .cloned()
   }
 
-  pub fn pop(&mut self) -> Result<StackEntry> {
-    if self.stack_ptr == 0 {
+  pub fn pop(&self) -> Result<StackEntry> {
+    if self.stack_ptr() == 0 {
       return Err(Trap::StackUnderflow);
     }
-    self.stack_ptr -= 1;
-    match self.operand_stack.borrow_mut().get(self.stack_ptr) {
+    self.stack_ptr.set(self.stack_ptr() - 1);
+    match self.operand_stack.borrow_mut().get(self.stack_ptr()) {
       Some(entry) => Ok(entry.clone()),
       None => Err(Trap::Unknown),
     }
@@ -248,7 +257,7 @@ impl Stack {
     "Expect to pop up Label, but got None"
   );
 
-  pub fn pop_until_label(&mut self) -> Result<Vec<StackEntry>> {
+  pub fn pop_until_label(&self) -> Result<Vec<StackEntry>> {
     let mut entry_buffer = vec![];
     while !self.peek().map_or(true, |entry| entry.is_label()) {
       entry_buffer.push(self.pop()?);
@@ -256,10 +265,10 @@ impl Stack {
     Ok(entry_buffer)
   }
 
-  pub fn jump_to_label(&mut self, depth_of_label: u32) -> Result<u32> /* point to continue */ {
+  pub fn jump_to_label(&self, depth_of_label: &Indice) -> Result<u32> /* point to continue */ {
     let mut buf_values = vec![];
     let mut label = None;
-    for _ in 0..=depth_of_label {
+    for _ in 0..=depth_of_label.to_u32() {
       let mut bufs = self.pop_until_label()?;
       buf_values.append(&mut bufs);
       label = Some(self.pop_label_ext());
@@ -297,26 +306,22 @@ impl Stack {
 
   impl_pop_value_ext!(pop_value_ext_i32, Values::I32, i32);
 
-  pub fn get_frame_ptr(&mut self) -> usize {
-    self.frame_ptr
-  }
-
-  pub fn update_frame_ptr(&mut self, frame: &Frame) {
-    self.stack_ptr = self.frame_ptr;
-    self.frame_ptr = frame.prev_return_ptr;
+  pub fn update_frame_ptr(&self, frame: &Frame) {
+    self.stack_ptr.set(self.frame_ptr());
+    self.frame_ptr.set(frame.prev_return_ptr);
   }
 }
 
 impl fmt::Debug for Stack {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     let operands = self.operand_stack.borrow();
-    let (entries, _) = operands.split_at(self.stack_ptr);
+    let (entries, _) = operands.split_at(self.stack_ptr());
     let entries = entries
       .iter()
       .enumerate()
       .map(|(i, entry)| match i + 1 {
-        x if x == self.frame_ptr => format!("F-> {:?}", entry),
-        x if x == self.stack_ptr => format!("S-> {:?}", entry),
+        x if x == self.frame_ptr() => format!("F-> {:?}", entry),
+        x if x == self.stack_ptr() => format!("S-> {:?}", entry),
         _ => format!("    {:?}", entry),
       })
       .rev();
@@ -330,14 +335,14 @@ mod tests {
 
   #[test]
   fn stack_push() {
-    let mut stack = Stack::new(4);
+    let stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(1));
     stack.push(value).unwrap();
     assert_eq!(stack.pop().unwrap(), StackEntry::new_value(Values::I32(1)));
   }
   #[test]
   fn stack_set() {
-    let mut stack = Stack::new(4);
+    let stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(2));
     stack.set(2, value).unwrap();
     assert_eq!(stack.get(2).unwrap(), StackEntry::new_value(Values::I32(2)));

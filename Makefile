@@ -5,10 +5,9 @@ WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
 BENCH_DIR := life/bench/cases
 C_WASMS=$(CSRCS:.c=.wasm)
 WASMS=$(WASTS:.wast=.wasm)
-TEST_CASES=$(WASTS:.wast=.json)
 TARGET := thumbv7m-none-eabi
 
-all: $(C_WASMS) $(TEST_CASES)
+all: $(C_WASMS)
 discovery: discovery/target/$(TARGET)/release/$(NAME)
 dist: $(C_WASMS)
 
@@ -21,17 +20,6 @@ $(C_WASMS): $(CSRCS)
 discovery/target/$(TARGET)/release/$(NAME): $(SRC)
 	cd discovery && \
 	cargo build --release --target=$(TARGET)
-
-$(TEST_CASES): $(WASTS)
-	# wast2json testsuite/$(shell basename $@ .json).wast -o dist/$(shell basename $@)
-	# wasm2wat dist/i32.0.wasm -o dist/i32.wat
-	wast2json testsuite/i32.wast -o dist/i32.json
-	wasm2wat dist/i32.0.wasm -o dist/i32.wat
-
-new_dist: $(TEST_CASES)
-
-$(TEST_CASES): $(WASTS)
-	wast2json testsuite/i32.wast -o dist/i32.json
 
 target/release/main: $(SRC) Makefile
 	RUSTFLAGS='-g' cargo build --release

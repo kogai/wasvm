@@ -19,7 +19,7 @@ use value_type::ValueTypes;
 
 macro_rules! impl_load_inst {
     ($fn_name: ident, $load_fn: ident, $ty: ty) => {
-        fn $fn_name(&mut self, offset: u32, load_data_width: u32, source_of_frame: &ModuleName) -> Result<$ty> {
+        fn $fn_name(&self, offset: u32, load_data_width: u32, source_of_frame: &ModuleName) -> Result<$ty> {
             let memory_instances = self.get_memory_instances(source_of_frame)?;
             let width = load_data_width / 8;
             let i = self.stack.pop_value_ext_i32() as u32;
@@ -55,70 +55,64 @@ macro_rules! impl_load_to {
     };
 }
 
-macro_rules! impl_store_inst {
-    ($data_width: expr, $self: ident, $offset: ident, $source_of_frame: expr) => {{
-        let mut memory_instances = $self.get_memory_instances($source_of_frame)?;
-        let c = $self.stack.pop_value_ext();
-        let width = $data_width / 8;
-        let i = $self.stack.pop_value_ext_i32() as u32;
-        let (effective_address, overflowed) = i.overflowing_add(*$offset);
-        if overflowed {
-            return Err(Trap::MemoryAccessOutOfBounds);
-        };
-        let (ptr, overflowed) = effective_address.overflowing_add(width);
-        if overflowed || memory_instances.data_size_small_than(ptr) {
-            return Err(Trap::MemoryAccessOutOfBounds);
-        };
-        memory_instances.store_data(effective_address, ptr, &c);
-    }};
-}
-
 macro_rules! impl_unary_inst {
-    ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value_ext();
-        let value = popped.$op();
-        $self.stack.push(StackEntry::new_value(value))?;
-    }};
+    ($op: ident) => {
+        fn $op(&self) -> Result<()> {
+            let popped = self.stack.pop_value_ext();
+            let value = popped.$op();
+            self.stack.push(StackEntry::new_value(value))?;
+            Ok(())
+        }
+    };
 }
 
 macro_rules! impl_try_unary_inst {
-    ($self: ident, $op: ident) => {{
-        let popped = $self.stack.pop_value_ext();
-        let value = popped.$op();
-        match value {
-            Ok(result) => {
-                $self.stack.push(StackEntry::new_value(result))?;
-            }
-            Err(trap) => {
-                return Err(trap);
+    ($op: ident) => {
+        fn $op(&self) -> Result<()> {
+            let popped = self.stack.pop_value_ext();
+            let value = popped.$op();
+            match value {
+                Ok(result) => {
+                    self.stack.push(StackEntry::new_value(result))?;
+                    Ok(())
+                }
+                Err(trap) => {
+                    Err(trap)
+                }
             }
         }
-    }};
+    };
 }
 
 macro_rules! impl_binary_inst {
-    ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value_ext();
-        let left = $self.stack.pop_value_ext();
-        let value = left.$op(&right);
-        $self.stack.push(StackEntry::new_value(value))?;
-    }};
+    ($op: ident) => {
+        fn $op(&self) -> Result<()> {
+            let right = self.stack.pop_value_ext();
+            let left = self.stack.pop_value_ext();
+            let value = left.$op(&right);
+            self.stack.push(StackEntry::new_value(value))?;
+            Ok(())
+        }
+    };
 }
 
 macro_rules! impl_try_binary_inst {
-    ($self: ident, $op: ident) => {{
-        let right = $self.stack.pop_value_ext();
-        let left = $self.stack.pop_value_ext();
-        let value = left.$op(&right);
-        match value {
-            Ok(result) => {
-                $self.stack.push(StackEntry::new_value(result))?;
-            }
-            Err(trap) => {
-                return Err(trap);
+    ($op: ident) => {
+        fn $op(&self) -> Result<()> {
+            let right = self.stack.pop_value_ext();
+            let left = self.stack.pop_value_ext();
+            let value = left.$op(&right);
+            match value {
+                Ok(result) => {
+                    self.stack.push(StackEntry::new_value(result))?;
+                    Ok(())
+                }
+                Err(trap) => {
+                    Err(trap)
+                }
             }
         }
-    }};
+    };
 }
 
 // FIXME: May rename to `ModuleInstance`
@@ -139,6 +133,88 @@ impl Vm {
     impl_load_to!(load_data_to_i32, load_data_32, Values::I32, i32);
     impl_load_to!(load_data_to_i64, load_data_64, Values::I64, i64);
 
+    impl_unary_inst!(sqrt);
+    impl_unary_inst!(ceil);
+    impl_unary_inst!(floor);
+    impl_unary_inst!(trunc);
+    impl_unary_inst!(nearest);
+    impl_unary_inst!(count_leading_zero);
+    impl_unary_inst!(count_trailing_zero);
+    impl_unary_inst!(pop_count);
+    impl_unary_inst!(equal_zero);
+    impl_unary_inst!(reinterpret);
+    impl_unary_inst!(abs);
+    impl_unary_inst!(neg);
+    impl_unary_inst!(extend_u32_to_i64);
+    impl_unary_inst!(extend_i32_to_i64);
+    impl_unary_inst!(convert_sign_i32_to_f32);
+    impl_unary_inst!(convert_unsign_i32_to_f32);
+    impl_unary_inst!(convert_sign_i64_to_f64);
+    impl_unary_inst!(convert_unsign_i64_to_f64);
+    impl_unary_inst!(convert_sign_i32_to_f64);
+    impl_unary_inst!(convert_unsign_i32_to_f64);
+    impl_unary_inst!(convert_sign_i64_to_f32);
+    impl_unary_inst!(convert_unsign_i64_to_f32);
+    impl_unary_inst!(promote_f32_to_f64);
+    impl_unary_inst!(demote_f64_to_f32);
+
+    impl_try_unary_inst!(trunc_f32_to_sign_i32);
+    impl_try_unary_inst!(trunc_f32_to_unsign_i32);
+    impl_try_unary_inst!(trunc_f64_to_sign_i64);
+    impl_try_unary_inst!(trunc_f64_to_unsign_i64);
+    impl_try_unary_inst!(trunc_f64_to_sign_i32);
+    impl_try_unary_inst!(trunc_f64_to_unsign_i32);
+    impl_try_unary_inst!(trunc_f32_to_sign_i64);
+    impl_try_unary_inst!(trunc_f32_to_unsign_i64);
+
+    impl_binary_inst!(add);
+    impl_binary_inst!(sub);
+    impl_binary_inst!(mul);
+    impl_binary_inst!(div_f);
+    impl_binary_inst!(min);
+    impl_binary_inst!(max);
+    impl_binary_inst!(less_than);
+    impl_binary_inst!(less_than_unsign);
+    impl_binary_inst!(less_than_equal);
+    impl_binary_inst!(less_than_equal_unsign);
+    impl_binary_inst!(greater_than);
+    impl_binary_inst!(greater_than_equal);
+    impl_binary_inst!(greater_than_unsign);
+    impl_binary_inst!(greater_than_equal_unsign);
+    impl_binary_inst!(equal);
+    impl_binary_inst!(not_equal);
+    impl_binary_inst!(or);
+    impl_binary_inst!(xor);
+    impl_binary_inst!(and);
+    impl_binary_inst!(shift_left);
+    impl_binary_inst!(shift_right_sign);
+    impl_binary_inst!(shift_right_unsign);
+    impl_binary_inst!(wasm_rotate_left);
+    impl_binary_inst!(wasm_rotate_right);
+    impl_binary_inst!(copy_sign);
+
+    impl_try_binary_inst!(div_u);
+    impl_try_binary_inst!(div_s);
+    impl_try_binary_inst!(rem_s);
+    impl_try_binary_inst!(rem_u);
+
+    fn store(&self, data_width: u32, offset: u32, source_of_frame: &ModuleName) -> Result<()> {
+        let memory_instances = self.get_memory_instances(source_of_frame)?;
+        let c = self.stack.pop_value_ext();
+        let width = data_width / 8;
+        let i = self.stack.pop_value_ext_i32() as u32;
+        let (effective_address, overflowed) = i.overflowing_add(offset);
+        if overflowed {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        let (ptr, overflowed) = effective_address.overflowing_add(width);
+        if overflowed || memory_instances.data_size_small_than(ptr) {
+            return Err(Trap::MemoryAccessOutOfBounds);
+        };
+        memory_instances.store_data(effective_address, ptr, &c);
+        Ok(())
+    }
+
     pub fn start_index(&self) -> &Option<Indice> {
         &self.internal_module.start
     }
@@ -157,43 +233,43 @@ impl Vm {
     }
 
     pub fn get_function_instance(&self, idx: &Indice) -> Option<FunctionInstance> {
-        self.store.get_function_instance(idx.to_usize())
+        self.store.get_function_instance(idx)
     }
 
     pub fn export_module(&self) -> ExternalModule {
         ExternalModule::from(&self.store)
     }
 
-    fn get_local(&mut self, idx: u32) -> Result<()> {
-        let frame_ptr = self.stack.get_frame_ptr();
-        let index = (idx as usize) + frame_ptr;
+    fn get_local(&self, idx: &Indice) -> Result<()> {
+        let frame_ptr = self.stack.frame_ptr();
+        let index = idx.to_usize() + frame_ptr;
         let value = self.stack.get(index)?;
         self.stack.push(value)?;
         Ok(())
     }
 
-    fn set_local(&mut self, idx: u32) -> Result<()> {
+    fn set_local(&self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
-        let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        let frame_ptr = self.stack.frame_ptr();
+        self.stack.set(idx.to_usize() + frame_ptr, value)?;
         Ok(())
     }
 
-    fn tee_local(&mut self, idx: u32) -> Result<()> {
+    fn tee_local(&self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop().map(|s| s.to_owned())?;
         self.stack.push(value.clone())?;
-        let frame_ptr = self.stack.get_frame_ptr();
-        self.stack.set((idx as usize) + frame_ptr, value)?;
+        let frame_ptr = self.stack.frame_ptr();
+        self.stack.set(idx.to_usize() + frame_ptr, value)?;
         Ok(())
     }
 
-    fn get_global(&mut self, idx: u32) -> Result<()> {
+    fn get_global(&self, idx: &Indice) -> Result<()> {
         let value = self.store.get_global(idx)?;
         self.stack.push(StackEntry::new_value(value))?;
         Ok(())
     }
 
-    fn set_global(&mut self, idx: u32) -> Result<()> {
+    fn set_global(&mut self, idx: &Indice) -> Result<()> {
         let value = self.stack.pop_value_ext();
         self.store.set_global(idx, value);
         Ok(())
@@ -294,13 +370,13 @@ impl Vm {
                     }
                 }
                 Br(label) => {
-                    let continuation = self.stack.jump_to_label(*label)?;
+                    let continuation = self.stack.jump_to_label(label)?;
                     frame.jump_to(continuation);
                 }
                 BrIf(l) => {
                     let cond = &self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        let continuation = self.stack.jump_to_label(*l)?;
+                        let continuation = self.stack.jump_to_label(l)?;
                         frame.jump_to(continuation);
                     };
                 }
@@ -311,7 +387,7 @@ impl Vm {
                     } else {
                         idx
                     };
-                    let continuation = self.stack.jump_to_label(*l)?;
+                    let continuation = self.stack.jump_to_label(l)?;
                     frame.jump_to(continuation);
                 }
                 Call(idx) => {
@@ -321,7 +397,7 @@ impl Vm {
                             // FIXME: Drop owning of name to search something.
                             .get_function_instance(&Some(module_name.to_owned()), idx.to_usize())
                             .map(|x| x.clone())?,
-                        None => self.store.get_function_instance(idx.to_usize())?,
+                        None => self.store.get_function_instance(idx)?,
                     };
                     let arity = function_instance.get_arity();
                     let mut arguments = vec![];
@@ -329,8 +405,8 @@ impl Vm {
                         arguments.push(self.stack.pop()?);
                     }
                     let frame = Frame::new(
-                        self.stack.stack_ptr,
-                        self.stack.frame_ptr,
+                        self.stack.stack_ptr(),
+                        self.stack.frame_ptr(),
                         function_instance,
                         &mut arguments,
                     );
@@ -343,8 +419,8 @@ impl Vm {
                     let table = match &source_of_frame {
                         Some(module_name) => self
                             .external_modules
-                            .get_table_instance(&Some(module_name.to_owned()), ta)?,
-                        None => self.store.get_table_at(ta)?,
+                            .get_table_instance(&Some(module_name.to_owned()), &ta)?,
+                        None => self.store.get_table_at(&ta)?,
                     };
                     let i = self.stack.pop_value_ext_i32();
                     if i > table.len() as i32 {
@@ -357,7 +433,7 @@ impl Vm {
                             Some(module_name) => self
                                 .external_modules
                                 .get_function_type(&Some(module_name.to_owned()), idx.to_u32())?,
-                            None => self.store.get_function_type(idx.to_u32())?.clone(),
+                            None => self.store.get_function_type(idx)?.clone(),
                         };
                         if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
@@ -369,38 +445,64 @@ impl Vm {
                         arg
                     };
                     let frame = Frame::new(
-                        self.stack.stack_ptr,
-                        self.stack.frame_ptr,
+                        self.stack.stack_ptr(),
+                        self.stack.frame_ptr(),
                         function_instance,
                         &mut arguments,
                     );
                     self.stack.push_frame(frame)?;
                     break;
                 }
-                GetLocal(idx) => self.get_local(*idx)?,
-                SetLocal(idx) => self.set_local(*idx)?,
-                TeeLocal(idx) => self.tee_local(*idx)?,
-                GetGlobal(idx) => self.get_global(*idx)?,
-                SetGlobal(idx) => self.set_global(*idx)?,
+                GetLocal(idx) => self.get_local(idx)?,
+                SetLocal(idx) => self.set_local(idx)?,
+                TeeLocal(idx) => self.tee_local(idx)?,
+                GetGlobal(idx) => self.get_global(idx)?,
+                SetGlobal(idx) => self.set_global(idx)?,
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
                 F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,
                 F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n)))?,
-                I32Add | I64Add | F32Add | F64Add => impl_binary_inst!(self, add),
-                I32Sub | I64Sub | F32Sub | F64Sub => impl_binary_inst!(self, sub),
-                I32Mul | I64Mul | F32Mul | F64Mul => impl_binary_inst!(self, mul),
-                I32DivUnsign | I64DivUnsign => impl_try_binary_inst!(self, div_u),
-                I32DivSign | I64DivSign => impl_try_binary_inst!(self, div_s),
-                F32Div | F64Div => impl_binary_inst!(self, div_f),
-                I32RemSign | I64RemSign => impl_try_binary_inst!(self, rem_s),
-                I32RemUnsign | I64RemUnsign => impl_try_binary_inst!(self, rem_u),
-                F32Min | F64Min => impl_binary_inst!(self, min),
-                F32Max | F64Max => impl_binary_inst!(self, max),
-                F32Sqrt | F64Sqrt => impl_unary_inst!(self, sqrt),
-                F32Ceil | F64Ceil => impl_unary_inst!(self, ceil),
-                F32Floor | F64Floor => impl_unary_inst!(self, floor),
-                F32Trunc | F64Trunc => impl_unary_inst!(self, trunc),
-                F32Nearest | F64Nearest => impl_unary_inst!(self, nearest),
+
+                I32DivUnsign | I64DivUnsign => self.div_u()?,
+                I32DivSign | I64DivSign => self.div_s()?,
+                I32RemSign | I64RemSign => self.rem_s()?,
+                I32RemUnsign | I64RemUnsign => self.rem_u()?,
+
+                I32Add | I64Add | F32Add | F64Add => self.add()?,
+                I32Sub | I64Sub | F32Sub | F64Sub => self.sub()?,
+                I32Mul | I64Mul | F32Mul | F64Mul => self.mul()?,
+                F32Div | F64Div => self.div_f()?,
+                F32Min | F64Min => self.min()?,
+                F32Max | F64Max => self.max()?,
+
+                LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => self.less_than()?,
+                LessThanUnsign | I64LessThanUnSign => self.less_than_unsign()?,
+                I32LessEqualSign | I64LessEqualSign | F32LessEqual | F64LessEqual => {
+                    self.less_than_equal()?
+                }
+                I32LessEqualUnsign | I64LessEqualUnSign => self.less_than_equal_unsign()?,
+                I32GreaterEqualSign | I64GreaterEqualSign | F64GreaterEqual | F32GreaterEqual => {
+                    self.greater_than_equal()?
+                }
+                I32GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
+                    self.greater_than()?
+                }
+                I32GreaterThanUnsign | I64GreaterThanUnSign => self.greater_than_unsign()?,
+                I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
+                    self.greater_than_equal_unsign()?
+                }
+                Equal | I64Equal | F32Equal | F64Equal => self.equal()?,
+                NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => self.not_equal()?,
+                I32Or | I64Or => self.or()?,
+                I32Xor | I64Xor => self.xor()?,
+                I32And | I64And => self.and()?,
+                I32ShiftLeft | I64ShiftLeft => self.shift_left()?,
+                I32ShiftRIghtSign | I64ShiftRightSign => self.shift_right_sign()?,
+                I32ShiftRightUnsign | I64ShiftRightUnsign => self.shift_right_unsign()?,
+                I32RotateLeft | I64RotateLeft => self.wasm_rotate_left()?,
+                I32RotateRight | I64RotateRight => self.wasm_rotate_right()?,
+                F32Copysign | F64Copysign => self.copy_sign()?,
+
                 Select => {
                     let cond = &self.stack.pop_value_ext();
                     let false_br = self.stack.pop_value_ext();
@@ -414,40 +516,6 @@ impl Vm {
                 DropInst => {
                     self.stack.pop_value_ext();
                 }
-                LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => {
-                    impl_binary_inst!(self, less_than)
-                }
-                LessThanUnsign | I64LessThanUnSign => impl_binary_inst!(self, less_than_unsign),
-                I32LessEqualSign | I64LessEqualSign | F32LessEqual | F64LessEqual => {
-                    impl_binary_inst!(self, less_than_equal)
-                }
-                I32LessEqualUnsign | I64LessEqualUnSign => {
-                    impl_binary_inst!(self, less_than_equal_unsign)
-                }
-                I32GreaterEqualSign | I64GreaterEqualSign | F64GreaterEqual | F32GreaterEqual => {
-                    impl_binary_inst!(self, greater_than_equal)
-                }
-                I32GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
-                    impl_binary_inst!(self, greater_than)
-                }
-                I32GreaterThanUnsign | I64GreaterThanUnSign => {
-                    impl_binary_inst!(self, greater_than_unsign)
-                }
-                I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
-                    impl_binary_inst!(self, greater_than_equal_unsign)
-                }
-                Equal | I64Equal | F32Equal | F64Equal => impl_binary_inst!(self, equal),
-                NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => {
-                    impl_binary_inst!(self, not_equal)
-                }
-                I32Or | I64Or => impl_binary_inst!(self, or),
-                I32Xor | I64Xor => impl_binary_inst!(self, xor),
-                I32And | I64And => impl_binary_inst!(self, and),
-                I32ShiftLeft | I64ShiftLeft => impl_binary_inst!(self, shift_left),
-                I32ShiftRIghtSign | I64ShiftRightSign => impl_binary_inst!(self, shift_right_sign),
-                I32ShiftRightUnsign | I64ShiftRightUnsign => {
-                    impl_binary_inst!(self, shift_right_unsign)
-                }
                 I32WrapI64 => {
                     let i = &self.stack.pop_value_ext();
                     match i {
@@ -459,16 +527,21 @@ impl Vm {
                         x => unreachable!("Expected i64 value, got {:?}", x),
                     }
                 }
-                I32RotateLeft | I64RotateLeft => impl_binary_inst!(self, wasm_rotate_left),
-                I32RotateRight | I64RotateRight => impl_binary_inst!(self, wasm_rotate_right),
-                I32CountLeadingZero | I64CountLeadingZero => {
-                    impl_unary_inst!(self, count_leading_zero)
+                F32Sqrt | F64Sqrt => self.sqrt()?,
+                F32Ceil | F64Ceil => self.ceil()?,
+                F32Floor | F64Floor => self.floor()?,
+                F32Trunc | F64Trunc => self.trunc()?,
+                F32Nearest | F64Nearest => self.nearest()?,
+
+                I32CountLeadingZero | I64CountLeadingZero => self.count_leading_zero()?,
+                I32CountTrailingZero | I64CountTrailingZero => self.count_trailing_zero()?,
+                I32CountNonZero | I64CountNonZero => self.pop_count()?,
+                I32EqualZero | I64EqualZero => self.equal_zero()?,
+                F32Abs | F64Abs => self.abs()?,
+                F64Neg | F32Neg => self.neg()?,
+                I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
+                    self.reinterpret()?
                 }
-                I32CountTrailingZero | I64CountTrailingZero => {
-                    impl_unary_inst!(self, count_trailing_zero)
-                }
-                I32CountNonZero | I64CountNonZero => impl_unary_inst!(self, pop_count),
-                I32EqualZero | I64EqualZero => impl_unary_inst!(self, equal_zero),
 
                 I32Load(_, offset) => self.load_data_to_i32(*offset, 32, true, &source_of_frame)?,
                 I32Load8Unsign(_, offset) => {
@@ -516,19 +589,16 @@ impl Vm {
                         .push(StackEntry::new_value(Values::F64(value as f64)))?;
                 }
 
-                I32Store(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
-                F32Store(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
-                I64Store(_, offset) => impl_store_inst!(64, self, offset, &source_of_frame),
-                F64Store(_, offset) => impl_store_inst!(64, self, offset, &source_of_frame),
-                I32Store8(_, offset) => impl_store_inst!(8, self, offset, &source_of_frame),
-                I32Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
-                I64Store8(_, offset) => impl_store_inst!(8, self, offset, &source_of_frame),
-                I64Store16(_, offset) => impl_store_inst!(16, self, offset, &source_of_frame),
-                I64Store32(_, offset) => impl_store_inst!(32, self, offset, &source_of_frame),
+                I32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
+                F32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
+                I64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
+                F64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
+                I32Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
+                I32Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
+                I64Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
+                I64Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
+                I64Store32(_, offset) => self.store(32, *offset, &source_of_frame)?,
 
-                F32Copysign | F64Copysign => impl_binary_inst!(self, copy_sign),
-                F32Abs | F64Abs => impl_unary_inst!(self, abs),
-                F64Neg | F32Neg => impl_unary_inst!(self, neg),
                 MemorySize => {
                     let memory_instances = self.get_memory_instances(&source_of_frame)?;
                     let page_size = memory_instances.size_by_pages();
@@ -548,32 +618,28 @@ impl Vm {
                         .push(StackEntry::new_value(Values::I32(result)))?;
                 }
 
-                I64ExtendUnsignI32 => impl_unary_inst!(self, extend_u32_to_i64),
-                I64ExtendSignI32 => impl_unary_inst!(self, extend_i32_to_i64),
-                F32ConvertSignI32 => impl_unary_inst!(self, convert_sign_i32_to_f32),
-                F32ConvertUnsignI32 => impl_unary_inst!(self, convert_unsign_i32_to_f32),
-                F64ConvertSignI64 => impl_unary_inst!(self, convert_sign_i64_to_f64),
-                F64ConvertUnsignI64 => impl_unary_inst!(self, convert_unsign_i64_to_f64),
-                F64ConvertSignI32 => impl_unary_inst!(self, convert_sign_i32_to_f64),
-                F64ConvertUnsignI32 => impl_unary_inst!(self, convert_unsign_i32_to_f64),
-                F32ConvertSignI64 => impl_unary_inst!(self, convert_sign_i64_to_f32),
-                F32ConvertUnsignI64 => impl_unary_inst!(self, convert_unsign_i64_to_f32),
+                I64ExtendUnsignI32 => self.extend_u32_to_i64()?,
+                I64ExtendSignI32 => self.extend_i32_to_i64()?,
+                F32ConvertSignI32 => self.convert_sign_i32_to_f32()?,
+                F32ConvertUnsignI32 => self.convert_unsign_i32_to_f32()?,
+                F64ConvertSignI64 => self.convert_sign_i64_to_f64()?,
+                F64ConvertUnsignI64 => self.convert_unsign_i64_to_f64()?,
+                F64ConvertSignI32 => self.convert_sign_i32_to_f64()?,
+                F64ConvertUnsignI32 => self.convert_unsign_i32_to_f64()?,
+                F32ConvertSignI64 => self.convert_sign_i64_to_f32()?,
+                F32ConvertUnsignI64 => self.convert_unsign_i64_to_f32()?,
+                F64PromoteF32 => self.promote_f32_to_f64()?,
+                F32DemoteF64 => self.demote_f64_to_f32()?,
 
-                I32TruncSignF32 => impl_try_unary_inst!(self, trunc_f32_to_sign_i32),
-                I32TruncUnsignF32 => impl_try_unary_inst!(self, trunc_f32_to_unsign_i32),
-                I64TruncSignF64 => impl_try_unary_inst!(self, trunc_f64_to_sign_i64),
-                I64TruncUnsignF64 => impl_try_unary_inst!(self, trunc_f64_to_unsign_i64),
-                I32TruncSignF64 => impl_try_unary_inst!(self, trunc_f64_to_sign_i32),
-                I32TruncUnsignF64 => impl_try_unary_inst!(self, trunc_f64_to_unsign_i32),
-                I64TruncSignF32 => impl_try_unary_inst!(self, trunc_f32_to_sign_i64),
-                I64TruncUnsignF32 => impl_try_unary_inst!(self, trunc_f32_to_unsign_i64),
+                I32TruncSignF32 => self.trunc_f32_to_sign_i32()?,
+                I32TruncUnsignF32 => self.trunc_f32_to_unsign_i32()?,
+                I64TruncSignF64 => self.trunc_f64_to_sign_i64()?,
+                I64TruncUnsignF64 => self.trunc_f64_to_unsign_i64()?,
+                I32TruncSignF64 => self.trunc_f64_to_sign_i32()?,
+                I32TruncUnsignF64 => self.trunc_f64_to_unsign_i32()?,
+                I64TruncSignF32 => self.trunc_f32_to_sign_i64()?,
+                I64TruncUnsignF32 => self.trunc_f32_to_unsign_i64()?,
 
-                F64PromoteF32 => impl_unary_inst!(self, promote_f32_to_f64),
-                F32DemoteF64 => impl_unary_inst!(self, demote_f64_to_f32),
-
-                I32ReinterpretF32 | I64ReinterpretF64 | F32ReinterpretI32 | F64ReinterpretI64 => {
-                    impl_unary_inst!(self, reinterpret)
-                }
                 RuntimeValue(t) => unreachable!("Expected calculatable operation, got {:?}", t),
             };
         }
@@ -590,7 +656,7 @@ impl Vm {
                     .first()
                     .map_or(ValueTypes::Empty, |x| x.to_owned());
                 let label = StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
-                self.stack.frame_ptr = frame.return_ptr;
+                self.stack.frame_ptr.set(frame.return_ptr);
                 self.stack.push_entries(&mut frame.get_local_variables())?;
                 self.stack.push(label)?;
             }
@@ -616,6 +682,7 @@ impl Vm {
         match self
             .internal_module
             .get_export_by_key(invoke)
+            // FIXME: Remove to owning.
             .map(|x| x.to_owned())
         {
             Some(ExternalInterface {
@@ -626,10 +693,10 @@ impl Vm {
                 while let Some(argument) = arguments.pop() {
                     argument_entries.push(StackEntry::new_value(argument));
                 }
-                let function_instance = self.store.get_function_instance(idx as usize).unwrap();
+                let function_instance = self.store.get_function_instance(&idx).unwrap();
                 let frame = Frame::new(
-                    self.stack.stack_ptr,
-                    self.stack.frame_ptr,
+                    self.stack.stack_ptr(),
+                    self.stack.frame_ptr(),
                     function_instance,
                     &mut argument_entries,
                 );
@@ -645,7 +712,7 @@ impl Vm {
             Some(ExternalInterface {
                 descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(idx)),
                 ..
-            }) => match self.store.get_global(idx) {
+            }) => match self.store.get_global(&idx) {
                 Ok(v) => String::from(v),
                 Err(_) => "".to_owned(),
             },

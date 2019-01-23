@@ -155,7 +155,7 @@ impl MemoryInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let size = offset + init.len();
@@ -187,7 +187,7 @@ impl MemoryInstance {
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = match offset.first() {
         Some(Inst::I32Const(offset)) => *offset,
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       for (i, d) in init.into_iter().enumerate() {
@@ -215,7 +215,7 @@ impl MemoryInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(*idx),
+        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let size = offset + init.len();

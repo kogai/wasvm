@@ -4,28 +4,30 @@ use super::decodable::{
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use function::FunctionInstance;
-use inst::Inst;
+use inst::{Indice, Inst};
 use trap::Result;
 
 #[derive(Debug, Clone)]
 pub struct Element {
-  pub(crate) table_idx: u32,
+  pub(crate) table_idx: Indice,
   pub(crate) offset: Vec<Inst>,
-  pub(crate) init: Vec<u32>, // FIXME: Vec of funcidx, Use Indice type
+  pub(crate) init: Vec<Indice>, // FIXME: Vec of funcidx, Use Indice type
 }
 
 impl Element {
-  pub fn new(table_idx: u32, offset: Vec<Inst>, init: Vec<u32>) -> Self {
+  pub fn new(table_idx: Indice, offset: Vec<Inst>, init: Vec<Indice>) -> Self {
     Element {
       table_idx,
       offset,
       init,
     }
   }
-  pub fn get_table_idx(&self) -> usize {
-    self.table_idx as usize
+
+  pub fn get_table_idx(&self) -> &Indice {
+    &self.table_idx
   }
-  pub fn move_init_to(&self) -> Vec<u32> {
+
+  pub fn move_init_to(&self) -> Vec<Indice> {
     self.init.clone()
   }
 
@@ -36,7 +38,7 @@ impl Element {
     self
       .init
       .iter()
-      .map(|fn_idx| function_instances.get(*fn_idx as usize).cloned())
+      .map(|fn_idx| function_instances.get(fn_idx.to_usize()).cloned())
       .collect()
   }
 }
@@ -63,13 +65,11 @@ impl SignedIntegerDecodable for Section {}
 impl InstructionDecodable for Section {}
 
 impl Section {
-  fn decode_function_idx(&mut self) -> Result<Vec<u32>> {
+  fn decode_function_idx(&mut self) -> Result<Vec<Indice>> {
     let count = self.decode_leb128_u32()?;
-    Ok(
-      (0..count)
-        .map(|_| self.decode_leb128_u32().unwrap())
-        .collect::<Vec<_>>(),
-    )
+    (0..count)
+      .map(|_| self.decode_leb128_u32().map(From::from))
+      .collect::<Result<Vec<_>>>()
   }
 }
 
@@ -82,7 +82,7 @@ impl Decodable for Section {
         let table_idx = self.decode_leb128_u32()?;
         let offset = self.decode_instructions()?;
         let init = self.decode_function_idx()?;
-        Ok(Element::new(table_idx, offset, init))
+        Ok(Element::new(From::from(table_idx), offset, init))
       })
       .collect::<Result<Vec<_>>>()
   }
