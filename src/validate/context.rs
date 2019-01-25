@@ -7,7 +7,7 @@ use core::cell::{Cell, RefCell};
 use decode::{Data, Element, Section, TableType};
 use function::FunctionType;
 use global::GlobalType;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use memory::Limit;
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,

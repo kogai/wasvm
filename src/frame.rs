@@ -5,7 +5,7 @@ use core::cell::{RefCell, RefMut};
 use core::fmt;
 use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use stack::StackEntry;
 use value_type::ValueTypes;
 

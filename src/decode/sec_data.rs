@@ -3,7 +3,7 @@ use super::decodable::{
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
-use inst::Inst;
+use isa::Inst;
 use trap::Result;
 
 #[derive(Debug)]

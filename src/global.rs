@@ -4,7 +4,7 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
   GLOBAL_DESCRIPTOR,

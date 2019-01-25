@@ -4,7 +4,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use frame::Frame;
 use function::FunctionInstance;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use label::{Label, LabelKind};
 use memory::MemoryInstances;
 use module::{

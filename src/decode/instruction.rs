@@ -1,6 +1,6 @@
 use super::decodable::{Peekable, SignedIntegerDecodable, U32Decodable};
 use alloc::vec::Vec;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use trap::{Result, Trap};
 
 macro_rules! impl_decode_float {
@@ -36,7 +36,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
 
   fn decode_instructions(&mut self) -> Result<Vec<Inst>> {
     use super::code::Code;
-    use inst::Inst;
+    use isa::Inst;
     use value_type::ValueTypes;
     let mut expressions = vec![];
     while !Code::is_else_or_end(self.peek()) {

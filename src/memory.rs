@@ -10,7 +10,7 @@ use core::mem::transmute;
 use core::u32;
 use decode::Data;
 use global::GlobalInstances;
-use inst::Inst;
+use isa::Inst;
 use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
 use trap::{Result, Trap};
 use value::Values;

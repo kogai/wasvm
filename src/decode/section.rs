@@ -9,7 +9,7 @@ use core::convert::TryFrom;
 use core::default::Default;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstances, GlobalType};
-use inst::Inst;
+use isa::Inst;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, FUNCTION_DESCRIPTOR,

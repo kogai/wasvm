@@ -79,7 +79,7 @@ mod tests {
   use super::*;
   use embedder::{decode_module, init_store};
   use function::{FunctionInstance, FunctionType};
-  use inst::Inst;
+  use isa::Inst;
   use module::ExternalModules;
   use std::fs::File;
   use std::io::Read;

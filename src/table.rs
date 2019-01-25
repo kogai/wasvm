@@ -8,7 +8,7 @@ use core::clone::Clone;
 use decode::{Element, TableType};
 use function::FunctionInstance;
 use global::GlobalInstances;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use memory::Limit;
 use trap::{Result, Trap};
 
