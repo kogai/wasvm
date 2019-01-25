@@ -4,6 +4,7 @@
 #![feature(alloc)]
 #![feature(core_intrinsics)]
 #![cfg_attr(not(test), no_std)]
+#![allow(clippy::needless_range_loop)]
 
 #[cfg(test)]
 #[macro_use]

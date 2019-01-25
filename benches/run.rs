@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 #![feature(test)]
 extern crate flame;
 extern crate test;
