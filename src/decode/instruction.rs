@@ -34,6 +34,13 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
     }
   }
 
+  fn push_u32_as_bytes(&self, raw: u32, expressions: &mut Vec<Inst>) {
+    let bytes: [u8; 4] = unsafe { core::mem::transmute(raw) };
+    for byte in bytes.iter() {
+      expressions.push(Inst::ExperimentalByte(*byte));
+    }
+  }
+
   fn decode_instructions(&mut self) -> Result<Vec<Inst>> {
     use super::code::Code;
     use isa::Inst;
@@ -53,11 +60,8 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           let mut instructions = self.decode_instructions()?;
           let size =
             (2 /* Block inst + Type of block */ + 4 /* size of size */ + instructions.len()) as u32;
-          let bytes: [u8; 4] = unsafe { core::mem::transmute(size) };
           expressions.push(Inst::Block);
-          for byte in bytes.iter() {
-            expressions.push(Inst::ExperimentalByte(*byte));
-          }
+          self.push_u32_as_bytes(size, &mut expressions);
           expressions.push(block_type);
           expressions.append(&mut instructions);
         }
@@ -117,10 +121,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         Code::SetGlobal => {
           expressions.push(Inst::SetGlobal);
           let idx = self.decode_leb128_u32()?;
-          let bytes: [u8; 4] = unsafe { core::mem::transmute(idx) };
-          for byte in bytes.iter() {
-            expressions.push(Inst::ExperimentalByte(*byte));
-          }
+          self.push_u32_as_bytes(idx, &mut expressions);
         }
         Code::DropInst => expressions.push(Inst::DropInst),
 
