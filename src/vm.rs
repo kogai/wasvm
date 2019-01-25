@@ -392,14 +392,15 @@ impl Vm {
                     let continuation = self.stack.jump_to_label(l)?;
                     frame.jump_to(continuation);
                 }
-                Call(idx) => {
+                Call => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
                     let function_instance = match &source_of_frame {
                         Some(module_name) => self
                             .external_modules
                             // FIXME: Drop owning of name to search something.
                             .get_function_instance(&Some(module_name.to_owned()), idx.to_usize())
                             .map(|x| x.clone())?,
-                        None => self.store.get_function_instance(idx)?,
+                        None => self.store.get_function_instance(&idx)?,
                     };
                     let arity = function_instance.get_arity();
                     let mut arguments = vec![];

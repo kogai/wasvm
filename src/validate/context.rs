@@ -586,7 +586,8 @@ impl<'a> Context<'a> {
           }
           cxt.push(actual);
         }
-        Call(idx) => {
+        Call => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let function_type = self
             .functions
             .get(idx.to_usize())

@@ -103,7 +103,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           expressions.push(Inst::BrTable(tables, idx))
         }
         Code::Return => expressions.push(Inst::Return),
-        Code::Call => expressions.push(Inst::Call(Indice::from(self.decode_leb128_u32()?))),
+        Code::Call => {
+          expressions.push(Inst::Call);
+          let idx = self.decode_leb128_u32()?;
+          self.push_u32_as_bytes(idx, &mut expressions);
+        }
         Code::CallIndirect => {
           expressions.push(Inst::CallIndirect(Indice::from(self.decode_leb128_u32()?)));
           self.next(); // Drop code 0x00.

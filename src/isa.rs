@@ -41,7 +41,7 @@ pub enum Inst {
   BrIf(Indice),
   BrTable(Vec<Indice>, Indice),
   Return,
-  Call(Indice),
+  Call,
   CallIndirect(Indice),
 
   I32Const(i32),
