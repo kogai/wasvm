@@ -33,7 +33,7 @@ pub enum Inst {
   Unreachable,
   Nop,
   Block,
-  Loop(u32),
+  Loop,
   If(u32, u32),
   Else,
   End,

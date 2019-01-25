@@ -512,7 +512,7 @@ impl<'a> Context<'a> {
           labels.push_front([expect_type; 1]);
           cxt.push_label();
         }
-        Loop(_) => {
+        Loop => {
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
           cxt.push_label();

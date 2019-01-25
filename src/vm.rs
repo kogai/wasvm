@@ -335,7 +335,7 @@ impl Vm {
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::Block);
                     self.stack.push(label)?;
                 }
-                Loop(_) => {
+                Loop => {
                     // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
                     // In case for ptr of frame starts by 5,
                     //

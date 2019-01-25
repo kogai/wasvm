@@ -68,9 +68,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         Code::Loop => {
           let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
           let mut instructions = self.decode_instructions()?;
-          expressions.push(Inst::Loop(
-            (2 /* Loop inst + Type of block */ + instructions.len()) as u32,
-          ));
+          expressions.push(Inst::Loop);
           expressions.push(block_type);
           expressions.append(&mut instructions);
         }
