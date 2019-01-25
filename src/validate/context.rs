@@ -12,7 +12,6 @@ use memory::Limit;
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
 };
-use trap::Trap;
 use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
 
 type ResultType = [ValueTypes; 1];
@@ -105,6 +104,19 @@ impl<'a> Function<'a> {
       Some(Inst::RuntimeValue(ty)) => Some(ty.to_owned()),
       _ => None,
     }
+  }
+
+  fn pop_raw_u32(&self) -> Result<u32> {
+    let mut buf = [0; 4];
+    for i in 0..buf.len() {
+      let raw_byte = match self.pop() {
+        Some(Inst::ExperimentalByte(b)) => b,
+        _ => return Err(TypeError::NotFound),
+      };
+      buf[i] = *raw_byte;
+    }
+    let idx: u32 = unsafe { core::mem::transmute(buf) };
+    Ok(idx)
   }
 }
 
@@ -494,7 +506,8 @@ impl<'a> Context<'a> {
       match inst {
         Unreachable => {}
         Nop => {}
-        Block(_) => {
+        Block => {
+          let _ = function.pop_raw_u32()?; // Drop size of block.
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
           cxt.push_label();
@@ -644,15 +657,8 @@ impl<'a> Context<'a> {
         }
         SetGlobal => {
           let expect = cxt.pop_type()?;
-          let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            let raw_byte = match function.pop() {
-              Some(Inst::ExperimentalByte(b)) => b,
-              _ => return Err(TypeError::Trap(Trap::Undefined)),
-            };
-            buf[i] = *raw_byte;
-          }
-          let idx: Indice = From::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          let idx = function.pop_raw_u32()?;
+          let idx: Indice = From::from(idx);
           let ty = self
             .globals
             .get(idx.to_usize())

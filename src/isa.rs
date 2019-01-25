@@ -32,7 +32,7 @@ impl Indice {
 pub enum Inst {
   Unreachable,
   Nop,
-  Block(u32),
+  Block,
   Loop(u32),
   If(u32, u32),
   Else,

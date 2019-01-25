@@ -317,19 +317,21 @@ impl Vm {
                     }
                 }
                 Nop => {}
-                Block(size) => {
-                    // Size = 10 = 1(Block) + 1(BlockType) + 7(Instructions) + 1(End)
+                Block => {
+                    // Size = 14 = 1(Block) + 1(BlockType) + 4(size) + 7(Instructions) + 1(End)
                     // In case of ptr of instructions starts by 5,
                     //
                     // [05] Block                   | <- start_of_control
-                    // [06] Block_type              | <- instructions.ptr
-                    //        Instructions * 6      |
-                    // [13]   Last Instruction      |
-                    // [14] End                     |
-                    // [15] NextInstruction         |  <- continuation
+                    // [06-09] Size                 |
+                    // [10] Block_type              | <- instructions.ptr
+                    // [11-16] Instructions * 6     |
+                    // [17] Last Instruction        |
+                    // [18] End                     |
+                    // [19] NextInstruction         |  <- continuation
                     let start_of_label = frame.get_start_of_label();
-                    let continuation = start_of_label + size;
+                    let size = frame.pop_raw_u32()?;
                     let block_type = frame.pop_runtime_type()?;
+                    let continuation = start_of_label + size;
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::Block);
                     self.stack.push(label)?;
                 }
@@ -458,15 +460,7 @@ impl Vm {
                 TeeLocal(idx) => self.tee_local(idx)?,
                 GetGlobal(idx) => self.get_global(idx)?,
                 SetGlobal => {
-                    let mut buf = [0; 4];
-                    for i in 0..buf.len() {
-                        let raw_byte = match frame.pop_ref() {
-                            Some(Inst::ExperimentalByte(b)) => b,
-                            _ => return Err(Trap::Undefined),
-                        };
-                        buf[i] = *raw_byte;
-                    }
-                    let idx: u32 = unsafe { core::mem::transmute(buf) };
+                    let idx = frame.pop_raw_u32()?;
                     self.set_global(&From::from(idx))?;
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
