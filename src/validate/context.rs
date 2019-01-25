@@ -838,7 +838,7 @@ impl<'a> Context<'a> {
         F32ReinterpretI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
         F64ReinterpretI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
 
-        RuntimeValue(_) => unimplemented!(),
+        RuntimeValue(_) | ExperimentalByte(_) => unreachable!(),
       }
     }
     Ok(())

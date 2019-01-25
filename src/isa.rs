@@ -216,6 +216,7 @@ pub enum Inst {
   F64ReinterpretI64,
 
   RuntimeValue(ValueTypes),
+  ExperimentalByte(u8),
 }
 
 impl Inst {

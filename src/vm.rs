@@ -640,7 +640,7 @@ impl Vm {
                 I64TruncSignF32 => self.trunc_f32_to_sign_i64()?,
                 I64TruncUnsignF32 => self.trunc_f32_to_unsign_i64()?,
 
-                RuntimeValue(t) => unreachable!("Expected calculatable operation, got {:?}", t),
+                RuntimeValue(_) | ExperimentalByte(_) => unreachable!(),
             };
         }
         Ok(())
