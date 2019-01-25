@@ -457,7 +457,18 @@ impl Vm {
                 SetLocal(idx) => self.set_local(idx)?,
                 TeeLocal(idx) => self.tee_local(idx)?,
                 GetGlobal(idx) => self.get_global(idx)?,
-                SetGlobal(idx) => self.set_global(idx)?,
+                SetGlobal => {
+                    let mut buf = [0; 4];
+                    for i in 0..buf.len() {
+                        let raw_byte = match frame.pop_ref() {
+                            Some(Inst::ExperimentalByte(b)) => b,
+                            _ => return Err(Trap::Undefined),
+                        };
+                        buf[i] = *raw_byte;
+                    }
+                    let idx: u32 = unsafe { core::mem::transmute(buf) };
+                    self.set_global(&From::from(idx))?;
+                }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
                 F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,

@@ -12,6 +12,7 @@ use memory::Limit;
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
 };
+use trap::Trap;
 use value_type::{ValueTypes, TYPE_F32, TYPE_F64, TYPE_I32, TYPE_I64};
 
 type ResultType = [ValueTypes; 1];
@@ -641,8 +642,17 @@ impl<'a> Context<'a> {
             })?;
           cxt.push(ty.clone());
         }
-        SetGlobal(idx) => {
+        SetGlobal => {
           let expect = cxt.pop_type()?;
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            let raw_byte = match function.pop() {
+              Some(Inst::ExperimentalByte(b)) => b,
+              _ => return Err(TypeError::Trap(Trap::Undefined)),
+            };
+            buf[i] = *raw_byte;
+          }
+          let idx: Indice = From::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           let ty = self
             .globals
             .get(idx.to_usize())

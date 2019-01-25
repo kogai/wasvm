@@ -53,7 +53,7 @@ pub enum Inst {
   SetLocal(Indice),
   TeeLocal(Indice),
   GetGlobal(Indice),
-  SetGlobal(Indice),
+  SetGlobal,
 
   I32Load(u32, u32),
   I64Load(u32, u32),

@@ -43,6 +43,9 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
       let code = Code::from(self.next());
       match code {
         Code::Reserved => unreachable!(),
+        // NOTE: Consume at decoding "If" instructions.
+        Code::End | Code::Else => unreachable!("{:?}", code),
+
         Code::Unreachable => expressions.push(Inst::Unreachable),
         Code::Nop => expressions.push(Inst::Nop),
         Code::Block => {
@@ -98,25 +101,28 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           self.next(); // Drop code 0x00.
         }
 
-        // NOTE: Consume at decoding "If" instructions.
-        Code::End | Code::Else => unreachable!("{:?}", code),
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
         Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
         Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
         Code::F64Const => expressions.push(Inst::F64Const(self.decode_f64()?)),
-        // NOTE: It might be need to decode as LEB128 integer, too.
+
         Code::GetLocal => expressions.push(Inst::GetLocal(From::from(self.decode_leb128_u32()?))),
         Code::SetLocal => expressions.push(Inst::SetLocal(From::from(self.decode_leb128_u32()?))),
         Code::TeeLocal => expressions.push(Inst::TeeLocal(From::from(self.decode_leb128_u32()?))),
         Code::GetGlobal => expressions.push(Inst::GetGlobal(From::from(self.decode_leb128_u32()?))),
-        Code::SetGlobal => expressions.push(Inst::SetGlobal(From::from(self.decode_leb128_u32()?))),
+        Code::SetGlobal => {
+          expressions.push(Inst::SetGlobal);
+          let idx = self.decode_leb128_u32()?;
+          let bytes: [u8; 4] = unsafe { core::mem::transmute(idx) };
+          for byte in bytes.iter() {
+            expressions.push(Inst::ExperimentalByte(*byte));
+          }
+        }
         Code::DropInst => expressions.push(Inst::DropInst),
 
         Code::I32Load => {
-          match self.decode_memory_inst() {
-            Ok((align, offset)) => expressions.push(Inst::I32Load(align, offset)),
-            Err(err) => return Err(err),
-          };
+          let (align, offset) = self.decode_memory_inst()?;
+          expressions.push(Inst::I32Load(align, offset));
         }
         Code::I64Load => {
           let (align, offset) = self.decode_memory_inst()?;
