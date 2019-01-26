@@ -16,10 +16,19 @@ macro_rules! impl_decode_float {
       Ok($convert(buf))
     }
   };
+  ($buf_ty: ty, $fn_name: ident, $bitwidth: expr) => {
+    fn $fn_name(&mut self) -> $crate::trap::Result<$buf_ty> {
+      let mut buf = [0u8; $bitwidth];
+      for i in 0..$bitwidth {
+        buf[i] = self.next()?;
+      }
+      Ok(unsafe { core::mem::transmute::<_, $buf_ty>(buf)})
+    }
+  };
 }
 
 pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable {
-  impl_decode_float!(f32, u32, u32::from, decode_f32, f32::from_bits, 32);
+  impl_decode_float!(u32, decode_f32, 4);
   impl_decode_float!(f64, u64, u64::from, decode_f64, f64::from_bits, 64);
 
   fn decode_memory_parameter(&mut self) -> Result<(u32, u32)> {
@@ -135,7 +144,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
 
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
         Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
-        Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
+        Code::F32Const => {
+          expressions.push(Inst::F32Const);
+          let value = self.decode_f32()?;
+          self.push_u32_as_bytes(value, &mut expressions);
+        }
         Code::F64Const => expressions.push(Inst::F64Const(self.decode_f64()?)),
 
         // FIXME: Commonize as method.

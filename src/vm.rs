@@ -490,7 +490,10 @@ impl Vm {
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
-                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,
+                F32Const => {
+                    let n = f32::from_bits(frame.pop_raw_u32()?);
+                    self.stack.push(StackEntry::new_value(Values::F32(n)))?;
+                }
                 F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n)))?,
 
                 I32DivUnsign | I64DivUnsign => self.div_u()?,

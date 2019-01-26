@@ -200,7 +200,7 @@ impl<'a> Context<'a> {
       match x {
         Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
         Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
-        Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
+        Inst::F32Const => type_stack.push(ValueTypes::F32),
         Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
         Inst::GetGlobal => {
           let mut buf = [0; 4];
@@ -271,19 +271,28 @@ impl<'a> Context<'a> {
   fn validate_globals(&self) -> Result<()> {
     for (global_type, init) in self.globals.iter() {
       let type_stack = TypeStack::new();
-      for x in init.iter() {
+      let mut idx = 0;
+      while idx < init.len() {
+        let x = &init[idx];
+        idx += 1;
         match x {
           Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
           Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
-          Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
+          Inst::F32Const => {
+            idx += 4;
+            type_stack.push(ValueTypes::F32);
+          }
           Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
-          Inst::GetGlobal => return Err(TypeError::ConstantExpressionRequired),
+          Inst::GetGlobal => {
+            return Err(TypeError::ConstantExpressionRequired);
+          }
           Inst::End => {
             break;
           }
           _ => return Err(TypeError::ConstantExpressionRequired),
         }
       }
+
       if type_stack.len() > 1 {
         return Err(TypeError::TypeMismatch);
       }
@@ -654,7 +663,10 @@ impl<'a> Context<'a> {
 
         I32Const(_) => cxt.push(ValueTypes::I32),
         I64Const(_) => cxt.push(ValueTypes::I64),
-        F32Const(_) => cxt.push(ValueTypes::F32),
+        F32Const => {
+          let _ = function.pop_raw_u32()?;
+          cxt.push(ValueTypes::F32);
+        }
         F64Const(_) => cxt.push(ValueTypes::F64),
 
         GetLocal => {
