@@ -1,5 +1,4 @@
 use core::convert::From;
-use value_type::ValueTypes;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Indice(u32);
@@ -212,7 +211,5 @@ pub enum Inst {
   I64ReinterpretF64,
   F32ReinterpretI32,
   F64ReinterpretI64,
-
-  RuntimeValue(ValueTypes),
   ExperimentalByte(u8),
 }

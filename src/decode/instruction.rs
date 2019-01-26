@@ -57,7 +57,6 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
   fn decode_instructions(&mut self) -> Result<Vec<Inst>> {
     use super::code::Code;
     use isa::Inst;
-    use value_type::ValueTypes;
     let mut expressions = vec![];
     while !Code::is_else_or_end(self.peek()) {
       let code = Code::from(self.next());
@@ -69,7 +68,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         Code::Unreachable => expressions.push(Inst::Unreachable),
         Code::Nop => expressions.push(Inst::Nop),
         Code::Block => {
-          let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
+          let block_type = Inst::ExperimentalByte(self.next()?);
           let mut instructions = self.decode_instructions()?;
           let size =
             (2 /* Block inst + Type of block */ + 4 /* size of size */ + instructions.len()) as u32;
@@ -79,14 +78,14 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           expressions.append(&mut instructions);
         }
         Code::Loop => {
-          let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
+          let block_type = Inst::ExperimentalByte(self.next()?);
           let mut instructions = self.decode_instructions()?;
           expressions.push(Inst::Loop);
           expressions.push(block_type);
           expressions.append(&mut instructions);
         }
         Code::If => {
-          let block_type = Inst::RuntimeValue(ValueTypes::from(self.next()));
+          let block_type = Inst::ExperimentalByte(self.next()?);
           let mut if_insts = self.decode_instructions()?;
           let last = if_insts.last().cloned();
 

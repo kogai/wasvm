@@ -1,5 +1,3 @@
-#[cfg(not(test))]
-use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{RefCell, RefMut};
 use core::fmt;
@@ -89,7 +87,7 @@ impl Frame {
 
   pub fn pop_runtime_type(&self) -> Option<ValueTypes> {
     match self.pop_ref()? {
-      Inst::RuntimeValue(ty) => Some(ty.to_owned()),
+      Inst::ExperimentalByte(byte) => Some(ValueTypes::from(Some(*byte))),
       _ => None,
     }
   }

@@ -101,7 +101,7 @@ impl<'a> Function<'a> {
 
   fn pop_value_type(&self) -> Option<ValueTypes> {
     match self.pop() {
-      Some(Inst::RuntimeValue(ty)) => Some(ty.to_owned()),
+      Some(Inst::ExperimentalByte(byte)) => Some(ValueTypes::from(Some(*byte))),
       _ => None,
     }
   }
@@ -945,7 +945,7 @@ impl<'a> Context<'a> {
         F32ReinterpretI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
         F64ReinterpretI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
 
-        RuntimeValue(_) | ExperimentalByte(_) => unreachable!(),
+        ExperimentalByte(_) => unreachable!(),
       }
     }
     Ok(())
