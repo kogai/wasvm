@@ -1,5 +1,4 @@
 use core::convert::From;
-use value::Values;
 use value_type::ValueTypes;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -43,7 +42,7 @@ pub enum Inst {
   Call,
   CallIndirect,
 
-  I32Const(i32),
+  I32Const,
   I64Const,
   F32Const,
   F64Const,
@@ -216,14 +215,4 @@ pub enum Inst {
 
   RuntimeValue(ValueTypes),
   ExperimentalByte(u8),
-}
-
-impl Inst {
-  pub fn get_value_ext(&self) -> Values {
-    use self::Inst::*;
-    match self {
-      I32Const(n) => Values::I32(*n),
-      _ => unreachable!("{:?}", self),
-    }
-  }
 }

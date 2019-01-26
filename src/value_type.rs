@@ -19,13 +19,11 @@ impl From<Option<u8>> for ValueTypes {
   fn from(code: Option<u8>) -> Self {
     match code {
       Some(0x40) => ValueTypes::Empty,
-      // Some(0x60) => TypeFunction,
       Some(0x7f) => ValueTypes::I32,
       Some(0x7e) => ValueTypes::I64,
       Some(0x7d) => ValueTypes::F32,
       Some(0x7c) => ValueTypes::F64,
-      Some(x) => unimplemented!("ValueTypes of {:x} does not implemented yet.", x),
-      None => unreachable!("ValueTypes not found"),
+      x => unreachable!("Expected value type, got {:?}", x),
     }
   }
 }

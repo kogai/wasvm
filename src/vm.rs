@@ -488,7 +488,10 @@ impl Vm {
                     let idx = Indice::from(frame.pop_raw_u32()?);
                     self.set_global(&idx)?;
                 }
-                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
+                I32Const => {
+                    let n = frame.pop_raw_u32()? as i32;
+                    self.stack.push(StackEntry::new_value(Values::I32(n)))?;
+                }
                 I64Const => {
                     let n = frame.pop_raw_u64()? as i64;
                     self.stack.push(StackEntry::new_value(Values::I64(n)))?;
