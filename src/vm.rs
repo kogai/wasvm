@@ -561,61 +561,129 @@ impl Vm {
                     self.reinterpret()?
                 }
 
-                I32Load(_, offset) => self.load_data_to_i32(*offset, 32, true, &source_of_frame)?,
-                I32Load8Unsign(_, offset) => {
-                    self.load_data_to_i32(*offset, 8, false, &source_of_frame)?
+                I32Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 32, true, &source_of_frame)?;
                 }
-                I32Load8Sign(_, offset) => {
-                    self.load_data_to_i32(*offset, 8, true, &source_of_frame)?
+                I32Load8Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 8, false, &source_of_frame)?
                 }
-                I32Load16Unsign(_, offset) => {
-                    self.load_data_to_i32(*offset, 16, false, &source_of_frame)?
+                I32Load8Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 8, true, &source_of_frame)?
                 }
-                I32Load16Sign(_, offset) => {
-                    self.load_data_to_i32(*offset, 16, true, &source_of_frame)?
+                I32Load16Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 16, false, &source_of_frame)?
                 }
-
-                I64Load(_, offset) => self.load_data_to_i64(*offset, 64, true, &source_of_frame)?,
-                I64Load8Unsign(_, offset) => {
-                    self.load_data_to_i64(*offset, 8, false, &source_of_frame)?
-                }
-                I64Load8Sign(_, offset) => {
-                    self.load_data_to_i64(*offset, 8, true, &source_of_frame)?
-                }
-                I64Load16Unsign(_, offset) => {
-                    self.load_data_to_i64(*offset, 16, false, &source_of_frame)?
-                }
-                I64Load16Sign(_, offset) => {
-                    self.load_data_to_i64(*offset, 16, true, &source_of_frame)?
-                }
-                I64Load32Unsign(_, offset) => {
-                    self.load_data_to_i64(*offset, 32, false, &source_of_frame)?
-                }
-                I64Load32Sign(_, offset) => {
-                    self.load_data_to_i64(*offset, 32, true, &source_of_frame)?
+                I32Load16Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 16, true, &source_of_frame)?
                 }
 
-                F32Load(_, offset) => {
-                    let value = self.load_data_f32(*offset, 32, &source_of_frame)?;
+                I64Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 64, true, &source_of_frame)?;
+                }
+                I64Load8Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 8, false, &source_of_frame)?
+                }
+                I64Load8Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 8, true, &source_of_frame)?
+                }
+                I64Load16Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 16, false, &source_of_frame)?
+                }
+                I64Load16Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 16, true, &source_of_frame)?
+                }
+                I64Load32Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 32, false, &source_of_frame)?
+                }
+                I64Load32Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 32, true, &source_of_frame)?
+                }
+
+                F32Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    let value = self.load_data_f32(offset, 32, &source_of_frame)?;
                     self.stack
                         .push(StackEntry::new_value(Values::F32(value as f32)))?;
                 }
 
-                F64Load(_, offset) => {
-                    let value = self.load_data_f64(*offset, 64, &source_of_frame)?;
+                F64Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    let value = self.load_data_f64(offset, 64, &source_of_frame)?;
                     self.stack
                         .push(StackEntry::new_value(Values::F64(value as f64)))?;
                 }
 
-                I32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
-                F32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
-                I64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
-                F64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
-                I32Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
-                I32Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
-                I64Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
-                I64Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
-                I64Store32(_, offset) => self.store(32, *offset, &source_of_frame)?,
+                I32Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(32, offset, &source_of_frame)?;
+                }
+                F32Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(32, offset, &source_of_frame)?;
+                }
+                I64Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(64, offset, &source_of_frame)?;
+                }
+                F64Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(64, offset, &source_of_frame)?;
+                }
+                I32Store8 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(8, offset, &source_of_frame)?;
+                }
+                I32Store16 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(16, offset, &source_of_frame)?;
+                }
+                I64Store8 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(8, offset, &source_of_frame)?;
+                }
+                I64Store16 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(16, offset, &source_of_frame)?;
+                }
+                I64Store32 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(32, offset, &source_of_frame)?;
+                }
 
                 MemorySize => {
                     let memory_instances = self.get_memory_instances(&source_of_frame)?;

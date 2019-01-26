@@ -22,7 +22,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
   impl_decode_float!(f32, u32, u32::from, decode_f32, f32::from_bits, 32);
   impl_decode_float!(f64, u64, u64::from, decode_f64, f64::from_bits, 64);
 
-  fn decode_memory_inst(&mut self) -> Result<(u32, u32)> {
+  fn decode_memory_parameter(&mut self) -> Result<(u32, u32)> {
     let align = self.decode_leb128_u32();
     let offset = self.decode_leb128_u32();
     match (align, offset) {
@@ -32,6 +32,14 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
       }
       _ => Err(Trap::Unknown),
     }
+  }
+
+  fn decode_memory(&mut self, inst: Inst, expressions: &mut Vec<Inst>) -> Result<()> {
+    let (align, offset) = self.decode_memory_parameter()?;
+    expressions.push(inst);
+    self.push_u32_as_bytes(align, expressions);
+    self.push_u32_as_bytes(offset, expressions);
+    Ok(())
   }
 
   fn push_u32_as_bytes(&self, raw: u32, expressions: &mut Vec<Inst>) {
@@ -141,98 +149,29 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         }
         Code::DropInst => expressions.push(Inst::DropInst),
 
-        Code::I32Load => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Load(align, offset));
-        }
-        Code::I64Load => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Load(align, offset));
-        }
-        Code::F32Load => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::F32Load(align, offset));
-        }
-        Code::F64Load => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::F64Load(align, offset));
-        }
-        Code::I32Load8Sign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Load8Sign(align, offset));
-        }
-        Code::I32Load8Unsign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Load8Unsign(align, offset));
-        }
-        Code::I32Load16Sign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Load16Sign(align, offset));
-        }
-        Code::I32Load16Unsign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Load16Unsign(align, offset));
-        }
-        Code::I64Load8Sign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Load8Sign(align, offset));
-        }
-        Code::I64Load8Unsign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Load8Unsign(align, offset));
-        }
-        Code::I64Load16Sign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Load16Sign(align, offset));
-        }
-        Code::I64Load16Unsign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Load16Unsign(align, offset));
-        }
-        Code::I64Load32Sign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Load32Sign(align, offset));
-        }
-        Code::I64Load32Unsign => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Load32Unsign(align, offset));
-        }
-        Code::I32Store => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Store(align, offset));
-        }
-        Code::I64Store => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Store(align, offset));
-        }
-        Code::F32Store => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::F32Store(align, offset));
-        }
-        Code::F64Store => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::F64Store(align, offset));
-        }
-        Code::I32Store8 => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Store8(align, offset));
-        }
-        Code::I32Store16 => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I32Store16(align, offset));
-        }
-        Code::I64Store8 => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Store8(align, offset));
-        }
-        Code::I64Store16 => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Store16(align, offset));
-        }
-        Code::I64Store32 => {
-          let (align, offset) = self.decode_memory_inst()?;
-          expressions.push(Inst::I64Store32(align, offset));
-        }
+        Code::I32Load => self.decode_memory(Inst::I32Load, &mut expressions)?,
+        Code::I64Load => self.decode_memory(Inst::I64Load, &mut expressions)?,
+        Code::F32Load => self.decode_memory(Inst::F32Load, &mut expressions)?,
+        Code::F64Load => self.decode_memory(Inst::F64Load, &mut expressions)?,
+        Code::I32Load8Sign => self.decode_memory(Inst::I32Load8Sign, &mut expressions)?,
+        Code::I32Load8Unsign => self.decode_memory(Inst::I32Load8Unsign, &mut expressions)?,
+        Code::I32Load16Sign => self.decode_memory(Inst::I32Load16Sign, &mut expressions)?,
+        Code::I32Load16Unsign => self.decode_memory(Inst::I32Load16Unsign, &mut expressions)?,
+        Code::I64Load8Sign => self.decode_memory(Inst::I64Load8Sign, &mut expressions)?,
+        Code::I64Load8Unsign => self.decode_memory(Inst::I64Load8Unsign, &mut expressions)?,
+        Code::I64Load16Sign => self.decode_memory(Inst::I64Load16Sign, &mut expressions)?,
+        Code::I64Load16Unsign => self.decode_memory(Inst::I64Load16Unsign, &mut expressions)?,
+        Code::I64Load32Sign => self.decode_memory(Inst::I64Load32Sign, &mut expressions)?,
+        Code::I64Load32Unsign => self.decode_memory(Inst::I64Load32Unsign, &mut expressions)?,
+        Code::I32Store => self.decode_memory(Inst::I32Store, &mut expressions)?,
+        Code::I64Store => self.decode_memory(Inst::I64Store, &mut expressions)?,
+        Code::F32Store => self.decode_memory(Inst::F32Store, &mut expressions)?,
+        Code::F64Store => self.decode_memory(Inst::F64Store, &mut expressions)?,
+        Code::I32Store8 => self.decode_memory(Inst::I32Store8, &mut expressions)?,
+        Code::I32Store16 => self.decode_memory(Inst::I32Store16, &mut expressions)?,
+        Code::I64Store8 => self.decode_memory(Inst::I64Store8, &mut expressions)?,
+        Code::I64Store16 => self.decode_memory(Inst::I64Store16, &mut expressions)?,
+        Code::I64Store32 => self.decode_memory(Inst::I64Store32, &mut expressions)?,
         Code::MemorySize => {
           self.next()?; // Drop 0x00;
           expressions.push(Inst::MemorySize);
