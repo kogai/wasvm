@@ -469,12 +469,18 @@ impl Vm {
                     break;
                 }
                 GetLocal(idx) => self.get_local(idx)?,
-                SetLocal(idx) => self.set_local(idx)?,
-                TeeLocal(idx) => self.tee_local(idx)?,
+                SetLocal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.set_local(&idx)?;
+                }
+                TeeLocal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.tee_local(&idx)?
+                }
                 GetGlobal(idx) => self.get_global(idx)?,
                 SetGlobal => {
-                    let idx = frame.pop_raw_u32()?;
-                    self.set_global(&From::from(idx))?;
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.set_global(&idx)?;
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
                 I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,

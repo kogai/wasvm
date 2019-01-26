@@ -646,15 +646,17 @@ impl<'a> Context<'a> {
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           cxt.push(actual.clone());
         }
-        SetLocal(idx) => {
+        SetLocal => {
           let expect = cxt.pop_type()?;
+          let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
-        TeeLocal(idx) => {
+        TeeLocal => {
           let expect = cxt.pop_type()?;
+          let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
