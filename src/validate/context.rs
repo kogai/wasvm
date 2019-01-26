@@ -517,8 +517,10 @@ impl<'a> Context<'a> {
           labels.push_front([expect_type; 1]);
           cxt.push_label();
         }
-        If(_, _) => {
+        If => {
           let _ = cxt.pop_i32()?;
+          let _ = function.pop_raw_u32()?; // Drop size of if.
+          let _ = function.pop_raw_u32()?; // Drop size of else.
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
           cxt.push_label();

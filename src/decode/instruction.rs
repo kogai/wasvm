@@ -82,10 +82,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
             Some(Inst::End) => vec![],
             x => unreachable!("{:?}", x),
           };
-          expressions.push(Inst::If(
-            (2 /* If inst + Type of block */ + if_insts.len()) as u32,
-            else_insts.len() as u32,
-          ));
+          let size_of_if = (2 /* If inst + Type of block */ + 8 + if_insts.len()) as u32;
+          let size_of_else = else_insts.len() as u32;
+          expressions.push(Inst::If);
+          self.push_u32_as_bytes(size_of_if, &mut expressions);
+          self.push_u32_as_bytes(size_of_else, &mut expressions);
           expressions.push(block_type);
           expressions.append(&mut if_insts);
           expressions.append(&mut else_insts);

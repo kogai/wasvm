@@ -34,7 +34,7 @@ pub enum Inst {
   Nop,
   Block,
   Loop,
-  If(u32, u32),
+  If,
   Else,
   End,
   Br(Indice),

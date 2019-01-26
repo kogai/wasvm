@@ -351,9 +351,11 @@ impl Vm {
                         StackEntry::new_label(start_of_label, block_type, LabelKind::Loop);
                     self.stack.push(label_continue)?;
                 }
-                If(if_size, else_size) => {
+                If => {
                     let cond = &self.stack.pop_value_ext();
                     let start_of_label = frame.get_start_of_label();
+                    let if_size = frame.pop_raw_u32()?;
+                    let else_size = frame.pop_raw_u32()?;
                     let continuation = start_of_label + if_size + else_size;
                     let block_type = frame.pop_runtime_type()?;
                     if cond.is_truthy() {
@@ -364,7 +366,7 @@ impl Vm {
                             StackEntry::new_label(continuation, block_type, LabelKind::Else);
                         self.stack.push(label)?;
                         let start_of_else = start_of_label + if_size;
-                        if *else_size > 0 {
+                        if else_size > 0 {
                             frame.jump_to(start_of_else);
                         } else {
                             frame.jump_to(start_of_else - 1);
