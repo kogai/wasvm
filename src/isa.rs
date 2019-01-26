@@ -1,4 +1,3 @@
-use alloc::vec::Vec;
 use core::convert::From;
 use value::Values;
 use value_type::ValueTypes;
@@ -39,7 +38,7 @@ pub enum Inst {
   End,
   Br,
   BrIf,
-  BrTable(Vec<Indice>, Indice),
+  BrTable,
   Return,
   Call,
   CallIndirect,

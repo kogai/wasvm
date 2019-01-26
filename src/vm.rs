@@ -386,10 +386,17 @@ impl Vm {
                         frame.jump_to(continuation);
                     };
                 }
-                BrTable(ref tables, ref idx) => {
-                    let i = self.stack.pop_value_ext_i32() as usize;
-                    let l = if i < tables.len() {
-                        tables.get(i)?
+                BrTable => {
+                    let len = frame.pop_raw_u32()?;
+                    let mut indices = vec![];
+                    for _ in 0..len {
+                        let idx = frame.pop_raw_u32()?;
+                        indices.push(Indice::from(idx));
+                    }
+                    let idx = &Indice::from(frame.pop_raw_u32()?);
+                    let i = self.stack.pop_value_ext_i32() as u32;
+                    let l = if i < len {
+                        indices.get(i as usize)?
                     } else {
                         idx
                     };

@@ -102,12 +102,15 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           self.push_u32_as_bytes(idx, &mut expressions);
         }
         Code::BrTable => {
+          expressions.push(Inst::BrTable);
           let len = self.decode_leb128_u32()?;
-          let tables = (0..len)
-            .map(|_| From::from(self.decode_leb128_u32().expect("Can't decode integer.")))
-            .collect::<Vec<_>>();
-          let idx = From::from(self.decode_leb128_u32()?);
-          expressions.push(Inst::BrTable(tables, idx))
+          self.push_u32_as_bytes(len, &mut expressions);
+          for _ in 0..len {
+            let idx = self.decode_leb128_u32()?;
+            self.push_u32_as_bytes(idx, &mut expressions);
+          }
+          let idx = self.decode_leb128_u32()?;
+          self.push_u32_as_bytes(idx, &mut expressions);
         }
         Code::Return => expressions.push(Inst::Return),
         Code::Call => {

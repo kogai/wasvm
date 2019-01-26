@@ -568,7 +568,14 @@ impl<'a> Context<'a> {
             return Err(TypeError::TypeMismatch);
           }
         }
-        BrTable(indices, idx) => {
+        BrTable => {
+          let len = function.pop_raw_u32()?;
+          let mut indices = vec![];
+          for _ in 0..len {
+            let idx = function.pop_raw_u32()?;
+            indices.push(Indice::from(idx));
+          }
+          let idx = Indice::from(function.pop_raw_u32()?);
           let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           for i in indices.iter() {
             let actual = labels.get(i.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
