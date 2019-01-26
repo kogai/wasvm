@@ -103,7 +103,20 @@ impl Frame {
       };
       buf[i] = *raw_byte;
     }
-    let idx: u32 = unsafe { core::mem::transmute(buf) };
+    let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
+    Ok(idx)
+  }
+
+  pub fn pop_raw_u64(&self) -> Result<u64> {
+    let mut buf = [0; 8];
+    for i in 0..buf.len() {
+      let raw_byte = match self.pop_ref() {
+        Some(Inst::ExperimentalByte(b)) => b,
+        _ => return Err(Trap::Undefined),
+      };
+      buf[i] = *raw_byte;
+    }
+    let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
     Ok(idx)
   }
 

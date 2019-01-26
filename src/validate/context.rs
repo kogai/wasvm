@@ -115,7 +115,20 @@ impl<'a> Function<'a> {
       };
       buf[i] = *raw_byte;
     }
-    let idx: u32 = unsafe { core::mem::transmute(buf) };
+    let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
+    Ok(idx)
+  }
+
+  fn pop_raw_u64(&self) -> Result<u64> {
+    let mut buf = [0; 8];
+    for i in 0..buf.len() {
+      let raw_byte = match self.pop() {
+        Some(Inst::ExperimentalByte(b)) => b,
+        _ => return Err(TypeError::NotFound),
+      };
+      buf[i] = *raw_byte;
+    }
+    let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
     Ok(idx)
   }
 }
@@ -200,8 +213,14 @@ impl<'a> Context<'a> {
       match x {
         Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
         Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
-        Inst::F32Const => type_stack.push(ValueTypes::F32),
-        Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
+        Inst::F32Const => {
+          idx += 4;
+          type_stack.push(ValueTypes::F32);
+        }
+        Inst::F64Const => {
+          idx += 8;
+          type_stack.push(ValueTypes::F64);
+        }
         Inst::GetGlobal => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
@@ -282,7 +301,10 @@ impl<'a> Context<'a> {
             idx += 4;
             type_stack.push(ValueTypes::F32);
           }
-          Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
+          Inst::F64Const => {
+            idx += 8;
+            type_stack.push(ValueTypes::F64);
+          }
           Inst::GetGlobal => {
             return Err(TypeError::ConstantExpressionRequired);
           }
@@ -667,7 +689,10 @@ impl<'a> Context<'a> {
           let _ = function.pop_raw_u32()?;
           cxt.push(ValueTypes::F32);
         }
-        F64Const(_) => cxt.push(ValueTypes::F64),
+        F64Const => {
+          let _ = function.pop_raw_u64()?;
+          cxt.push(ValueTypes::F64);
+        }
 
         GetLocal => {
           let idx = Indice::from(function.pop_raw_u32()?);

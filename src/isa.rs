@@ -46,7 +46,7 @@ pub enum Inst {
   I32Const(i32),
   I64Const(i64),
   F32Const,
-  F64Const(f64),
+  F64Const,
 
   GetLocal,
   SetLocal,
@@ -224,7 +224,6 @@ impl Inst {
     match self {
       I32Const(n) => Values::I32(*n),
       I64Const(n) => Values::I64(*n),
-      F64Const(n) => Values::F64(*n),
       _ => unreachable!("{:?}", self),
     }
   }

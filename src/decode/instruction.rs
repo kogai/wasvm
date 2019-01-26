@@ -4,18 +4,6 @@ use isa::Inst;
 use trap::{Result, Trap};
 
 macro_rules! impl_decode_float {
-  ($ty: ty, $buf_ty: ty, $conv_fn: path, $fn_name: ident, $convert: path, $bitwidth: expr) => {
-    fn $fn_name(&mut self) -> $crate::trap::Result<$ty> {
-      let mut buf: $buf_ty = 0;
-      let mut shift = 0;
-      for _ in 0..($bitwidth / 8) {
-        let num = $conv_fn(self.next()?);
-        buf ^= num << shift;
-        shift += 8;
-      }
-      Ok($convert(buf))
-    }
-  };
   ($buf_ty: ty, $fn_name: ident, $bitwidth: expr) => {
     fn $fn_name(&mut self) -> $crate::trap::Result<$buf_ty> {
       let mut buf = [0u8; $bitwidth];
@@ -29,7 +17,7 @@ macro_rules! impl_decode_float {
 
 pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable {
   impl_decode_float!(u32, decode_f32, 4);
-  impl_decode_float!(f64, u64, u64::from, decode_f64, f64::from_bits, 64);
+  impl_decode_float!(u64, decode_f64, 8);
 
   fn decode_memory_parameter(&mut self) -> Result<(u32, u32)> {
     let align = self.decode_leb128_u32();
@@ -51,8 +39,16 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
     Ok(())
   }
 
+  // FIXME: Commonize by using macro.
   fn push_u32_as_bytes(&self, raw: u32, expressions: &mut Vec<Inst>) {
     let bytes: [u8; 4] = unsafe { core::mem::transmute(raw) };
+    for byte in bytes.iter() {
+      expressions.push(Inst::ExperimentalByte(*byte));
+    }
+  }
+
+  fn push_u64_as_bytes(&self, raw: u64, expressions: &mut Vec<Inst>) {
+    let bytes: [u8; 8] = unsafe { core::mem::transmute(raw) };
     for byte in bytes.iter() {
       expressions.push(Inst::ExperimentalByte(*byte));
     }
@@ -149,7 +145,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           let value = self.decode_f32()?;
           self.push_u32_as_bytes(value, &mut expressions);
         }
-        Code::F64Const => expressions.push(Inst::F64Const(self.decode_f64()?)),
+        Code::F64Const => {
+          expressions.push(Inst::F64Const);
+          let value = self.decode_f64()?;
+          self.push_u64_as_bytes(value, &mut expressions);
+        }
 
         // FIXME: Commonize as method.
         Code::GetLocal => {
