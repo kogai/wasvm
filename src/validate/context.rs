@@ -551,14 +551,16 @@ impl<'a> Context<'a> {
           };
         }
 
-        Br(idx) => {
+        Br => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
-        BrIf(idx) => {
+        BrIf => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           cxt.pop_i32()?;
@@ -605,7 +607,8 @@ impl<'a> Context<'a> {
             cxt.push(ty.clone());
           }
         }
-        CallIndirect(idx) => {
+        CallIndirect => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           self.tables.first().ok_or(TypeError::UnknownTable(0))?;
           let function_type = self
             .function_types

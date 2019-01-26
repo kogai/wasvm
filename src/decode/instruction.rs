@@ -1,6 +1,6 @@
 use super::decodable::{Peekable, SignedIntegerDecodable, U32Decodable};
 use alloc::vec::Vec;
-use isa::{Indice, Inst};
+use isa::Inst;
 use trap::{Result, Trap};
 
 macro_rules! impl_decode_float {
@@ -91,8 +91,16 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           expressions.append(&mut if_insts);
           expressions.append(&mut else_insts);
         }
-        Code::Br => expressions.push(Inst::Br(From::from(self.decode_leb128_u32()?))),
-        Code::BrIf => expressions.push(Inst::BrIf(From::from(self.decode_leb128_u32()?))),
+        Code::Br => {
+          expressions.push(Inst::Br);
+          let idx = self.decode_leb128_u32()?;
+          self.push_u32_as_bytes(idx, &mut expressions);
+        }
+        Code::BrIf => {
+          expressions.push(Inst::BrIf);
+          let idx = self.decode_leb128_u32()?;
+          self.push_u32_as_bytes(idx, &mut expressions);
+        }
         Code::BrTable => {
           let len = self.decode_leb128_u32()?;
           let tables = (0..len)
@@ -108,7 +116,9 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           self.push_u32_as_bytes(idx, &mut expressions);
         }
         Code::CallIndirect => {
-          expressions.push(Inst::CallIndirect(Indice::from(self.decode_leb128_u32()?)));
+          expressions.push(Inst::CallIndirect);
+          let idx = self.decode_leb128_u32()?;
+          self.push_u32_as_bytes(idx, &mut expressions);
           self.next(); // Drop code 0x00.
         }
 

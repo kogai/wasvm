@@ -373,14 +373,16 @@ impl Vm {
                         }
                     }
                 }
-                Br(label) => {
-                    let continuation = self.stack.jump_to_label(label)?;
+                Br => {
+                    let label = Indice::from(frame.pop_raw_u32()?);
+                    let continuation = self.stack.jump_to_label(&label)?;
                     frame.jump_to(continuation);
                 }
-                BrIf(l) => {
+                BrIf => {
+                    let label = Indice::from(frame.pop_raw_u32()?);
                     let cond = &self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        let continuation = self.stack.jump_to_label(l)?;
+                        let continuation = self.stack.jump_to_label(&label)?;
                         frame.jump_to(continuation);
                     };
                 }
@@ -418,7 +420,8 @@ impl Vm {
                     self.stack.push_frame(frame)?;
                     break;
                 }
-                CallIndirect(idx) => {
+                CallIndirect => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
                     // NOTE: Due to only single table instance allowed, `ta` always equal to 0.
                     let ta = frame.get_table_address();
                     let table = match &source_of_frame {
@@ -438,7 +441,7 @@ impl Vm {
                             Some(module_name) => self
                                 .external_modules
                                 .get_function_type(&Some(module_name.to_owned()), idx.to_u32())?,
-                            None => self.store.get_function_type(idx)?.clone(),
+                            None => self.store.get_function_type(&idx)?.clone(),
                         };
                         if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
