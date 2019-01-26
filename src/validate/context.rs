@@ -657,7 +657,8 @@ impl<'a> Context<'a> {
         F32Const(_) => cxt.push(ValueTypes::F32),
         F64Const(_) => cxt.push(ValueTypes::F64),
 
-        GetLocal(idx) => {
+        GetLocal => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           cxt.push(actual.clone());
         }

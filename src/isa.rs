@@ -48,7 +48,7 @@ pub enum Inst {
   F32Const(f32),
   F64Const(f64),
 
-  GetLocal(Indice),
+  GetLocal,
   SetLocal,
   TeeLocal,
   GetGlobal,

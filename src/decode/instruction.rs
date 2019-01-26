@@ -138,7 +138,12 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         Code::F32Const => expressions.push(Inst::F32Const(self.decode_f32()?)),
         Code::F64Const => expressions.push(Inst::F64Const(self.decode_f64()?)),
 
-        Code::GetLocal => expressions.push(Inst::GetLocal(From::from(self.decode_leb128_u32()?))),
+        // FIXME: Commonize as method.
+        Code::GetLocal => {
+          expressions.push(Inst::GetLocal);
+          let idx = self.decode_leb128_u32()?;
+          self.push_u32_as_bytes(idx, &mut expressions);
+        }
         Code::SetLocal => {
           expressions.push(Inst::SetLocal);
           let idx = self.decode_leb128_u32()?;

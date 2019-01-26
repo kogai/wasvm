@@ -468,7 +468,10 @@ impl Vm {
                     self.stack.push_frame(frame)?;
                     break;
                 }
-                GetLocal(idx) => self.get_local(idx)?,
+                GetLocal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.get_local(&idx)?;
+                }
                 SetLocal => {
                     let idx = Indice::from(frame.pop_raw_u32()?);
                     self.set_local(&idx)?;
