@@ -44,7 +44,7 @@ pub enum Inst {
   CallIndirect,
 
   I32Const(i32),
-  I64Const(i64),
+  I64Const,
   F32Const,
   F64Const,
 
@@ -223,7 +223,6 @@ impl Inst {
     use self::Inst::*;
     match self {
       I32Const(n) => Values::I32(*n),
-      I64Const(n) => Values::I64(*n),
       _ => unreachable!("{:?}", self),
     }
   }

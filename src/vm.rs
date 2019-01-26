@@ -489,7 +489,10 @@ impl Vm {
                     self.set_global(&idx)?;
                 }
                 I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
-                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
+                I64Const => {
+                    let n = frame.pop_raw_u64()? as i64;
+                    self.stack.push(StackEntry::new_value(Values::I64(n)))?;
+                }
                 F32Const => {
                     let n = f32::from_bits(frame.pop_raw_u32()?);
                     self.stack.push(StackEntry::new_value(Values::F32(n)))?;

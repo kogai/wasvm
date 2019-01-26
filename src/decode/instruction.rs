@@ -139,7 +139,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         }
 
         Code::ConstI32 => expressions.push(Inst::I32Const(self.decode_leb128_i32()?)),
-        Code::ConstI64 => expressions.push(Inst::I64Const(self.decode_leb128_i64()?)),
+        Code::ConstI64 => {
+          expressions.push(Inst::I64Const);
+          let value = self.decode_leb128_i64()?;
+          self.push_u64_as_bytes(value, &mut expressions);
+        }
         Code::F32Const => {
           expressions.push(Inst::F32Const);
           let value = self.decode_f32()?;

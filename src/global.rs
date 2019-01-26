@@ -110,7 +110,18 @@ impl GlobalInstances {
         .map(|x| x.name.to_owned());
       let init_first = init.first();
       let value = match &init_first {
-        Some(Inst::I32Const(_)) | Some(Inst::I64Const(_)) => init_first?.get_value_ext(),
+        Some(Inst::I32Const(_)) => init_first?.get_value_ext(),
+        Some(Inst::I64Const) => {
+          let mut buf = [0; 8];
+          for i in 0..buf.len() {
+            let raw_byte = match init[1 + i] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(Trap::Undefined),
+            };
+            buf[i] = raw_byte;
+          }
+          Values::I64(unsafe { core::mem::transmute::<_, u64>(buf) } as i64)
+        }
         Some(Inst::F32Const) => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {

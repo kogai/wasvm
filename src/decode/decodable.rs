@@ -56,6 +56,21 @@ macro_rules! impl_decode_signed_integer {
         Ok(buf as $dist_ty)
       }
   };
+
+  ($fn_name: ident, $decode_name: ident, $buf_ty: ty) => {
+      fn $fn_name(&mut self) -> Result<$buf_ty> {
+        let (mut buf, shift) = self.$decode_name()?;
+        let (signed_bits, overflowed) = (1 as $buf_ty).overflowing_shl(shift - 1);
+        if overflowed {
+          return Ok(buf);
+        }
+        let is_buf_signed = buf & signed_bits != 0;
+        if is_buf_signed {
+          buf |= !0 << shift;
+        };
+        Ok(buf)
+      }
+  };
 }
 
 pub trait AbstractDecodable {
@@ -92,7 +107,7 @@ pub trait U32Decodable: Leb128Decodable {
 
 pub trait SignedIntegerDecodable: Leb128Decodable {
   impl_decode_signed_integer!(decode_leb128_i32, decode_leb128_u32_internal, i32, u32);
-  impl_decode_signed_integer!(decode_leb128_i64, decode_leb128_u64_internal, i64, u64);
+  impl_decode_signed_integer!(decode_leb128_i64, decode_leb128_u64_internal, u64);
 }
 
 pub trait LimitDecodable: U32Decodable {
@@ -212,7 +227,8 @@ mod tests {
       TestDecodable::new(vec![
         0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
       ])
-      .decode_leb128_i64(),
+      .decode_leb128_i64()
+      .map(|x| x as i64),
       Ok(std::i64::MIN)
     );
   }
@@ -224,7 +240,8 @@ mod tests {
       TestDecodable::new(vec![
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
       ])
-      .decode_leb128_i64(),
+      .decode_leb128_i64()
+      .map(|x| x as i64),
       Ok(std::i64::MAX)
     );
   }

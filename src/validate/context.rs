@@ -212,7 +212,10 @@ impl<'a> Context<'a> {
       idx += 1;
       match x {
         Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
-        Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
+        Inst::I64Const => {
+          idx += 8;
+          type_stack.push(ValueTypes::I64);
+        }
         Inst::F32Const => {
           idx += 4;
           type_stack.push(ValueTypes::F32);
@@ -296,7 +299,10 @@ impl<'a> Context<'a> {
         idx += 1;
         match x {
           Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
-          Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
+          Inst::I64Const => {
+            idx += 8;
+            type_stack.push(ValueTypes::I64);
+          }
           Inst::F32Const => {
             idx += 4;
             type_stack.push(ValueTypes::F32);
@@ -684,7 +690,10 @@ impl<'a> Context<'a> {
         }
 
         I32Const(_) => cxt.push(ValueTypes::I32),
-        I64Const(_) => cxt.push(ValueTypes::I64),
+        I64Const => {
+          let _ = function.pop_raw_u64()?;
+          cxt.push(ValueTypes::I64);
+        }
         F32Const => {
           let _ = function.pop_raw_u32()?;
           cxt.push(ValueTypes::F32);
