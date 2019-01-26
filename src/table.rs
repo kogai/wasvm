@@ -39,7 +39,18 @@ impl TableInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
+        Some(Inst::GetGlobal) => {
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            let raw_byte = match el.offset[1 + i] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(Trap::Undefined),
+            };
+            buf[3 - i] = raw_byte;
+          }
+          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          global_instances.get_global_ext(&idx)
+        }
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -73,7 +84,18 @@ impl TableInstance {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
+        Some(Inst::GetGlobal) => {
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            let raw_byte = match el.offset[1 + i] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(Trap::Undefined),
+            };
+            buf[3 - i] = raw_byte;
+          }
+          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          global_instances.get_global_ext(&idx)
+        }
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -143,7 +165,18 @@ impl TableInstances {
     for el in elements.iter() {
       let offset = match el.offset.first() {
         Some(Inst::I32Const(offset)) => *offset,
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
+        Some(Inst::GetGlobal) => {
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            let raw_byte = match el.offset[1 + i] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(Trap::Undefined),
+            };
+            buf[3 - i] = raw_byte;
+          }
+          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          global_instances.get_global_ext(&idx)
+        }
         x => unreachable!("Expected offset value of memory, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);
@@ -171,7 +204,18 @@ impl TableInstances {
           }
           *offset
         }
-        Some(Inst::GetGlobal(idx)) => global_instances.get_global_ext(idx),
+        Some(Inst::GetGlobal) => {
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            let raw_byte = match el.offset[1 + i] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(Trap::Undefined),
+            };
+            buf[3 - i] = raw_byte;
+          }
+          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          global_instances.get_global_ext(&idx)
+        }
         x => unreachable!("Expected offset value of table, got {:?}", x),
       } as usize;
       let mut function_addresses = el.wrap_by_option(function_instances);

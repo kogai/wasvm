@@ -114,7 +114,18 @@ impl GlobalInstances {
         | Some(Inst::I64Const(_))
         | Some(Inst::F32Const(_))
         | Some(Inst::F64Const(_)) => init_first?.get_value_ext(),
-        Some(Inst::GetGlobal(idx)) => global_instances.get(idx.to_usize())?.get_value(),
+        Some(Inst::GetGlobal) => {
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            let raw_byte = match init[1 + i] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(Trap::Undefined),
+            };
+            buf[3 - i] = raw_byte;
+          }
+          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          global_instances.get(idx.to_usize())?.get_value()
+        }
         x => unreachable!("Expected initial value of global, got {:?}", x),
       };
       global_instances.push(GlobalInstance::new(global_type, value, export_name));

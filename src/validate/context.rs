@@ -193,18 +193,33 @@ impl<'a> Context<'a> {
 
   fn validate_constant(&self, expr: &[Inst]) -> Result<ValueTypes> {
     let type_stack = TypeStack::new();
-    for x in expr.iter() {
+    let mut idx = 0;
+    while idx < expr.len() {
+      let x = &expr[idx];
+      idx += 1;
       match x {
         Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
         Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
         Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
         Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
-        Inst::GetGlobal(idx) => match self.globals.get(idx.to_usize()) {
-          Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
-            type_stack.push(ty.clone())
+        Inst::GetGlobal => {
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            idx += 1;
+            let raw_byte = match expr[idx] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(TypeError::TypeMismatch),
+            };
+            buf[3 - i] = raw_byte;
           }
-          _ => return Err(TypeError::ConstantExpressionRequired),
-        },
+          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          match self.globals.get(idx.to_usize()) {
+            Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
+              type_stack.push(ty.clone())
+            }
+            _ => return Err(TypeError::ConstantExpressionRequired),
+          }
+        }
         Inst::End => {
           break;
         }
@@ -262,7 +277,7 @@ impl<'a> Context<'a> {
           Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
           Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
           Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
-          Inst::GetGlobal(_) => return Err(TypeError::ConstantExpressionRequired),
+          Inst::GetGlobal => return Err(TypeError::ConstantExpressionRequired),
           Inst::End => {
             break;
           }
@@ -664,7 +679,8 @@ impl<'a> Context<'a> {
           cxt.push(actual.clone());
         }
 
-        GetGlobal(idx) => {
+        GetGlobal => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let ty = self
             .globals
             .get(idx.to_usize())

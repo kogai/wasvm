@@ -477,7 +477,10 @@ impl Vm {
                     let idx = Indice::from(frame.pop_raw_u32()?);
                     self.tee_local(&idx)?
                 }
-                GetGlobal(idx) => self.get_global(idx)?,
+                GetGlobal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.get_global(&idx)?;
+                }
                 SetGlobal => {
                     let idx = Indice::from(frame.pop_raw_u32()?);
                     self.set_global(&idx)?;

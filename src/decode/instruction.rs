@@ -149,7 +149,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           let idx = self.decode_leb128_u32()?;
           self.push_u32_as_bytes(idx, &mut expressions);
         }
-        Code::GetGlobal => expressions.push(Inst::GetGlobal(From::from(self.decode_leb128_u32()?))),
+        Code::GetGlobal => {
+          expressions.push(Inst::GetGlobal);
+          let idx = self.decode_leb128_u32()?;
+          self.push_u32_as_bytes(idx, &mut expressions);
+        }
         Code::SetGlobal => {
           expressions.push(Inst::SetGlobal);
           let idx = self.decode_leb128_u32()?;
