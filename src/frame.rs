@@ -5,8 +5,9 @@ use core::cell::{RefCell, RefMut};
 use core::fmt;
 use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use stack::StackEntry;
+use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 #[derive(PartialEq)]
@@ -91,6 +92,32 @@ impl Frame {
       Inst::RuntimeValue(ty) => Some(ty.to_owned()),
       _ => None,
     }
+  }
+
+  pub fn pop_raw_u32(&self) -> Result<u32> {
+    let mut buf = [0; 4];
+    for i in 0..buf.len() {
+      let raw_byte = match self.pop_ref() {
+        Some(Inst::ExperimentalByte(b)) => b,
+        _ => return Err(Trap::Undefined),
+      };
+      buf[i] = *raw_byte;
+    }
+    let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
+    Ok(idx)
+  }
+
+  pub fn pop_raw_u64(&self) -> Result<u64> {
+    let mut buf = [0; 8];
+    for i in 0..buf.len() {
+      let raw_byte = match self.pop_ref() {
+        Some(Inst::ExperimentalByte(b)) => b,
+        _ => return Err(Trap::Undefined),
+      };
+      buf[i] = *raw_byte;
+    }
+    let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
+    Ok(idx)
   }
 
   pub fn is_next_empty(&self) -> bool {

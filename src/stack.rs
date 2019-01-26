@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use core::fmt;
 use frame::Frame;
-use inst::Indice;
+use isa::Indice;
 use label::{Label, LabelKind};
 use trap::{Result, Trap};
 use value::Values;

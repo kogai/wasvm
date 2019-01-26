@@ -4,7 +4,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use frame::Frame;
 use function::FunctionInstance;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use label::{Label, LabelKind};
 use memory::MemoryInstances;
 use module::{
@@ -317,23 +317,25 @@ impl Vm {
                     }
                 }
                 Nop => {}
-                Block(size) => {
-                    // Size = 10 = 1(Block) + 1(BlockType) + 7(Instructions) + 1(End)
+                Block => {
+                    // Size = 14 = 1(Block) + 1(BlockType) + 4(size) + 7(Instructions) + 1(End)
                     // In case of ptr of instructions starts by 5,
                     //
                     // [05] Block                   | <- start_of_control
-                    // [06] Block_type              | <- instructions.ptr
-                    //        Instructions * 6      |
-                    // [13]   Last Instruction      |
-                    // [14] End                     |
-                    // [15] NextInstruction         |  <- continuation
+                    // [06-09] Size                 |
+                    // [10] Block_type              | <- instructions.ptr
+                    // [11-16] Instructions * 6     |
+                    // [17] Last Instruction        |
+                    // [18] End                     |
+                    // [19] NextInstruction         |  <- continuation
                     let start_of_label = frame.get_start_of_label();
-                    let continuation = start_of_label + size;
+                    let size = frame.pop_raw_u32()?;
                     let block_type = frame.pop_runtime_type()?;
+                    let continuation = start_of_label + size;
                     let label = StackEntry::new_label(continuation, block_type, LabelKind::Block);
                     self.stack.push(label)?;
                 }
-                Loop(_) => {
+                Loop => {
                     // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
                     // In case for ptr of frame starts by 5,
                     //
@@ -349,9 +351,11 @@ impl Vm {
                         StackEntry::new_label(start_of_label, block_type, LabelKind::Loop);
                     self.stack.push(label_continue)?;
                 }
-                If(if_size, else_size) => {
+                If => {
                     let cond = &self.stack.pop_value_ext();
                     let start_of_label = frame.get_start_of_label();
+                    let if_size = frame.pop_raw_u32()?;
+                    let else_size = frame.pop_raw_u32()?;
                     let continuation = start_of_label + if_size + else_size;
                     let block_type = frame.pop_runtime_type()?;
                     if cond.is_truthy() {
@@ -362,42 +366,52 @@ impl Vm {
                             StackEntry::new_label(continuation, block_type, LabelKind::Else);
                         self.stack.push(label)?;
                         let start_of_else = start_of_label + if_size;
-                        if *else_size > 0 {
+                        if else_size > 0 {
                             frame.jump_to(start_of_else);
                         } else {
                             frame.jump_to(start_of_else - 1);
                         }
                     }
                 }
-                Br(label) => {
-                    let continuation = self.stack.jump_to_label(label)?;
+                Br => {
+                    let label = Indice::from(frame.pop_raw_u32()?);
+                    let continuation = self.stack.jump_to_label(&label)?;
                     frame.jump_to(continuation);
                 }
-                BrIf(l) => {
+                BrIf => {
+                    let label = Indice::from(frame.pop_raw_u32()?);
                     let cond = &self.stack.pop_value_ext();
                     if cond.is_truthy() {
-                        let continuation = self.stack.jump_to_label(l)?;
+                        let continuation = self.stack.jump_to_label(&label)?;
                         frame.jump_to(continuation);
                     };
                 }
-                BrTable(ref tables, ref idx) => {
-                    let i = self.stack.pop_value_ext_i32() as usize;
-                    let l = if i < tables.len() {
-                        tables.get(i)?
+                BrTable => {
+                    let len = frame.pop_raw_u32()?;
+                    let mut indices = vec![];
+                    for _ in 0..len {
+                        let idx = frame.pop_raw_u32()?;
+                        indices.push(Indice::from(idx));
+                    }
+                    let idx = &Indice::from(frame.pop_raw_u32()?);
+                    let i = self.stack.pop_value_ext_i32() as u32;
+                    let l = if i < len {
+                        indices.get(i as usize)?
                     } else {
                         idx
                     };
                     let continuation = self.stack.jump_to_label(l)?;
                     frame.jump_to(continuation);
                 }
-                Call(idx) => {
+                Call => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
                     let function_instance = match &source_of_frame {
                         Some(module_name) => self
                             .external_modules
                             // FIXME: Drop owning of name to search something.
                             .get_function_instance(&Some(module_name.to_owned()), idx.to_usize())
                             .map(|x| x.clone())?,
-                        None => self.store.get_function_instance(idx)?,
+                        None => self.store.get_function_instance(&idx)?,
                     };
                     let arity = function_instance.get_arity();
                     let mut arguments = vec![];
@@ -413,7 +427,8 @@ impl Vm {
                     self.stack.push_frame(frame)?;
                     break;
                 }
-                CallIndirect(idx) => {
+                CallIndirect => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
                     // NOTE: Due to only single table instance allowed, `ta` always equal to 0.
                     let ta = frame.get_table_address();
                     let table = match &source_of_frame {
@@ -433,7 +448,7 @@ impl Vm {
                             Some(module_name) => self
                                 .external_modules
                                 .get_function_type(&Some(module_name.to_owned()), idx.to_u32())?,
-                            None => self.store.get_function_type(idx)?.clone(),
+                            None => self.store.get_function_type(&idx)?.clone(),
                         };
                         if actual_fn_ty != expect_fn_ty {
                             return Err(Trap::IndirectCallTypeMismatch);
@@ -453,15 +468,42 @@ impl Vm {
                     self.stack.push_frame(frame)?;
                     break;
                 }
-                GetLocal(idx) => self.get_local(idx)?,
-                SetLocal(idx) => self.set_local(idx)?,
-                TeeLocal(idx) => self.tee_local(idx)?,
-                GetGlobal(idx) => self.get_global(idx)?,
-                SetGlobal(idx) => self.set_global(idx)?,
-                I32Const(n) => self.stack.push(StackEntry::new_value(Values::I32(*n)))?,
-                I64Const(n) => self.stack.push(StackEntry::new_value(Values::I64(*n)))?,
-                F32Const(n) => self.stack.push(StackEntry::new_value(Values::F32(*n)))?,
-                F64Const(n) => self.stack.push(StackEntry::new_value(Values::F64(*n)))?,
+                GetLocal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.get_local(&idx)?;
+                }
+                SetLocal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.set_local(&idx)?;
+                }
+                TeeLocal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.tee_local(&idx)?
+                }
+                GetGlobal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.get_global(&idx)?;
+                }
+                SetGlobal => {
+                    let idx = Indice::from(frame.pop_raw_u32()?);
+                    self.set_global(&idx)?;
+                }
+                I32Const => {
+                    let n = frame.pop_raw_u32()? as i32;
+                    self.stack.push(StackEntry::new_value(Values::I32(n)))?;
+                }
+                I64Const => {
+                    let n = frame.pop_raw_u64()? as i64;
+                    self.stack.push(StackEntry::new_value(Values::I64(n)))?;
+                }
+                F32Const => {
+                    let n = f32::from_bits(frame.pop_raw_u32()?);
+                    self.stack.push(StackEntry::new_value(Values::F32(n)))?;
+                }
+                F64Const => {
+                    let n = f64::from_bits(frame.pop_raw_u64()?);
+                    self.stack.push(StackEntry::new_value(Values::F64(n)))?;
+                }
 
                 I32DivUnsign | I64DivUnsign => self.div_u()?,
                 I32DivSign | I64DivSign => self.div_s()?,
@@ -543,61 +585,129 @@ impl Vm {
                     self.reinterpret()?
                 }
 
-                I32Load(_, offset) => self.load_data_to_i32(*offset, 32, true, &source_of_frame)?,
-                I32Load8Unsign(_, offset) => {
-                    self.load_data_to_i32(*offset, 8, false, &source_of_frame)?
+                I32Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 32, true, &source_of_frame)?;
                 }
-                I32Load8Sign(_, offset) => {
-                    self.load_data_to_i32(*offset, 8, true, &source_of_frame)?
+                I32Load8Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 8, false, &source_of_frame)?
                 }
-                I32Load16Unsign(_, offset) => {
-                    self.load_data_to_i32(*offset, 16, false, &source_of_frame)?
+                I32Load8Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 8, true, &source_of_frame)?
                 }
-                I32Load16Sign(_, offset) => {
-                    self.load_data_to_i32(*offset, 16, true, &source_of_frame)?
+                I32Load16Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 16, false, &source_of_frame)?
                 }
-
-                I64Load(_, offset) => self.load_data_to_i64(*offset, 64, true, &source_of_frame)?,
-                I64Load8Unsign(_, offset) => {
-                    self.load_data_to_i64(*offset, 8, false, &source_of_frame)?
-                }
-                I64Load8Sign(_, offset) => {
-                    self.load_data_to_i64(*offset, 8, true, &source_of_frame)?
-                }
-                I64Load16Unsign(_, offset) => {
-                    self.load_data_to_i64(*offset, 16, false, &source_of_frame)?
-                }
-                I64Load16Sign(_, offset) => {
-                    self.load_data_to_i64(*offset, 16, true, &source_of_frame)?
-                }
-                I64Load32Unsign(_, offset) => {
-                    self.load_data_to_i64(*offset, 32, false, &source_of_frame)?
-                }
-                I64Load32Sign(_, offset) => {
-                    self.load_data_to_i64(*offset, 32, true, &source_of_frame)?
+                I32Load16Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i32(offset, 16, true, &source_of_frame)?
                 }
 
-                F32Load(_, offset) => {
-                    let value = self.load_data_f32(*offset, 32, &source_of_frame)?;
+                I64Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 64, true, &source_of_frame)?;
+                }
+                I64Load8Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 8, false, &source_of_frame)?
+                }
+                I64Load8Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 8, true, &source_of_frame)?
+                }
+                I64Load16Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 16, false, &source_of_frame)?
+                }
+                I64Load16Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 16, true, &source_of_frame)?
+                }
+                I64Load32Unsign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 32, false, &source_of_frame)?
+                }
+                I64Load32Sign => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.load_data_to_i64(offset, 32, true, &source_of_frame)?
+                }
+
+                F32Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    let value = self.load_data_f32(offset, 32, &source_of_frame)?;
                     self.stack
                         .push(StackEntry::new_value(Values::F32(value as f32)))?;
                 }
 
-                F64Load(_, offset) => {
-                    let value = self.load_data_f64(*offset, 64, &source_of_frame)?;
+                F64Load => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    let value = self.load_data_f64(offset, 64, &source_of_frame)?;
                     self.stack
                         .push(StackEntry::new_value(Values::F64(value as f64)))?;
                 }
 
-                I32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
-                F32Store(_, offset) => self.store(32, *offset, &source_of_frame)?,
-                I64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
-                F64Store(_, offset) => self.store(64, *offset, &source_of_frame)?,
-                I32Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
-                I32Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
-                I64Store8(_, offset) => self.store(8, *offset, &source_of_frame)?,
-                I64Store16(_, offset) => self.store(16, *offset, &source_of_frame)?,
-                I64Store32(_, offset) => self.store(32, *offset, &source_of_frame)?,
+                I32Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(32, offset, &source_of_frame)?;
+                }
+                F32Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(32, offset, &source_of_frame)?;
+                }
+                I64Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(64, offset, &source_of_frame)?;
+                }
+                F64Store => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(64, offset, &source_of_frame)?;
+                }
+                I32Store8 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(8, offset, &source_of_frame)?;
+                }
+                I32Store16 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(16, offset, &source_of_frame)?;
+                }
+                I64Store8 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(8, offset, &source_of_frame)?;
+                }
+                I64Store16 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(16, offset, &source_of_frame)?;
+                }
+                I64Store32 => {
+                    let _align = frame.pop_raw_u32()?;
+                    let offset = frame.pop_raw_u32()?;
+                    self.store(32, offset, &source_of_frame)?;
+                }
 
                 MemorySize => {
                     let memory_instances = self.get_memory_instances(&source_of_frame)?;
@@ -640,7 +750,7 @@ impl Vm {
                 I64TruncSignF32 => self.trunc_f32_to_sign_i64()?,
                 I64TruncUnsignF32 => self.trunc_f32_to_unsign_i64()?,
 
-                RuntimeValue(t) => unreachable!("Expected calculatable operation, got {:?}", t),
+                RuntimeValue(_) | ExperimentalByte(_) => unreachable!(),
             };
         }
         Ok(())

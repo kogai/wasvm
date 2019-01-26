@@ -7,7 +7,7 @@ use core::cell::{Cell, RefCell};
 use decode::{Data, Element, Section, TableType};
 use function::FunctionType;
 use global::GlobalType;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use memory::Limit;
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
@@ -105,6 +105,32 @@ impl<'a> Function<'a> {
       _ => None,
     }
   }
+
+  fn pop_raw_u32(&self) -> Result<u32> {
+    let mut buf = [0; 4];
+    for i in 0..buf.len() {
+      let raw_byte = match self.pop() {
+        Some(Inst::ExperimentalByte(b)) => b,
+        _ => return Err(TypeError::NotFound),
+      };
+      buf[i] = *raw_byte;
+    }
+    let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
+    Ok(idx)
+  }
+
+  fn pop_raw_u64(&self) -> Result<u64> {
+    let mut buf = [0; 8];
+    for i in 0..buf.len() {
+      let raw_byte = match self.pop() {
+        Some(Inst::ExperimentalByte(b)) => b,
+        _ => return Err(TypeError::NotFound),
+      };
+      buf[i] = *raw_byte;
+    }
+    let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
+    Ok(idx)
+  }
 }
 
 pub struct Context<'a> {
@@ -180,18 +206,45 @@ impl<'a> Context<'a> {
 
   fn validate_constant(&self, expr: &[Inst]) -> Result<ValueTypes> {
     let type_stack = TypeStack::new();
-    for x in expr.iter() {
+    let mut idx = 0;
+    while idx < expr.len() {
+      let x = &expr[idx];
+      idx += 1;
       match x {
-        Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
-        Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
-        Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
-        Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
-        Inst::GetGlobal(idx) => match self.globals.get(idx.to_usize()) {
-          Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
-            type_stack.push(ty.clone())
+        Inst::I32Const => {
+          idx += 4;
+          type_stack.push(ValueTypes::I32);
+        }
+        Inst::I64Const => {
+          idx += 8;
+          type_stack.push(ValueTypes::I64);
+        }
+        Inst::F32Const => {
+          idx += 4;
+          type_stack.push(ValueTypes::F32);
+        }
+        Inst::F64Const => {
+          idx += 8;
+          type_stack.push(ValueTypes::F64);
+        }
+        Inst::GetGlobal => {
+          let mut buf = [0; 4];
+          for i in 0..buf.len() {
+            idx += 1;
+            let raw_byte = match expr[idx] {
+              Inst::ExperimentalByte(b) => b,
+              _ => return Err(TypeError::TypeMismatch),
+            };
+            buf[3 - i] = raw_byte;
           }
-          _ => return Err(TypeError::ConstantExpressionRequired),
-        },
+          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+          match self.globals.get(idx.to_usize()) {
+            Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
+              type_stack.push(ty.clone())
+            }
+            _ => return Err(TypeError::ConstantExpressionRequired),
+          }
+        }
         Inst::End => {
           break;
         }
@@ -243,19 +296,37 @@ impl<'a> Context<'a> {
   fn validate_globals(&self) -> Result<()> {
     for (global_type, init) in self.globals.iter() {
       let type_stack = TypeStack::new();
-      for x in init.iter() {
+      let mut idx = 0;
+      while idx < init.len() {
+        let x = &init[idx];
+        idx += 1;
         match x {
-          Inst::I32Const(_) => type_stack.push(ValueTypes::I32),
-          Inst::I64Const(_) => type_stack.push(ValueTypes::I64),
-          Inst::F32Const(_) => type_stack.push(ValueTypes::F32),
-          Inst::F64Const(_) => type_stack.push(ValueTypes::F64),
-          Inst::GetGlobal(_) => return Err(TypeError::ConstantExpressionRequired),
+          Inst::I32Const => {
+            idx += 4;
+            type_stack.push(ValueTypes::I32);
+          }
+          Inst::I64Const => {
+            idx += 8;
+            type_stack.push(ValueTypes::I64);
+          }
+          Inst::F32Const => {
+            idx += 4;
+            type_stack.push(ValueTypes::F32);
+          }
+          Inst::F64Const => {
+            idx += 8;
+            type_stack.push(ValueTypes::F64);
+          }
+          Inst::GetGlobal => {
+            return Err(TypeError::ConstantExpressionRequired);
+          }
           Inst::End => {
             break;
           }
           _ => return Err(TypeError::ConstantExpressionRequired),
         }
       }
+
       if type_stack.len() > 1 {
         return Err(TypeError::TypeMismatch);
       }
@@ -410,10 +481,12 @@ impl<'a> Context<'a> {
   fn validate_load(
     &self,
     cxt: &TypeStack,
-    align: u32,
     bit_width: u32,
     ty: ValueTypes,
+    function: &Function,
   ) -> Result<()> {
+    let align = function.pop_raw_u32()?;
+    let _offset = function.pop_raw_u32()?;
     self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
       return Err(TypeError::InvalidAlignment);
@@ -426,10 +499,12 @@ impl<'a> Context<'a> {
   fn validate_store(
     &self,
     cxt: &TypeStack,
-    align: u32,
     bit_width: u32,
     expect: &ValueTypes,
+    function: &Function,
   ) -> Result<()> {
+    let align = function.pop_raw_u32()?;
+    let _offset = function.pop_raw_u32()?;
     self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
       return Err(TypeError::InvalidAlignment);
@@ -493,18 +568,21 @@ impl<'a> Context<'a> {
       match inst {
         Unreachable => {}
         Nop => {}
-        Block(_) => {
+        Block => {
+          let _ = function.pop_raw_u32()?; // Drop size of block.
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
           cxt.push_label();
         }
-        Loop(_) => {
+        Loop => {
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
           cxt.push_label();
         }
-        If(_, _) => {
+        If => {
           let _ = cxt.pop_i32()?;
+          let _ = function.pop_raw_u32()?; // Drop size of if.
+          let _ = function.pop_raw_u32()?; // Drop size of else.
           let expect_type = function.pop_value_type()?;
           labels.push_front([expect_type; 1]);
           cxt.push_label();
@@ -535,14 +613,16 @@ impl<'a> Context<'a> {
           };
         }
 
-        Br(idx) => {
+        Br => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
-        BrIf(idx) => {
+        BrIf => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           cxt.pop_i32()?;
@@ -550,7 +630,14 @@ impl<'a> Context<'a> {
             return Err(TypeError::TypeMismatch);
           }
         }
-        BrTable(indices, idx) => {
+        BrTable => {
+          let len = function.pop_raw_u32()?;
+          let mut indices = vec![];
+          for _ in 0..len {
+            let idx = function.pop_raw_u32()?;
+            indices.push(Indice::from(idx));
+          }
+          let idx = Indice::from(function.pop_raw_u32()?);
           let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           for i in indices.iter() {
             let actual = labels.get(i.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
@@ -572,7 +659,8 @@ impl<'a> Context<'a> {
           }
           cxt.push(actual);
         }
-        Call(idx) => {
+        Call => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let function_type = self
             .functions
             .get(idx.to_usize())
@@ -588,7 +676,8 @@ impl<'a> Context<'a> {
             cxt.push(ty.clone());
           }
         }
-        CallIndirect(idx) => {
+        CallIndirect => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           self.tables.first().ok_or(TypeError::UnknownTable(0))?;
           let function_type = self
             .function_types
@@ -606,24 +695,39 @@ impl<'a> Context<'a> {
           }
         }
 
-        I32Const(_) => cxt.push(ValueTypes::I32),
-        I64Const(_) => cxt.push(ValueTypes::I64),
-        F32Const(_) => cxt.push(ValueTypes::F32),
-        F64Const(_) => cxt.push(ValueTypes::F64),
+        I32Const => {
+          let _ = function.pop_raw_u32()?;
+          cxt.push(ValueTypes::I32);
+        }
+        I64Const => {
+          let _ = function.pop_raw_u64()?;
+          cxt.push(ValueTypes::I64);
+        }
+        F32Const => {
+          let _ = function.pop_raw_u32()?;
+          cxt.push(ValueTypes::F32);
+        }
+        F64Const => {
+          let _ = function.pop_raw_u64()?;
+          cxt.push(ValueTypes::F64);
+        }
 
-        GetLocal(idx) => {
+        GetLocal => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           cxt.push(actual.clone());
         }
-        SetLocal(idx) => {
+        SetLocal => {
           let expect = cxt.pop_type()?;
+          let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
           }
         }
-        TeeLocal(idx) => {
+        TeeLocal => {
           let expect = cxt.pop_type()?;
+          let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
             return Err(TypeError::TypeMismatch);
@@ -631,7 +735,8 @@ impl<'a> Context<'a> {
           cxt.push(actual.clone());
         }
 
-        GetGlobal(idx) => {
+        GetGlobal => {
+          let idx = Indice::from(function.pop_raw_u32()?);
           let ty = self
             .globals
             .get(idx.to_usize())
@@ -641,8 +746,10 @@ impl<'a> Context<'a> {
             })?;
           cxt.push(ty.clone());
         }
-        SetGlobal(idx) => {
+        SetGlobal => {
           let expect = cxt.pop_type()?;
+          let idx = function.pop_raw_u32()?;
+          let idx: Indice = From::from(idx);
           let ty = self
             .globals
             .get(idx.to_usize())
@@ -656,30 +763,30 @@ impl<'a> Context<'a> {
           }
         }
 
-        I32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I32)?,
-        I64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::I64)?,
-        F32Load(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::F32)?,
-        F64Load(align, _) => self.validate_load(cxt, *align, 64, ValueTypes::F64)?,
-        I32Load8Sign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I32)?,
-        I32Load8Unsign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I32)?,
-        I32Load16Sign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I32)?,
-        I32Load16Unsign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I32)?,
-        I64Load8Sign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I64)?,
-        I64Load8Unsign(align, _) => self.validate_load(cxt, *align, 8, ValueTypes::I64)?,
-        I64Load16Sign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I64)?,
-        I64Load16Unsign(align, _) => self.validate_load(cxt, *align, 16, ValueTypes::I64)?,
-        I64Load32Sign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
-        I64Load32Unsign(align, _) => self.validate_load(cxt, *align, 32, ValueTypes::I64)?,
+        I32Load => self.validate_load(cxt, 32, ValueTypes::I32, function)?,
+        I64Load => self.validate_load(cxt, 64, ValueTypes::I64, function)?,
+        F32Load => self.validate_load(cxt, 32, ValueTypes::F32, function)?,
+        F64Load => self.validate_load(cxt, 64, ValueTypes::F64, function)?,
+        I32Load8Sign => self.validate_load(cxt, 8, ValueTypes::I32, function)?,
+        I32Load8Unsign => self.validate_load(cxt, 8, ValueTypes::I32, function)?,
+        I32Load16Sign => self.validate_load(cxt, 16, ValueTypes::I32, function)?,
+        I32Load16Unsign => self.validate_load(cxt, 16, ValueTypes::I32, function)?,
+        I64Load8Sign => self.validate_load(cxt, 8, ValueTypes::I64, function)?,
+        I64Load8Unsign => self.validate_load(cxt, 8, ValueTypes::I64, function)?,
+        I64Load16Sign => self.validate_load(cxt, 16, ValueTypes::I64, function)?,
+        I64Load16Unsign => self.validate_load(cxt, 16, ValueTypes::I64, function)?,
+        I64Load32Sign => self.validate_load(cxt, 32, ValueTypes::I64, function)?,
+        I64Load32Unsign => self.validate_load(cxt, 32, ValueTypes::I64, function)?,
 
-        I32Store(align, _) => self.validate_store(cxt, *align, 32, &TYPE_I32)?,
-        I64Store(align, _) => self.validate_store(cxt, *align, 64, &TYPE_I64)?,
-        F32Store(align, _) => self.validate_store(cxt, *align, 32, &TYPE_F32)?,
-        F64Store(align, _) => self.validate_store(cxt, *align, 64, &TYPE_F64)?,
-        I32Store8(align, _) => self.validate_store(cxt, *align, 8, &TYPE_I32)?,
-        I32Store16(align, _) => self.validate_store(cxt, *align, 16, &TYPE_I32)?,
-        I64Store8(align, _) => self.validate_store(cxt, *align, 8, &TYPE_I64)?,
-        I64Store16(align, _) => self.validate_store(cxt, *align, 16, &TYPE_I64)?,
-        I64Store32(align, _) => self.validate_store(cxt, *align, 32, &TYPE_I64)?,
+        I32Store => self.validate_store(cxt, 32, &TYPE_I32, function)?,
+        I64Store => self.validate_store(cxt, 64, &TYPE_I64, function)?,
+        F32Store => self.validate_store(cxt, 32, &TYPE_F32, function)?,
+        F64Store => self.validate_store(cxt, 64, &TYPE_F64, function)?,
+        I32Store8 => self.validate_store(cxt, 8, &TYPE_I32, function)?,
+        I32Store16 => self.validate_store(cxt, 16, &TYPE_I32, function)?,
+        I64Store8 => self.validate_store(cxt, 8, &TYPE_I64, function)?,
+        I64Store16 => self.validate_store(cxt, 16, &TYPE_I64, function)?,
+        I64Store32 => self.validate_store(cxt, 32, &TYPE_I64, function)?,
 
         MemorySize => {
           self.limits.first().ok_or(TypeError::TypeMismatch)?;
@@ -838,7 +945,7 @@ impl<'a> Context<'a> {
         F32ReinterpretI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
         F64ReinterpretI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
 
-        RuntimeValue(_) => unimplemented!(),
+        RuntimeValue(_) | ExperimentalByte(_) => unreachable!(),
       }
     }
     Ok(())

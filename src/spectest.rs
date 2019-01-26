@@ -3,7 +3,7 @@ use alloc::prelude::*;
 use decode::{ElementType, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
-use inst::Inst;
+use isa::Inst;
 use memory::{Limit, MemoryInstance};
 use module::ExternalModule;
 use table::TableInstance;

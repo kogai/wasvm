@@ -4,7 +4,7 @@ use super::decodable::{
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use function::FunctionInstance;
-use inst::{Indice, Inst};
+use isa::{Indice, Inst};
 use trap::Result;
 
 #[derive(Debug, Clone)]

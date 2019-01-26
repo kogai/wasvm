@@ -42,18 +42,18 @@ macro_rules! impl_decode_leb128 {
 }
 
 macro_rules! impl_decode_signed_integer {
-  ($fn_name: ident, $decode_name: ident, $dist_ty: ty, $buf_ty: ty) => {
-      fn $fn_name(&mut self) -> Result<$dist_ty> {
+  ($fn_name: ident, $decode_name: ident, $buf_ty: ty) => {
+      fn $fn_name(&mut self) -> Result<$buf_ty> {
         let (mut buf, shift) = self.$decode_name()?;
         let (signed_bits, overflowed) = (1 as $buf_ty).overflowing_shl(shift - 1);
         if overflowed {
-          return Ok(buf as $dist_ty);
+          return Ok(buf);
         }
         let is_buf_signed = buf & signed_bits != 0;
         if is_buf_signed {
           buf |= !0 << shift;
         };
-        Ok(buf as $dist_ty)
+        Ok(buf)
       }
   };
 }
@@ -91,8 +91,8 @@ pub trait U32Decodable: Leb128Decodable {
 }
 
 pub trait SignedIntegerDecodable: Leb128Decodable {
-  impl_decode_signed_integer!(decode_leb128_i32, decode_leb128_u32_internal, i32, u32);
-  impl_decode_signed_integer!(decode_leb128_i64, decode_leb128_u64_internal, i64, u64);
+  impl_decode_signed_integer!(decode_leb128_i32, decode_leb128_u32_internal, u32);
+  impl_decode_signed_integer!(decode_leb128_i64, decode_leb128_u64_internal, u64);
 }
 
 pub trait LimitDecodable: U32Decodable {
@@ -173,7 +173,9 @@ mod tests {
   fn decode_i32_positive() {
     assert_eq!(
       // 128
-      TestDecodable::new(vec![0x80, 0x01]).decode_leb128_i32(),
+      TestDecodable::new(vec![0x80, 0x01])
+        .decode_leb128_i32()
+        .map(|x| x as i32),
       Ok(128)
     );
   }
@@ -182,7 +184,9 @@ mod tests {
   fn decode_i32_negative() {
     assert_eq!(
       // -128
-      TestDecodable::new(vec![0x80, 0x7f]).decode_leb128_i32(),
+      TestDecodable::new(vec![0x80, 0x7f])
+        .decode_leb128_i32()
+        .map(|x| x as i32),
       Ok(-128)
     );
   }
@@ -191,7 +195,9 @@ mod tests {
   fn decode_i32_min() {
     assert_eq!(
       // -2147483648
-      TestDecodable::new(vec![0x80, 0x80, 0x80, 0x80, 0x78]).decode_leb128_i32(),
+      TestDecodable::new(vec![0x80, 0x80, 0x80, 0x80, 0x78])
+        .decode_leb128_i32()
+        .map(|x| x as i32),
       Ok(std::i32::MIN)
     );
   }
@@ -200,7 +206,9 @@ mod tests {
   fn decode_i32_max() {
     assert_eq!(
       // 2147483647
-      TestDecodable::new(vec![0xff, 0xff, 0xff, 0xff, 0x07]).decode_leb128_i32(),
+      TestDecodable::new(vec![0xff, 0xff, 0xff, 0xff, 0x07])
+        .decode_leb128_i32()
+        .map(|x| x as i32),
       Ok(std::i32::MAX)
     );
   }
@@ -212,7 +220,8 @@ mod tests {
       TestDecodable::new(vec![
         0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x7f,
       ])
-      .decode_leb128_i64(),
+      .decode_leb128_i64()
+      .map(|x| x as i64),
       Ok(std::i64::MIN)
     );
   }
@@ -224,7 +233,8 @@ mod tests {
       TestDecodable::new(vec![
         0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00,
       ])
-      .decode_leb128_i64(),
+      .decode_leb128_i64()
+      .map(|x| x as i64),
       Ok(std::i64::MAX)
     );
   }

@@ -4,7 +4,7 @@ use super::decodable::{
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use global::GlobalType;
-use inst::Inst;
+use isa::Inst;
 use trap::Result;
 use value_type::ValueTypes;
 

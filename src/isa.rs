@@ -1,6 +1,4 @@
-use alloc::vec::Vec;
 use core::convert::From;
-use value::Values;
 use value_type::ValueTypes;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -32,52 +30,52 @@ impl Indice {
 pub enum Inst {
   Unreachable,
   Nop,
-  Block(u32),
-  Loop(u32),
-  If(u32, u32),
+  Block,
+  Loop,
+  If,
   Else,
   End,
-  Br(Indice),
-  BrIf(Indice),
-  BrTable(Vec<Indice>, Indice),
+  Br,
+  BrIf,
+  BrTable,
   Return,
-  Call(Indice),
-  CallIndirect(Indice),
+  Call,
+  CallIndirect,
 
-  I32Const(i32),
-  I64Const(i64),
-  F32Const(f32),
-  F64Const(f64),
+  I32Const,
+  I64Const,
+  F32Const,
+  F64Const,
 
-  GetLocal(Indice),
-  SetLocal(Indice),
-  TeeLocal(Indice),
-  GetGlobal(Indice),
-  SetGlobal(Indice),
+  GetLocal,
+  SetLocal,
+  TeeLocal,
+  GetGlobal,
+  SetGlobal,
 
-  I32Load(u32, u32),
-  I64Load(u32, u32),
-  F32Load(u32, u32),
-  F64Load(u32, u32),
-  I32Load8Sign(u32, u32),
-  I32Load8Unsign(u32, u32),
-  I32Load16Sign(u32, u32),
-  I32Load16Unsign(u32, u32),
-  I64Load8Sign(u32, u32),
-  I64Load8Unsign(u32, u32),
-  I64Load16Sign(u32, u32),
-  I64Load16Unsign(u32, u32),
-  I64Load32Sign(u32, u32),
-  I64Load32Unsign(u32, u32),
-  I32Store(u32, u32),
-  I64Store(u32, u32),
-  F32Store(u32, u32),
-  F64Store(u32, u32),
-  I32Store8(u32, u32),
-  I32Store16(u32, u32),
-  I64Store8(u32, u32),
-  I64Store16(u32, u32),
-  I64Store32(u32, u32),
+  I32Load,
+  I64Load,
+  F32Load,
+  F64Load,
+  I32Load8Sign,
+  I32Load8Unsign,
+  I32Load16Sign,
+  I32Load16Unsign,
+  I64Load8Sign,
+  I64Load8Unsign,
+  I64Load16Sign,
+  I64Load16Unsign,
+  I64Load32Sign,
+  I64Load32Unsign,
+  I32Store,
+  I64Store,
+  F32Store,
+  F64Store,
+  I32Store8,
+  I32Store16,
+  I64Store8,
+  I64Store16,
+  I64Store32,
   MemorySize,
   MemoryGrow,
 
@@ -216,17 +214,5 @@ pub enum Inst {
   F64ReinterpretI64,
 
   RuntimeValue(ValueTypes),
-}
-
-impl Inst {
-  pub fn get_value_ext(&self) -> Values {
-    use self::Inst::*;
-    match self {
-      I32Const(n) => Values::I32(*n),
-      I64Const(n) => Values::I64(*n),
-      F32Const(n) => Values::F32(*n),
-      F64Const(n) => Values::F64(*n),
-      _ => unreachable!("{:?}", self),
-    }
-  }
+  ExperimentalByte(u8),
 }

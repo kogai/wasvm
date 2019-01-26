@@ -5,7 +5,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
-use inst::Inst;
+use isa::Inst;
 use module::ModuleName;
 use stack::StackEntry;
 use trap::{Result, Trap};
