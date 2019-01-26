@@ -162,7 +162,7 @@ impl MemoryInstance {
               Inst::ExperimentalByte(b) => b,
               _ => return Err(Trap::Undefined),
             };
-            buf[3 - i] = raw_byte;
+            buf[i] = raw_byte;
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
@@ -205,7 +205,7 @@ impl MemoryInstance {
               Inst::ExperimentalByte(b) => b,
               _ => return Err(Trap::Undefined),
             };
-            buf[3 - i] = raw_byte;
+            buf[i] = raw_byte;
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
@@ -244,7 +244,7 @@ impl MemoryInstance {
               Inst::ExperimentalByte(b) => b,
               _ => return Err(Trap::Undefined),
             };
-            buf[3 - i] = raw_byte;
+            buf[i] = raw_byte;
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
