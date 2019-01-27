@@ -4,7 +4,7 @@ use core::convert::Into;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Code {
-  Reserved, // Reserved code.
+  Reserved,
   Unreachable,
   Nop,
   Block,
@@ -18,21 +18,17 @@ pub enum Code {
   Return,
   Call,
   CallIndirect,
-
   Select,
   DropInst,
-
   I32Const,
   I64Const,
   F32Const,
   F64Const,
-
   GetLocal,
   TeeLocal,
   SetLocal,
   GetGlobal,
   SetGlobal,
-
   I32Load,
   I64Load,
   F32Load,
@@ -58,7 +54,6 @@ pub enum Code {
   I64Store32,
   MemorySize,
   MemoryGrow,
-
   I32CountLeadingZero,
   I32CountTrailingZero,
   I32CountNonZero,
@@ -78,7 +73,6 @@ pub enum Code {
   I32ShiftRightUnsign,
   I32RotateLeft,
   I32RotateRight,
-
   I64CountLeadingZero,
   I64CountTrailingZero,
   I64CountNonZero,
@@ -97,7 +91,6 @@ pub enum Code {
   I64ShiftRightUnsign,
   I64RotateLeft,
   I64RotateRight,
-
   I32EqualZero,
   I32Equal,
   I32NotEqual,
@@ -109,7 +102,6 @@ pub enum Code {
   I32LessEqualUnsign,
   I32GreaterEqualSign,
   I32GreaterEqualUnsign,
-
   I64EqualZero,
   I64Equal,
   I64NotEqual,
@@ -121,7 +113,6 @@ pub enum Code {
   I64LessEqualUnSign,
   I64GreaterEqualSign,
   I64GreaterEqualUnSign,
-
   F32Equal,
   F32NotEqual,
   F32LessThan,
@@ -134,7 +125,6 @@ pub enum Code {
   F64GreaterThan,
   F64LessEqual,
   F64GreaterEqual,
-
   F32Abs,
   F32Neg,
   F32Ceil,
@@ -149,7 +139,6 @@ pub enum Code {
   F32Min,
   F32Max,
   F32Copysign,
-
   F64Abs,
   F64Neg,
   F64Ceil,
@@ -164,7 +153,6 @@ pub enum Code {
   F64Min,
   F64Max,
   F64Copysign,
-
   I32TruncSignF32,
   I32TruncUnsignF32,
   I32TruncSignF64,
@@ -243,7 +231,6 @@ impl From<u8> for Code {
       0x3e => I64Store32,
       0x3f => MemorySize,
       0x40 => MemoryGrow,
-
       0x41 => I32Const,
       0x42 => I64Const,
       0x43 => F32Const,

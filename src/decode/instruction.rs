@@ -14,9 +14,22 @@ macro_rules! impl_decode_float {
   };
 }
 
+macro_rules! impl_push_raw_bytes {
+  ($name: ident, $ty: ty, $width: expr) => {
+    fn $name(&self, raw: $ty, expressions: &mut Vec<u8>) {
+      let bytes: [u8; $width] = unsafe { core::mem::transmute(raw) };
+      for byte in bytes.iter() {
+        expressions.push(*byte);
+      }
+    }
+  };
+}
+
 pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable {
   impl_decode_float!(u32, decode_f32, 4);
   impl_decode_float!(u64, decode_f64, 8);
+  impl_push_raw_bytes!(push_u32_as_bytes, u32, 4);
+  impl_push_raw_bytes!(push_u64_as_bytes, u64, 8);
 
   fn decode_memory_parameter(&mut self) -> Result<(u32, u32)> {
     let align = self.decode_leb128_u32();
@@ -38,28 +51,13 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
     Ok(())
   }
 
-  // FIXME: Commonize by using macro.
-  fn push_u32_as_bytes(&self, raw: u32, expressions: &mut Vec<u8>) {
-    let bytes: [u8; 4] = unsafe { core::mem::transmute(raw) };
-    for byte in bytes.iter() {
-      expressions.push(*byte);
-    }
-  }
-
-  fn push_u64_as_bytes(&self, raw: u64, expressions: &mut Vec<u8>) {
-    let bytes: [u8; 8] = unsafe { core::mem::transmute(raw) };
-    for byte in bytes.iter() {
-      expressions.push(*byte);
-    }
-  }
-
   fn decode_instructions(&mut self) -> Result<Vec<u8>> {
     use isa::Code;
     let mut expressions = vec![];
     while !Code::is_else_or_end(self.peek()) {
       let code = self.next()?;
       match Code::from(code) {
-        // NOTE: Already consumed at decoding "If" instructions.
+        // NOTE: Else and End are already consumed at decoding "If" instructions.
         Code::Reserved | Code::End | Code::Else => unreachable!("{:?}", code),
         Code::Unreachable | Code::Nop | Code::Return | Code::DropInst => expressions.push(code),
 
