@@ -10,7 +10,7 @@ use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
 use wasvm::{
   create_spectest, decode_module, init_store, instantiate_module, validate_module, ExternalModules,
-  Trap, Values, Vm,
+  ModuleInstance, Trap, Values,
 };
 
 fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
@@ -43,7 +43,7 @@ fn get_expectation(expected: &[Value]) -> String {
 
 struct E2ETest<'a> {
   parser: ScriptParser<f32, f64>,
-  modules: HashMap<Option<String>, Rc<RefCell<Vm>>>,
+  modules: HashMap<Option<String>, Rc<RefCell<ModuleInstance>>>,
   external_modules: ExternalModules,
   file_name: &'a str,
 }
@@ -71,16 +71,16 @@ impl<'a> E2ETest<'a> {
     let bytes = module.clone().into_vec();
     let store = init_store();
     let section = decode_module(&bytes);
-          let vm_ref = Rc::new(RefCell::new(
-            instantiate_module(store, section, self.external_modules.clone()).unwrap(),
-          ));
+    let vm_ref = Rc::new(RefCell::new(
+      instantiate_module(store, section, self.external_modules.clone()).unwrap(),
+    ));
     self.modules.insert(None, vm_ref.clone());
     self.modules.insert(name.clone(), vm_ref.clone());
   }
 
   fn do_action(&mut self, field: &str, args: &[Value], module: &Option<String>, line: u64) {
     println!("Perform action at {}:{}.", field, line);
-    let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
+    let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
     let mut vm = vm_ref.borrow_mut();
     vm.run(field, get_args(args));
   }
@@ -90,7 +90,7 @@ impl<'a> E2ETest<'a> {
       "Register importable module, key={:?} import_name={}.",
       name, as_name
     );
-    let vm_ref: Rc<RefCell<Vm>> = self.modules[name].clone();
+    let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[name].clone();
     let vm = vm_ref.borrow();
     let importable_module = vm.export_module();
     self
@@ -102,18 +102,18 @@ impl<'a> E2ETest<'a> {
     let (field, args, module) = match action {
       Action::Invoke {
         ref field,
-              ref args,
-              ref module,
-            } => (field, get_args(args), module),
-            Action::Get {
-              ref field,
-              ref module,
-            } => (field, vec![], module),
-          };
-          println!("Assert return at {}:{}.", field, line);
-          let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
-          let mut vm = vm_ref.borrow_mut();
-          let actual = vm.run(field.as_ref(), args);
+        ref args,
+        ref module,
+      } => (field, get_args(args), module),
+      Action::Get {
+        ref field,
+        ref module,
+      } => (field, vec![], module),
+    };
+    println!("Assert return at {}:{}.", field, line);
+    let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
+    let mut vm = vm_ref.borrow_mut();
+    let actual = vm.run(field.as_ref(), args);
     let expectation = get_expectation(expected);
     assert_eq!(actual, expectation);
   }
@@ -125,10 +125,10 @@ impl<'a> E2ETest<'a> {
         ref module,
       } => {
         println!("Assert trap at {}:{}.", field, line,);
-        let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
+        let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
         let mut vm = vm_ref.borrow_mut();
-    let actual = vm.run(field, get_args(args));
-    match message {
+        let actual = vm.run(field, get_args(args));
+        match message {
           "unreachable" => assert_eq!(actual, format!("{} executed", message)),
           "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
           "undefined" => assert_eq!(actual, "undefined element"),
@@ -165,8 +165,8 @@ impl<'a> E2ETest<'a> {
     };
     let bytes = module.clone().into_vec();
     let store = init_store();
-          let module = decode_module(&bytes);
-          let err = instantiate_module(store, module, Default::default()).unwrap_err();
+    let module = decode_module(&bytes);
+    let err = instantiate_module(store, module, Default::default()).unwrap_err();
     use self::Trap::*;
     if let UnsupportedTextform = err {
       println!("Skip malformed text form at line:{}.", line);
@@ -208,7 +208,7 @@ impl<'a> E2ETest<'a> {
         ref module,
       } => {
         println!("Assert NaN at '{}:{}'.", field, line);
-        let vm_ref: Rc<RefCell<Vm>> = self.modules[module].clone();
+        let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
         let mut vm = vm_ref.borrow_mut();
         let actual = vm.run(field.as_ref(), get_args(args));
         assert_eq!(&actual, "NaN");

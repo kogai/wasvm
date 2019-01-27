@@ -8,7 +8,7 @@ use store::Store;
 use trap::Result;
 use validate;
 use validate::Context;
-use vm::Vm;
+use vm::ModuleInstance;
 
 pub fn init_store() -> Store {
   Default::default()
@@ -29,10 +29,10 @@ pub fn instantiate_module(
   mut store: Store,
   section: Result<Module>, // module: Module(PreVm)
   external_modules: ExternalModules,
-) -> Result<Vm> {
+) -> Result<ModuleInstance> {
   // TODO: Return pair of (Store, Vm) by using Rc<Store> type.
   let internal_module = section?.complete(&external_modules, &mut store)?;
-  let mut vm = Vm::new_from(store, internal_module, external_modules)?;
+  let mut vm = ModuleInstance::new_from(store, internal_module, external_modules)?;
   if let Some(idx) = vm.start_index().clone() {
     let function_instance = vm.get_function_instance(&idx)?;
     let frame = Frame::new(

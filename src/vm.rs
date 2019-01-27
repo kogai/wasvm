@@ -116,16 +116,15 @@ macro_rules! impl_try_binary_inst {
     };
 }
 
-// FIXME: May rename to `ModuleInstance`
 #[derive(Debug)]
-pub struct Vm {
+pub struct ModuleInstance {
     store: Store,
     pub(crate) stack: Stack,
     internal_module: InternalModule,
     external_modules: ExternalModules,
 }
 
-impl Vm {
+impl ModuleInstance {
     impl_load_inst!(load_data_32, load_data_32, u32);
     impl_load_inst!(load_data_64, load_data_64, u64);
     impl_load_inst!(load_data_f32, load_data_f32, f32);
@@ -225,7 +224,7 @@ impl Vm {
         internal_module: InternalModule,
         external_modules: ExternalModules,
     ) -> Result<Self> {
-        Ok(Vm {
+        Ok(ModuleInstance {
             store,
             internal_module,
             stack: Stack::new(65536),
