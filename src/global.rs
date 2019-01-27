@@ -113,41 +113,31 @@ impl GlobalInstances {
       let value = match Code::from(init_first) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = init[i + 1];
-          }
+          buf.clone_from_slice(&init[1..5]);
           Values::I32(unsafe { core::mem::transmute::<_, u32>(buf) } as i32)
         }
         Code::ConstI64 => {
           let mut buf = [0; 8];
-          for i in 0..buf.len() {
-            buf[i] = init[i + 1];
-          }
+          buf.clone_from_slice(&init[1..9]);
           Values::I64(unsafe { core::mem::transmute::<_, u64>(buf) } as i64)
         }
         Code::F32Const => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = init[i + 1];
-          }
+          buf.clone_from_slice(&init[1..5]);
           Values::F32(f32::from_bits(unsafe {
             core::mem::transmute::<_, u32>(buf)
           }))
         }
         Code::F64Const => {
           let mut buf = [0; 8];
-          for i in 0..buf.len() {
-            buf[i] = init[i + 1];
-          }
+          buf.clone_from_slice(&init[1..9]);
           Values::F64(f64::from_bits(unsafe {
             core::mem::transmute::<_, u64>(buf)
           }))
         }
         Code::GetGlobal => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = init[i + 1];
-          }
+          buf.clone_from_slice(&init[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get(idx.to_usize())?.get_value()
         }

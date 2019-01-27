@@ -35,9 +35,7 @@ impl TableInstance {
       let offset = match Code::from(el.offset.first().cloned()) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[i + 1];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
             return Err(Trap::ElementSegmentDoesNotFit);
@@ -46,9 +44,7 @@ impl TableInstance {
         }
         Code::GetGlobal => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[i + 1];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
         }
@@ -81,9 +77,7 @@ impl TableInstance {
       let offset = match Code::from(el.offset.first().cloned()) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[1 + i];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
             return Err(Trap::ElementSegmentDoesNotFit);
@@ -92,9 +86,7 @@ impl TableInstance {
         }
         Code::GetGlobal => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[1 + i];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
         }
@@ -168,16 +160,12 @@ impl TableInstances {
       let offset = match Code::from(el.offset.first().cloned()) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[1 + i];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           unsafe { core::mem::transmute::<_, i32>(buf) }
         }
         Code::GetGlobal => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[1 + i];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
         }
@@ -204,9 +192,7 @@ impl TableInstances {
       let offset = match Code::from(el.offset.first().cloned()) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[1 + i];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
             return Err(Trap::ElementSegmentDoesNotFit);
@@ -215,9 +201,7 @@ impl TableInstances {
         }
         Code::GetGlobal => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            buf[i] = el.offset[1 + i];
-          }
+          buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
         }
