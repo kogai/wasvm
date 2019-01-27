@@ -8,7 +8,7 @@ use memory::{Limit, MemoryInstance};
 use module::ExternalModule;
 use table::TableInstance;
 use value::Values;
-use value_type::ValueTypes;
+use value_type::{TYPE_F32, TYPE_F64, TYPE_I32};
 
 pub fn create_spectest() -> ExternalModule {
   ExternalModule::new(
@@ -22,35 +22,35 @@ pub fn create_spectest() -> ExternalModule {
       // 4
       FunctionInstance::new(
         Some("print_i32".to_owned()),
-        FunctionType::new(vec![ValueTypes::I32], vec![]),
+        FunctionType::new(vec![TYPE_I32], vec![]),
         vec![],
         into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 5
       FunctionInstance::new(
         Some("print_i32_f32".to_owned()),
-        FunctionType::new(vec![ValueTypes::I32, ValueTypes::F32], vec![]),
+        FunctionType::new(vec![TYPE_I32, TYPE_F32], vec![]),
         vec![],
         into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 6
       FunctionInstance::new(
         Some("print_f64_f64".to_owned()),
-        FunctionType::new(vec![ValueTypes::F64, ValueTypes::F64], vec![]),
+        FunctionType::new(vec![TYPE_F64, TYPE_F64], vec![]),
         vec![],
         into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 2
       FunctionInstance::new(
         Some("print_f32".to_owned()),
-        FunctionType::new(vec![ValueTypes::F32], vec![]),
+        FunctionType::new(vec![TYPE_F32], vec![]),
         vec![],
         into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 3
       FunctionInstance::new(
         Some("print_f64".to_owned()),
-        FunctionType::new(vec![ValueTypes::F64], vec![]),
+        FunctionType::new(vec![TYPE_F64], vec![]),
         vec![],
         into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
@@ -76,17 +76,17 @@ pub fn create_spectest() -> ExternalModule {
     // GlobalInstances
     vec![
       GlobalInstance::new(
-        GlobalType::Const(ValueTypes::I32),
+        GlobalType::Const(TYPE_I32),
         Values::I32(666),
         Some("global_i32".to_owned()),
       ),
       GlobalInstance::new(
-        GlobalType::Const(ValueTypes::F32),
+        GlobalType::Const(TYPE_F32),
         Values::F32(666.6),
         Some("global_f32".to_owned()),
       ),
       GlobalInstance::new(
-        GlobalType::Const(ValueTypes::F64),
+        GlobalType::Const(TYPE_F64),
         Values::F64(666.6),
         Some("global_f64".to_owned()),
       ),

@@ -844,7 +844,7 @@ macro_rules! impl_from_valuetypes {
           ValueTypes::I64 => Values::I64(0),
           ValueTypes::F32 => Values::F32(0.0),
           ValueTypes::F64 => Values::F64(0.0),
-          ValueTypes::Empty => unreachable!(),
+          ValueTypes::Unit => unreachable!(),
         }
       }
     }

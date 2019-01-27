@@ -16,7 +16,7 @@ use stack::{Stack, StackEntry};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
-use value_type::ValueTypes;
+use value_type::TYPE_UNIT;
 
 macro_rules! impl_load_inst {
     ($fn_name: ident, $load_fn: ident, $ty: ty) => {
@@ -286,10 +286,7 @@ impl ModuleInstance {
         })
     }
 
-    fn evaluate_instructions(
-        &mut self,
-        frame: &Frame, /* TODO: Consider to use RefCell type. */
-    ) -> Result<()> {
+    fn evaluate_instructions(&mut self, frame: &Frame) -> Result<()> {
         use self::Isa::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
@@ -756,7 +753,7 @@ impl ModuleInstance {
                 let return_type = frame
                     .get_return_type()
                     .first()
-                    .map_or(ValueTypes::Empty, |x| x.to_owned());
+                    .map_or(TYPE_UNIT, |x| x.to_owned());
                 let label = StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
                 self.stack.frame_ptr.set(frame.return_ptr);
                 self.stack.push_entries(&mut frame.get_local_variables())?;

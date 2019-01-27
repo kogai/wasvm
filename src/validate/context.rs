@@ -193,7 +193,7 @@ impl<'a> Context<'a> {
 
       locals: RefCell::new(Vec::new()),
       labels: RefCell::new(VecDeque::new()),
-      return_type: RefCell::new([ValueTypes::Empty; 1]),
+      return_type: RefCell::new([ValueTypes::Unit; 1]),
     })
   }
 
@@ -549,7 +549,7 @@ impl<'a> Context<'a> {
     labels.push_front(
       [match function.function_type.returns().first() {
         Some(ty) => ty.clone(),
-        None => ValueTypes::Empty,
+        None => ValueTypes::Unit,
       }; 1],
     );
 
@@ -596,7 +596,7 @@ impl<'a> Context<'a> {
               cxt.pop_until_label()?;
             }
             _ => {
-              if expect != ValueTypes::Empty {
+              if expect != ValueTypes::Unit {
                 return Err(TypeError::TypeMismatch);
               }
             }

@@ -275,7 +275,7 @@ impl Stack {
     }
     let continuation = match label {
       Some(Label {
-        return_type: ValueTypes::Empty,
+        return_type: ValueTypes::Unit,
         continuation,
         ..
       }) => continuation,
