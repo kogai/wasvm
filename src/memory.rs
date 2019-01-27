@@ -150,7 +150,7 @@ impl MemoryInstance {
     let mut data = vec![0; initial_size];
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = match Code::from(*offset.first()?) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -195,7 +195,7 @@ impl MemoryInstance {
     let data: &mut Vec<u8> = self.data.as_mut();
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = match Code::from(*offset.first()?) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           unsafe { core::mem::transmute::<_, i32>(buf) }
@@ -227,7 +227,7 @@ impl MemoryInstance {
     };
     for Data { offset, init, .. } in datas.iter() {
       let offset = match Code::from(*offset.first()?) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;

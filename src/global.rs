@@ -111,12 +111,12 @@ impl GlobalInstances {
         .map(|x| x.name.to_owned());
       let init_first = init.first()?;
       let value = match Code::from(*init_first) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&init[1..5]);
           Values::I32(unsafe { core::mem::transmute::<_, u32>(buf) } as i32)
         }
-        Code::ConstI64 => {
+        Code::I64Const => {
           let mut buf = [0; 8];
           buf.clone_from_slice(&init[1..9]);
           Values::I64(unsafe { core::mem::transmute::<_, u64>(buf) } as i64)

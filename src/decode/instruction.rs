@@ -130,12 +130,12 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           self.next(); // Drop code 0x00.
         }
 
-        Code::ConstI32 => {
+        Code::I32Const => {
           expressions.push(code);
           let value = self.decode_leb128_i32()?;
           self.push_u32_as_bytes(value, &mut expressions);
         }
-        Code::ConstI64 => {
+        Code::I64Const => {
           expressions.push(code);
           let value = self.decode_leb128_i64()?;
           self.push_u64_as_bytes(value, &mut expressions);
@@ -229,11 +229,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         | Code::I64GreaterEqualUnSign
         | Code::I32WrapI64
         | Code::I32EqualZero
-        | Code::Equal
-        | Code::NotEqual
-        | Code::LessThanSign
-        | Code::LessThanUnsign
-        | Code::GreaterThanSign
+        | Code::I32Equal
+        | Code::I32NotEqual
+        | Code::I32LessThanSign
+        | Code::I32LessThanUnsign
+        | Code::I32GreaterThanSign
         | Code::I32GreaterThanUnsign
         | Code::I32LessEqualSign
         | Code::I32LessEqualUnsign

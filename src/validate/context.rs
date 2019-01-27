@@ -204,11 +204,11 @@ impl<'a> Context<'a> {
       let x = expr[idx];
       idx += 1;
       match Code::from(x) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           idx += 4;
           type_stack.push(ValueTypes::I32);
         }
-        Code::ConstI64 => {
+        Code::I64Const => {
           idx += 8;
           type_stack.push(ValueTypes::I64);
         }
@@ -291,11 +291,11 @@ impl<'a> Context<'a> {
         let x = init[idx];
         idx += 1;
         match Code::from(x) {
-          Code::ConstI32 => {
+          Code::I32Const => {
             idx += 4;
             type_stack.push(ValueTypes::I32);
           }
-          Code::ConstI64 => {
+          Code::I64Const => {
             idx += 8;
             type_stack.push(ValueTypes::I64);
           }
@@ -686,11 +686,11 @@ impl<'a> Context<'a> {
           }
         }
 
-        ConstI32 => {
+        I32Const => {
           let _ = function.pop_raw_u32()?;
           cxt.push(ValueTypes::I32);
         }
-        ConstI64 => {
+        I64Const => {
           let _ = function.pop_raw_u64()?;
           cxt.push(ValueTypes::I64);
         }
@@ -831,11 +831,11 @@ impl<'a> Context<'a> {
         I32EqualZero => self.validate_test_inst(cxt, &TYPE_I32)?,
         I64EqualZero => self.validate_test_inst(cxt, &TYPE_I64)?,
 
-        Equal => rel_op!(cxt),
-        NotEqual => rel_op!(cxt),
-        LessThanSign => rel_op!(cxt),
-        LessThanUnsign => rel_op!(cxt),
-        GreaterThanSign => rel_op!(cxt),
+        I32Equal => rel_op!(cxt),
+        I32NotEqual => rel_op!(cxt),
+        I32LessThanSign => rel_op!(cxt),
+        I32LessThanUnsign => rel_op!(cxt),
+        I32GreaterThanSign => rel_op!(cxt),
         I32GreaterThanUnsign => rel_op!(cxt),
         I32LessEqualSign => rel_op!(cxt),
         I32LessEqualUnsign => rel_op!(cxt),

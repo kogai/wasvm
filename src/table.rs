@@ -34,7 +34,7 @@ impl TableInstance {
     let mut function_elements = vec![None; table_size];
     for el in elements.into_iter() {
       let offset = match Code::from(*el.offset.first()?) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -76,7 +76,7 @@ impl TableInstance {
     } as usize;
     for el in elements.iter() {
       let offset = match Code::from(*el.offset.first()?) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -159,7 +159,7 @@ impl TableInstances {
 
     for el in elements.iter() {
       let offset = match Code::from(*el.offset.first()?) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           unsafe { core::mem::transmute::<_, i32>(buf) }
@@ -191,7 +191,7 @@ impl TableInstances {
 
     for el in elements.iter() {
       let offset = match Code::from(*el.offset.first()?) {
-        Code::ConstI32 => {
+        Code::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;

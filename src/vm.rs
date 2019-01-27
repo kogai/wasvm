@@ -490,11 +490,11 @@ impl Vm {
                     let idx = Indice::from(frame.pop_raw_u32()?);
                     self.set_global(&idx)?;
                 }
-                ConstI32 => {
+                I32Const => {
                     let n = frame.pop_raw_u32()? as i32;
                     self.stack.push(StackEntry::new_value(Values::I32(n)))?;
                 }
-                ConstI64 => {
+                I64Const => {
                     let n = frame.pop_raw_u64()? as i64;
                     self.stack.push(StackEntry::new_value(Values::I64(n)))?;
                 }
@@ -519,8 +519,10 @@ impl Vm {
                 F32Min | F64Min => self.min()?,
                 F32Max | F64Max => self.max()?,
 
-                LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => self.less_than()?,
-                LessThanUnsign | I64LessThanUnSign => self.less_than_unsign()?,
+                I32LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => {
+                    self.less_than()?
+                }
+                I32LessThanUnsign | I64LessThanUnSign => self.less_than_unsign()?,
                 I32LessEqualSign | I64LessEqualSign | F32LessEqual | F64LessEqual => {
                     self.less_than_equal()?
                 }
@@ -528,15 +530,15 @@ impl Vm {
                 I32GreaterEqualSign | I64GreaterEqualSign | F64GreaterEqual | F32GreaterEqual => {
                     self.greater_than_equal()?
                 }
-                GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
+                I32GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
                     self.greater_than()?
                 }
                 I32GreaterThanUnsign | I64GreaterThanUnSign => self.greater_than_unsign()?,
                 I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
                     self.greater_than_equal_unsign()?
                 }
-                Equal | I64Equal | F32Equal | F64Equal => self.equal()?,
-                NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => self.not_equal()?,
+                I32Equal | I64Equal | F32Equal | F64Equal => self.equal()?,
+                I32NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => self.not_equal()?,
                 I32Or | I64Or => self.or()?,
                 I32Xor | I64Xor => self.xor()?,
                 I32And | I64And => self.and()?,
