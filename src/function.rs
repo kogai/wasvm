@@ -122,6 +122,10 @@ impl FunctionInstance {
     self.0.body.get(idx)
   }
 
+  pub(crate) fn body(&self) -> &[u8] {
+    &self.0.body
+  }
+
   pub fn get_expressions_count(&self) -> usize {
     self.0.body.len()
   }

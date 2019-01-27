@@ -8,18 +8,35 @@ use stack::StackEntry;
 use trap::Result;
 use value_type::ValueTypes;
 
+macro_rules! impl_pop_bytes {
+  ($name: ident, $ty: ty, $width: expr) => {
+    pub(crate) fn $name(&self) -> Result<$ty> {
+      let mut buf = [0; $width];
+      let body = self.function_instance.body();
+      let start = self.ptr.get() as usize;
+      let end = start + $width;
+      buf.clone_from_slice(&body[start..end]);
+      self.ptr.set((start + $width) as u32);
+      Ok(unsafe { core::mem::transmute::<_, $ty>(buf) })
+    }
+  };
+}
+
 #[derive(PartialEq)]
 pub struct Frame {
   // FIXME: No need to hold local_variables in frame.
   local_variables: RefCell<Vec<StackEntry>>,
   pub(crate) function_instance: FunctionInstance,
   ptr: Cell<u32>,
-  pub last_ptr: u32, // FIXME: Use Indice type for indices of instructions.
+  pub last_ptr: u32,
   pub return_ptr: usize,
   pub prev_return_ptr: usize,
 }
 
 impl Frame {
+  impl_pop_bytes!(pop_raw_u32, u32, 4);
+  impl_pop_bytes!(pop_raw_u64, u64, 8);
+
   pub fn new(
     return_ptr: usize,
     prev_return_ptr: usize,
@@ -91,24 +108,6 @@ impl Frame {
       Some(byte) => Some(ValueTypes::from(Some(*byte))),
       None => None,
     }
-  }
-
-  pub fn pop_raw_u32(&self) -> Result<u32> {
-    let mut buf = [0; 4];
-    for i in 0..buf.len() {
-      buf[i] = *self.pop_ref()?;
-    }
-    let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
-    Ok(idx)
-  }
-
-  pub fn pop_raw_u64(&self) -> Result<u64> {
-    let mut buf = [0; 8];
-    for i in 0..buf.len() {
-      buf[i] = *self.pop_ref()?;
-    }
-    let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
-    Ok(idx)
   }
 
   pub fn is_next_empty(&self) -> bool {
