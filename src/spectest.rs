@@ -1,6 +1,7 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
-use decode::{into_vec_u8, Code, ComposedCode, ElementType, TableType};
+use decode::{ElementType, TableType};
+use isa::{into_vec_u8, Code, ComposedCode};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
 use memory::{Limit, MemoryInstance};

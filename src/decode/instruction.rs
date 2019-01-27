@@ -54,7 +54,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
   }
 
   fn decode_instructions(&mut self) -> Result<Vec<u8>> {
-    use super::code::Code;
+    use isa::Code;
     let mut expressions = vec![];
     while !Code::is_else_or_end(self.peek()) {
       let code = self.next()?;

@@ -3,7 +3,7 @@ use core::cell::{RefCell, RefMut};
 use core::fmt;
 use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
-use isa::Indice;
+use indice::Indice;
 use stack::StackEntry;
 use trap::Result;
 use value_type::ValueTypes;

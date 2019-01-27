@@ -10,7 +10,7 @@ use decode::TableType;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
 use hashbrown::HashMap;
-use isa::Indice;
+use indice::Indice;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
 use table::{TableInstance, TableInstances};

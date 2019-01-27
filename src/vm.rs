@@ -2,10 +2,10 @@
 use alloc::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
-use decode::Code;
 use frame::Frame;
 use function::FunctionInstance;
-use isa::Indice;
+use indice::Indice;
+use isa::Code;
 use label::{Label, LabelKind};
 use memory::MemoryInstances;
 use module::{

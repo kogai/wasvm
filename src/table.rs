@@ -5,10 +5,11 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::clone::Clone;
-use decode::{Code, Element, TableType};
+use decode::{Element, TableType};
 use function::FunctionInstance;
 use global::GlobalInstances;
-use isa::Indice;
+use indice::Indice;
+use isa::Code;
 use memory::Limit;
 use trap::{Result, Trap};
 

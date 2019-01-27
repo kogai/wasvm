@@ -26,6 +26,7 @@ mod embedder;
 mod frame;
 mod function;
 mod global;
+mod indice;
 mod isa;
 mod label;
 mod memory;

@@ -1,8 +1,8 @@
-use super::code::Code;
 use super::decodable::{Decodable, Leb128Decodable, U32Decodable, U8Iterator};
 use alloc::vec::Vec;
 use core::convert::From;
 use function::FunctionType;
+use isa::Code;
 use trap::Result;
 use value_type::ValueTypes;
 

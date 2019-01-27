@@ -76,10 +76,10 @@ impl Byte {
 
 #[cfg(test)]
 mod tests {
-  use self::ComposedCode as Cc;
   use super::*;
   use embedder::{decode_module, init_store};
   use function::{FunctionInstance, FunctionType};
+  use isa::{into_vec_u8, ComposedCode as Cc};
   use module::ExternalModules;
   use std::fs::File;
   use std::io::Read;
@@ -89,7 +89,7 @@ mod tests {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
       #[test]
       fn $fn_name() {
-        use self::Code::*;
+        use isa::Code::*;
         let mut file = File::open(format!("./{}.wasm", $file_name)).unwrap();
         let mut buffer = vec![];
         let _ = file.read_to_end(&mut buffer);

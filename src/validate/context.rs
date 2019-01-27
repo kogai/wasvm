@@ -4,10 +4,11 @@ use alloc::collections::VecDeque;
 use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use decode::{Code, Data, Element, Section, TableType};
+use decode::{Data, Element, Section, TableType};
 use function::FunctionType;
 use global::GlobalType;
-use isa::Indice;
+use indice::Indice;
+use isa::Code;
 use memory::Limit;
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
