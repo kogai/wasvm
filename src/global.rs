@@ -109,8 +109,8 @@ impl GlobalInstances {
       let export_name = exports
         .find_kind_by_idx(idx as u32, &GLOBAL_DESCRIPTOR)
         .map(|x| x.name.to_owned());
-      let init_first = init.first().cloned();
-      let value = match Code::from(init_first) {
+      let init_first = init.first()?;
+      let value = match Code::from(*init_first) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&init[1..5]);

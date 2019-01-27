@@ -294,7 +294,7 @@ impl Vm {
         use self::Code::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
-            match Code::from(Some(*expression)) {
+            match Code::from(*expression) {
                 Reserved => unreachable!(),
                 Unreachable => return Err(Trap::Unreachable),
                 Return => {

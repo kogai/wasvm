@@ -58,7 +58,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
     let mut expressions = vec![];
     while !Code::is_else_or_end(self.peek()) {
       let code = self.next()?;
-      match Code::from(Some(code)) {
+      match Code::from(code) {
         // NOTE: Already consumed at decoding "If" instructions.
         Code::Reserved | Code::End | Code::Else => unreachable!("{:?}", code),
         Code::Unreachable | Code::Nop | Code::Return | Code::DropInst => expressions.push(code),
@@ -83,8 +83,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
         Code::If => {
           let block_type = self.next()?;
           let mut if_insts = self.decode_instructions()?;
-          let last = if_insts.last().cloned();
-
+          let last = *if_insts.last()?;
           let mut else_insts = match Code::from(last) {
             Code::Else => self.decode_instructions()?,
             Code::End => vec![],
@@ -308,7 +307,7 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
       };
     }
     let end_code = self.next()?;
-    match Code::from(Some(end_code)) {
+    match Code::from(end_code) {
       Code::Else | Code::End => expressions.push(end_code),
       x => unreachable!("{:?}", x),
     }

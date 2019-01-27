@@ -33,7 +33,7 @@ impl TableInstance {
     } as usize;
     let mut function_elements = vec![None; table_size];
     for el in elements.into_iter() {
-      let offset = match Code::from(el.offset.first().cloned()) {
+      let offset = match Code::from(*el.offset.first()?) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
@@ -75,7 +75,7 @@ impl TableInstance {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
     } as usize;
     for el in elements.iter() {
-      let offset = match Code::from(el.offset.first().cloned()) {
+      let offset = match Code::from(*el.offset.first()?) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
@@ -158,7 +158,7 @@ impl TableInstances {
     let function_elements = &mut table_instance.function_elements;
 
     for el in elements.iter() {
-      let offset = match Code::from(el.offset.first().cloned()) {
+      let offset = match Code::from(*el.offset.first()?) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
@@ -190,7 +190,7 @@ impl TableInstances {
     let function_elements = &mut table_instance.function_elements;
 
     for el in elements.iter() {
-      let offset = match Code::from(el.offset.first().cloned()) {
+      let offset = match Code::from(*el.offset.first()?) {
         Code::ConstI32 => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);

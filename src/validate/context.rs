@@ -203,7 +203,7 @@ impl<'a> Context<'a> {
     while idx < expr.len() {
       let x = expr[idx];
       idx += 1;
-      match Code::from(Some(x)) {
+      match Code::from(x) {
         Code::ConstI32 => {
           idx += 4;
           type_stack.push(ValueTypes::I32);
@@ -290,7 +290,7 @@ impl<'a> Context<'a> {
       while idx < init.len() {
         let x = init[idx];
         idx += 1;
-        match Code::from(Some(x)) {
+        match Code::from(x) {
           Code::ConstI32 => {
             idx += 4;
             type_stack.push(ValueTypes::I32);
@@ -555,7 +555,7 @@ impl<'a> Context<'a> {
     );
 
     while let Some(inst) = function.pop() {
-      match Code::from(Some(*inst)) {
+      match Code::from(*inst) {
         Reserved => unreachable!(),
         Unreachable => {}
         Nop => {}
