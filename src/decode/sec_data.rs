@@ -3,18 +3,17 @@ use super::decodable::{
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
-use isa::Inst;
 use trap::Result;
 
 #[derive(Debug)]
 pub struct Data {
   pub memidx: u32,
-  pub offset: Vec<Inst>,
+  pub offset: Vec<u8>,
   pub init: Vec<u8>,
 }
 
 impl Data {
-  pub fn new(memidx: u32, offset: Vec<Inst>, init: Vec<u8>) -> Self {
+  pub fn new(memidx: u32, offset: Vec<u8>, init: Vec<u8>) -> Self {
     Data {
       memidx,
       offset,

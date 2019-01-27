@@ -18,6 +18,7 @@ mod sec_type;
 mod section;
 
 pub use self::byte::Byte;
+pub use self::code::{into_vec_u8, Code, ComposedCode};
 pub use self::decodable::{AbstractDecodable, U8Iterator};
 pub use self::sec_data::Data;
 pub use self::sec_element::{Element, ElementType};

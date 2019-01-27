@@ -9,7 +9,6 @@ use core::convert::TryFrom;
 use core::default::Default;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstances, GlobalType};
-use isa::Inst;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, InternalModule, FUNCTION_DESCRIPTOR,
@@ -64,11 +63,11 @@ pub struct Section {
   pub(crate) function_types: Vec<FunctionType>,
   pub(crate) functions: Vec<u32>,
   pub(crate) exports: ExternalInterfaces,
-  pub(crate) codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
+  pub(crate) codes: Vec<Result<(Vec<u8>, Vec<ValueTypes>)>>,
   pub(crate) datas: Vec<Data>,
   pub(crate) limits: Vec<Limit>,
   pub(crate) tables: Vec<TableType>,
-  pub(crate) globals: Vec<(GlobalType, Vec<Inst>)>,
+  pub(crate) globals: Vec<(GlobalType, Vec<u8>)>,
   pub(crate) elements: Vec<Element>,
   pub(crate) customs: Vec<(String, Vec<u8>)>,
   pub(crate) imports: ExternalInterfaces,
@@ -106,11 +105,11 @@ macro_rules! impl_builder {
 impl Section {
   impl_builder!(function_types, function_types, FunctionType);
   impl_builder!(functions, functions, u32);
-  impl_builder!(codes, codes, Result<(Vec<Inst>, Vec<ValueTypes>)>);
+  impl_builder!(codes, codes, Result<(Vec<u8>, Vec<ValueTypes>)>);
   impl_builder!(datas, datas, Data);
   impl_builder!(limits, limits, Limit);
   impl_builder!(tables, tables, TableType);
-  impl_builder!(globals, globals, (GlobalType, Vec<Inst>));
+  impl_builder!(globals, globals, (GlobalType, Vec<u8>));
   impl_builder!(elements, elements, Element);
   impl_builder!(customs, customs, (String, Vec<u8>));
 
@@ -280,7 +279,7 @@ impl Section {
     function_types: &[FunctionType],
     functions: &[u32],
     exports: &ExternalInterfaces,
-    codes: Vec<Result<(Vec<Inst>, Vec<ValueTypes>)>>,
+    codes: Vec<Result<(Vec<u8>, Vec<ValueTypes>)>>,
   ) -> Result<Vec<FunctionInstance>> {
     codes
       .into_iter()

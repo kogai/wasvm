@@ -4,7 +4,6 @@ use super::decodable::{
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use global::GlobalType;
-use isa::Inst;
 use trap::Result;
 use value_type::ValueTypes;
 
@@ -16,7 +15,7 @@ impl SignedIntegerDecodable for Section {}
 impl InstructionDecodable for Section {}
 
 impl Decodable for Section {
-  type Item = Vec<(GlobalType, Vec<Inst>)>;
+  type Item = Vec<(GlobalType, Vec<u8>)>;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
     (0..count_of_section)

@@ -8,9 +8,9 @@ use core::cmp::{Ordering, PartialOrd};
 use core::fmt;
 use core::mem::transmute;
 use core::u32;
-use decode::Data;
+use decode::{Code, Data};
 use global::GlobalInstances;
-use isa::{Indice, Inst};
+use isa::Indice;
 use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
 use trap::{Result, Trap};
 use value::Values;
@@ -148,15 +148,11 @@ impl MemoryInstance {
     let initial_size = limit.initial_min_size();
     let mut data = vec![0; initial_size];
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match offset.first() {
-        Some(Inst::I32Const) => {
+      let offset = match Code::from(offset.first().cloned()) {
+        Code::ConstI32 => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
-            let raw_byte = match offset[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
+            buf[i] = offset[1 + i];
           }
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
@@ -164,14 +160,10 @@ impl MemoryInstance {
           }
           offset
         }
-        Some(Inst::GetGlobal) => {
+        Code::GetGlobal => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
-            let raw_byte = match offset[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
+            buf[i] = offset[1 + i];
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
@@ -205,26 +197,18 @@ impl MemoryInstance {
     };
     let data: &mut Vec<u8> = self.data.as_mut();
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match offset.first() {
-        Some(Inst::I32Const) => {
+      let offset = match Code::from(offset.first().cloned()) {
+        Code::ConstI32 => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
-            let raw_byte = match offset[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
+            buf[i] = offset[1 + i];
           }
           unsafe { core::mem::transmute::<_, i32>(buf) }
         }
-        Some(Inst::GetGlobal) => {
+        Code::GetGlobal => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
-            let raw_byte = match offset[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
+            buf[i] = offset[1 + i];
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)
@@ -249,15 +233,11 @@ impl MemoryInstance {
       None => self.limit.initial_min_size(),
     };
     for Data { offset, init, .. } in datas.iter() {
-      let offset = match offset.first() {
-        Some(Inst::I32Const) => {
+      let offset = match Code::from(offset.first().cloned()) {
+        Code::ConstI32 => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
-            let raw_byte = match offset[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
+            buf[i] = offset[1 + i];
           }
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
@@ -265,14 +245,10 @@ impl MemoryInstance {
           }
           offset
         }
-        Some(Inst::GetGlobal) => {
+        Code::GetGlobal => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
-            let raw_byte = match offset[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
+            buf[i] = offset[1 + i];
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get_global_ext(&idx)

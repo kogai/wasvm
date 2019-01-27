@@ -4,18 +4,18 @@ use super::decodable::{
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use function::FunctionInstance;
-use isa::{Indice, Inst};
+use isa::Indice;
 use trap::Result;
 
 #[derive(Debug, Clone)]
 pub struct Element {
   pub(crate) table_idx: Indice,
-  pub(crate) offset: Vec<Inst>,
+  pub(crate) offset: Vec<u8>,
   pub(crate) init: Vec<Indice>, // FIXME: Vec of funcidx, Use Indice type
 }
 
 impl Element {
-  pub fn new(table_idx: Indice, offset: Vec<Inst>, init: Vec<Indice>) -> Self {
+  pub fn new(table_idx: Indice, offset: Vec<u8>, init: Vec<Indice>) -> Self {
     Element {
       table_idx,
       offset,

@@ -1,9 +1,8 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
-use decode::{ElementType, TableType};
+use decode::{into_vec_u8, Code, ComposedCode, ElementType, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
-use isa::Inst;
 use memory::{Limit, MemoryInstance};
 use module::ExternalModule;
 use table::TableInstance;
@@ -17,42 +16,42 @@ pub fn create_spectest() -> ExternalModule {
         Some("print".to_owned()),
         FunctionType::new(vec![], vec![]),
         vec![],
-        vec![Inst::End],
+        into_vec_u8(&[ComposedCode::Code(Code::End)]),
       ),
       // 4
       FunctionInstance::new(
         Some("print_i32".to_owned()),
         FunctionType::new(vec![ValueTypes::I32], vec![]),
         vec![],
-        vec![Inst::End],
+        into_vec_u8(&[ComposedCode::Code(Code::End)]),
       ),
       // 5
       FunctionInstance::new(
         Some("print_i32_f32".to_owned()),
         FunctionType::new(vec![ValueTypes::I32, ValueTypes::F32], vec![]),
         vec![],
-        vec![Inst::End],
+        into_vec_u8(&[ComposedCode::Code(Code::End)]),
       ),
       // 6
       FunctionInstance::new(
         Some("print_f64_f64".to_owned()),
         FunctionType::new(vec![ValueTypes::F64, ValueTypes::F64], vec![]),
         vec![],
-        vec![Inst::End],
+        into_vec_u8(&[ComposedCode::Code(Code::End)]),
       ),
       // 2
       FunctionInstance::new(
         Some("print_f32".to_owned()),
         FunctionType::new(vec![ValueTypes::F32], vec![]),
         vec![],
-        vec![Inst::End],
+        into_vec_u8(&[ComposedCode::Code(Code::End)]),
       ),
       // 3
       FunctionInstance::new(
         Some("print_f64".to_owned()),
         FunctionType::new(vec![ValueTypes::F64], vec![]),
         vec![],
-        vec![Inst::End],
+        into_vec_u8(&[ComposedCode::Code(Code::End)]),
       ),
     ],
     vec![],

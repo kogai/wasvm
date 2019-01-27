@@ -2,9 +2,10 @@
 use alloc::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
+use decode::Code;
 use frame::Frame;
 use function::FunctionInstance;
-use isa::{Indice, Inst};
+use isa::Indice;
 use label::{Label, LabelKind};
 use memory::MemoryInstances;
 use module::{
@@ -290,10 +291,11 @@ impl Vm {
         &mut self,
         frame: &Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
-        use self::Inst::*;
+        use self::Code::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
-            match expression {
+            match Code::from(Some(*expression)) {
+                Reserved => unreachable!(),
                 Unreachable => return Err(Trap::Unreachable),
                 Return => {
                     frame.jump_to_last();
@@ -488,11 +490,11 @@ impl Vm {
                     let idx = Indice::from(frame.pop_raw_u32()?);
                     self.set_global(&idx)?;
                 }
-                I32Const => {
+                ConstI32 => {
                     let n = frame.pop_raw_u32()? as i32;
                     self.stack.push(StackEntry::new_value(Values::I32(n)))?;
                 }
-                I64Const => {
+                ConstI64 => {
                     let n = frame.pop_raw_u64()? as i64;
                     self.stack.push(StackEntry::new_value(Values::I64(n)))?;
                 }
@@ -526,7 +528,7 @@ impl Vm {
                 I32GreaterEqualSign | I64GreaterEqualSign | F64GreaterEqual | F32GreaterEqual => {
                     self.greater_than_equal()?
                 }
-                I32GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
+                GreaterThanSign | I64GreaterThanSign | F32GreaterThan | F64GreaterThan => {
                     self.greater_than()?
                 }
                 I32GreaterThanUnsign | I64GreaterThanUnSign => self.greater_than_unsign()?,
@@ -749,8 +751,6 @@ impl Vm {
                 I32TruncUnsignF64 => self.trunc_f64_to_unsign_i32()?,
                 I64TruncSignF32 => self.trunc_f32_to_sign_i64()?,
                 I64TruncUnsignF32 => self.trunc_f32_to_unsign_i64()?,
-
-                ExperimentalByte(_) => unreachable!(),
             };
         }
         Ok(())
