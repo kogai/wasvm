@@ -338,15 +338,6 @@ impl Vm {
                     self.stack.push(label)?;
                 }
                 Loop => {
-                    // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
-                    // In case for ptr of frame starts by 5,
-                    //
-                    // [05] Loop                    | <- continuation
-                    // [06] Block_type              | <- frame.ptr
-                    //        Instructions * 6      |
-                    // [13]   Last Instruction      |
-                    // [14] End                     | <- frame.ptr when evaluation of frame completed
-                    //                              |    without any label instruction.
                     let start_of_label = frame.get_start_of_label();
                     let block_type = frame.pop_runtime_type()?;
                     let label_continue =
