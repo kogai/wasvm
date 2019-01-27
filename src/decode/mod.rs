@@ -22,4 +22,4 @@ pub use self::decodable::{AbstractDecodable, U8Iterator};
 pub use self::sec_data::Data;
 pub use self::sec_element::{Element, ElementType};
 pub use self::sec_table::TableType;
-pub use self::section::Section;
+pub use self::section::Module;

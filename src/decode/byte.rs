@@ -1,5 +1,5 @@
 use super::decodable::{Decodable, Leb128Decodable, U32Decodable};
-use super::section::{Section, SectionCode};
+use super::section::{Module, SectionCode};
 use super::*;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
@@ -48,13 +48,12 @@ impl Byte {
     Ok(bytes)
   }
 
-  pub fn decode(&mut self) -> Result<Section> {
+  pub fn decode(&mut self) -> Result<Module> {
     use self::SectionCode::*;
-    let mut section = Section::default();
+    let mut section = Module::default();
     while self.has_next() {
       let code = SectionCode::try_from(self.next())?;
       let bytes = self.decode_section()?;
-      // TODO: May can conccurrent.
       match code {
         Type => section.function_types(&mut sec_type::Section::new(bytes).decode()?),
         Function => section.functions(&mut sec_function::Section::new(bytes).decode()?),

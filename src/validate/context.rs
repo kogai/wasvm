@@ -4,7 +4,7 @@ use alloc::collections::VecDeque;
 use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use decode::{Data, Element, Section, TableType};
+use decode::{Data, Element, Module, TableType};
 use function::FunctionType;
 use global::GlobalType;
 use indice::Indice;
@@ -165,7 +165,7 @@ macro_rules! rel_op {
 }
 
 impl<'a> Context<'a> {
-  pub fn new(module: &'a Section) -> Result<Self> {
+  pub fn new(module: &'a Module) -> Result<Self> {
     Ok(Context {
       function_types: &module.function_types,
       functions: module

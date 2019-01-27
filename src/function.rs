@@ -117,7 +117,6 @@ impl FunctionInstance {
     self.0.source_module_name.borrow().to_owned()
   }
 
-  // FIXME: Use &Indice
   pub fn get(&self, idx: usize) -> Option<&u8> {
     self.0.body.get(idx)
   }

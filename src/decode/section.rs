@@ -57,9 +57,8 @@ impl TryFrom<Option<u8>> for SectionCode {
   }
 }
 
-// FIXME: Rename to `Module`
 #[derive(Debug)]
-pub struct Section {
+pub struct Module {
   pub(crate) function_types: Vec<FunctionType>,
   pub(crate) functions: Vec<u32>,
   pub(crate) exports: ExternalInterfaces,
@@ -74,9 +73,9 @@ pub struct Section {
   pub(crate) start: Option<u32>,
 }
 
-impl Default for Section {
-  fn default() -> Section {
-    Section {
+impl Default for Module {
+  fn default() -> Module {
+    Module {
       function_types: vec![],
       functions: vec![],
       exports: ExternalInterfaces::default(),
@@ -102,7 +101,7 @@ macro_rules! impl_builder {
   };
 }
 
-impl Section {
+impl Module {
   impl_builder!(function_types, function_types, FunctionType);
   impl_builder!(functions, functions, u32);
   impl_builder!(codes, codes, Result<(Vec<u8>, Vec<ValueTypes>)>);
@@ -292,7 +291,7 @@ impl Section {
           Some(n) => *n,
           None => return Err(Trap::FunctionAndCodeInconsitent),
         };
-        let function_type = Section::function_type(index_of_type as usize, function_types);
+        let function_type = Module::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;
         Ok(FunctionInstance::new(
           export_name,
@@ -321,7 +320,7 @@ impl Section {
     store: &mut Store,
   ) -> Result<InternalModule> {
     match self {
-      Section {
+      Module {
         function_types,
         functions,
         codes,
@@ -342,9 +341,9 @@ impl Section {
         let imports_global = grouped_imports.get(&GLOBAL_DESCRIPTOR)?;
 
         let mut internal_function_instances =
-          Section::function_instances(&function_types, &functions, &exports, codes)?;
+          Module::function_instances(&function_types, &functions, &exports, codes)?;
 
-        let mut function_instances = Section::external_function_instances(
+        let mut function_instances = Module::external_function_instances(
           &function_types,
           &imports_function,
           &external_modules,
@@ -361,14 +360,14 @@ impl Section {
 
         // TODO: Move to context mod.
         let (validate_memory, validate_table) = (
-          Section::validate_memory(
+          Module::validate_memory(
             &datas,
             &limits,
             &imports_memory,
             &external_modules,
             &global_instances,
           ),
-          Section::validate_table(
+          Module::validate_table(
             &elements,
             &tables,
             &imports_table,
@@ -380,7 +379,7 @@ impl Section {
         validate_memory?;
         validate_table?;
 
-        let memory_instances = Section::memory_instances(
+        let memory_instances = Module::memory_instances(
           datas,
           &limits,
           &exports,
@@ -389,7 +388,7 @@ impl Section {
           &global_instances,
         )?;
 
-        let mut table_instances = Section::table_instances(
+        let mut table_instances = Module::table_instances(
           &elements,
           tables,
           &exports,

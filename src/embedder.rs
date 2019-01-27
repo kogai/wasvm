@@ -1,6 +1,6 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
-use decode::{Byte, Section};
+use decode::{Byte, Module};
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
@@ -14,11 +14,11 @@ pub fn init_store() -> Store {
   Default::default()
 }
 
-pub fn decode_module(bytes: &[u8]) -> Result<Section> {
+pub fn decode_module(bytes: &[u8]) -> Result<Module> {
   Byte::new_with_drop(&bytes)?.decode()
 }
 
-pub fn validate_module(module: &Result<Section>) -> validate::Result<()> {
+pub fn validate_module(module: &Result<Module>) -> validate::Result<()> {
   match module {
     Ok(module) => Context::new(module)?.validate(),
     Err(err) => Err(validate::TypeError::Trap(err.to_owned())),
@@ -27,7 +27,7 @@ pub fn validate_module(module: &Result<Section>) -> validate::Result<()> {
 
 pub fn instantiate_module(
   mut store: Store,
-  section: Result<Section>, // module: Module(PreVm)
+  section: Result<Module>, // module: Module(PreVm)
   external_modules: ExternalModules,
 ) -> Result<Vm> {
   // TODO: Return pair of (Store, Vm) by using Rc<Store> type.
