@@ -4,7 +4,8 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
-use isa::{Indice, Inst};
+use indice::Indice;
+use isa::Isa;
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
   GLOBAL_DESCRIPTOR,
@@ -79,7 +80,7 @@ impl GlobalInstances {
   }
 
   pub fn new_with_external(
-    globals: Vec<(GlobalType, Vec<Inst>)>,
+    globals: Vec<(GlobalType, Vec<u8>)>,
     exports: &ExternalInterfaces,
     imports: &[ExternalInterface],
     external_modules: &ExternalModules,
@@ -108,65 +109,35 @@ impl GlobalInstances {
       let export_name = exports
         .find_kind_by_idx(idx as u32, &GLOBAL_DESCRIPTOR)
         .map(|x| x.name.to_owned());
-      let init_first = init.first();
-      let value = match &init_first {
-        Some(Inst::I32Const) => {
+      let init_first = init.first()?;
+      let value = match Isa::from(*init_first) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            let raw_byte = match init[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
-          }
+          buf.clone_from_slice(&init[1..5]);
           Values::I32(unsafe { core::mem::transmute::<_, u32>(buf) } as i32)
         }
-        Some(Inst::I64Const) => {
+        Isa::I64Const => {
           let mut buf = [0; 8];
-          for i in 0..buf.len() {
-            let raw_byte = match init[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
-          }
+          buf.clone_from_slice(&init[1..9]);
           Values::I64(unsafe { core::mem::transmute::<_, u64>(buf) } as i64)
         }
-        Some(Inst::F32Const) => {
+        Isa::F32Const => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            let raw_byte = match init[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
-          }
+          buf.clone_from_slice(&init[1..5]);
           Values::F32(f32::from_bits(unsafe {
             core::mem::transmute::<_, u32>(buf)
           }))
         }
-        Some(Inst::F64Const) => {
+        Isa::F64Const => {
           let mut buf = [0; 8];
-          for i in 0..buf.len() {
-            let raw_byte = match init[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
-          }
+          buf.clone_from_slice(&init[1..9]);
           Values::F64(f64::from_bits(unsafe {
             core::mem::transmute::<_, u64>(buf)
           }))
         }
-        Some(Inst::GetGlobal) => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
-          for i in 0..buf.len() {
-            let raw_byte = match init[1 + i] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(Trap::Undefined),
-            };
-            buf[i] = raw_byte;
-          }
+          buf.clone_from_slice(&init[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           global_instances.get(idx.to_usize())?.get_value()
         }

@@ -4,7 +4,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use frame::Frame;
 use function::FunctionInstance;
-use isa::{Indice, Inst};
+use indice::Indice;
+use isa::Isa;
 use label::{Label, LabelKind};
 use memory::MemoryInstances;
 use module::{
@@ -290,10 +291,11 @@ impl Vm {
         &mut self,
         frame: &Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
-        use self::Inst::*;
+        use self::Isa::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
-            match expression {
+            match Isa::from(*expression) {
+                Reserved => unreachable!(),
                 Unreachable => return Err(Trap::Unreachable),
                 Return => {
                     frame.jump_to_last();
@@ -517,8 +519,10 @@ impl Vm {
                 F32Min | F64Min => self.min()?,
                 F32Max | F64Max => self.max()?,
 
-                LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => self.less_than()?,
-                LessThanUnsign | I64LessThanUnSign => self.less_than_unsign()?,
+                I32LessThanSign | I64LessThanSign | F32LessThan | F64LessThan => {
+                    self.less_than()?
+                }
+                I32LessThanUnsign | I64LessThanUnSign => self.less_than_unsign()?,
                 I32LessEqualSign | I64LessEqualSign | F32LessEqual | F64LessEqual => {
                     self.less_than_equal()?
                 }
@@ -533,8 +537,8 @@ impl Vm {
                 I32GreaterEqualUnsign | I64GreaterEqualUnSign => {
                     self.greater_than_equal_unsign()?
                 }
-                Equal | I64Equal | F32Equal | F64Equal => self.equal()?,
-                NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => self.not_equal()?,
+                I32Equal | I64Equal | F32Equal | F64Equal => self.equal()?,
+                I32NotEqual | I64NotEqual | F32NotEqual | F64NotEqual => self.not_equal()?,
                 I32Or | I64Or => self.or()?,
                 I32Xor | I64Xor => self.xor()?,
                 I32And | I64And => self.and()?,
@@ -749,8 +753,6 @@ impl Vm {
                 I32TruncUnsignF64 => self.trunc_f64_to_unsign_i32()?,
                 I64TruncSignF32 => self.trunc_f32_to_sign_i64()?,
                 I64TruncUnsignF32 => self.trunc_f32_to_unsign_i64()?,
-
-                RuntimeValue(_) | ExperimentalByte(_) => unreachable!(),
             };
         }
         Ok(())

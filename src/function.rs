@@ -5,7 +5,6 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
-use isa::Inst;
 use module::ModuleName;
 use stack::StackEntry;
 use trap::{Result, Trap};
@@ -70,7 +69,7 @@ struct FunctionInstanceImpl {
   export_name: Option<String>,
   function_type: FunctionType,
   local_variables: Vec<StackEntry>,
-  body: Vec<Inst>,
+  body: Vec<u8>,
   source_module_name: RefCell<Option<String>>,
 }
 
@@ -83,7 +82,7 @@ impl FunctionInstance {
     export_name: Option<String>,
     function_type: FunctionType,
     mut locals: Vec<ValueTypes>,
-    body: Vec<Inst>,
+    body: Vec<u8>,
   ) -> Self {
     locals.reverse();
     let local_variables = locals
@@ -118,7 +117,8 @@ impl FunctionInstance {
     self.0.source_module_name.borrow().to_owned()
   }
 
-  pub fn get(&self, idx: usize) -> Option<&Inst> {
+  // FIXME: Use &Indice
+  pub fn get(&self, idx: usize) -> Option<&u8> {
     self.0.body.get(idx)
   }
 

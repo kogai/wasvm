@@ -7,7 +7,8 @@ use core::cell::{Cell, RefCell};
 use decode::{Data, Element, Section, TableType};
 use function::FunctionType;
 use global::GlobalType;
-use isa::{Indice, Inst};
+use indice::Indice;
+use isa::Isa;
 use memory::Limit;
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
@@ -73,7 +74,7 @@ impl TypeStack {
 struct Function<'a> {
   function_type: &'a FunctionType,
   locals: &'a [ValueTypes],
-  body: &'a [Inst],
+  body: &'a [u8],
   body_ptr: Cell<usize>,
   type_stack: TypeStack,
 }
@@ -82,7 +83,7 @@ impl<'a> Function<'a> {
   fn new(
     function_type: &'a FunctionType,
     locals: &'a [ValueTypes],
-    body: &'a [Inst],
+    body: &'a [u8],
   ) -> Function<'a> {
     Function {
       function_type,
@@ -93,7 +94,7 @@ impl<'a> Function<'a> {
     }
   }
 
-  fn pop(&self) -> Option<&Inst> {
+  fn pop(&self) -> Option<&u8> {
     let ptr = self.body_ptr.get();
     self.body_ptr.set(ptr + 1);
     self.body.get(ptr)
@@ -101,7 +102,7 @@ impl<'a> Function<'a> {
 
   fn pop_value_type(&self) -> Option<ValueTypes> {
     match self.pop() {
-      Some(Inst::RuntimeValue(ty)) => Some(ty.to_owned()),
+      Some(byte) => Some(ValueTypes::from(Some(*byte))),
       _ => None,
     }
   }
@@ -109,11 +110,7 @@ impl<'a> Function<'a> {
   fn pop_raw_u32(&self) -> Result<u32> {
     let mut buf = [0; 4];
     for i in 0..buf.len() {
-      let raw_byte = match self.pop() {
-        Some(Inst::ExperimentalByte(b)) => b,
-        _ => return Err(TypeError::NotFound),
-      };
-      buf[i] = *raw_byte;
+      buf[i] = *self.pop()?;
     }
     let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
     Ok(idx)
@@ -122,11 +119,7 @@ impl<'a> Function<'a> {
   fn pop_raw_u64(&self) -> Result<u64> {
     let mut buf = [0; 8];
     for i in 0..buf.len() {
-      let raw_byte = match self.pop() {
-        Some(Inst::ExperimentalByte(b)) => b,
-        _ => return Err(TypeError::NotFound),
-      };
-      buf[i] = *raw_byte;
+      buf[i] = *self.pop()?;
     }
     let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
     Ok(idx)
@@ -141,7 +134,7 @@ pub struct Context<'a> {
   datas: &'a Vec<Data>,
   limits: &'a Vec<Limit>,
   tables: &'a Vec<TableType>,
-  globals: &'a Vec<(GlobalType, Vec<Inst>)>,
+  globals: &'a Vec<(GlobalType, Vec<u8>)>,
   elements: &'a Vec<Element>,
   start: &'a Option<u32>,
   locals: RefCell<Vec<ValueTypes>>,
@@ -204,38 +197,34 @@ impl<'a> Context<'a> {
     })
   }
 
-  fn validate_constant(&self, expr: &[Inst]) -> Result<ValueTypes> {
+  fn validate_constant(&self, expr: &[u8]) -> Result<ValueTypes> {
     let type_stack = TypeStack::new();
     let mut idx = 0;
     while idx < expr.len() {
-      let x = &expr[idx];
+      let x = expr[idx];
       idx += 1;
-      match x {
-        Inst::I32Const => {
+      match Isa::from(x) {
+        Isa::I32Const => {
           idx += 4;
           type_stack.push(ValueTypes::I32);
         }
-        Inst::I64Const => {
+        Isa::I64Const => {
           idx += 8;
           type_stack.push(ValueTypes::I64);
         }
-        Inst::F32Const => {
+        Isa::F32Const => {
           idx += 4;
           type_stack.push(ValueTypes::F32);
         }
-        Inst::F64Const => {
+        Isa::F64Const => {
           idx += 8;
           type_stack.push(ValueTypes::F64);
         }
-        Inst::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
             idx += 1;
-            let raw_byte = match expr[idx] {
-              Inst::ExperimentalByte(b) => b,
-              _ => return Err(TypeError::TypeMismatch),
-            };
-            buf[3 - i] = raw_byte;
+            buf[i] = expr[idx];
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           match self.globals.get(idx.to_usize()) {
@@ -245,7 +234,7 @@ impl<'a> Context<'a> {
             _ => return Err(TypeError::ConstantExpressionRequired),
           }
         }
-        Inst::End => {
+        Isa::End => {
           break;
         }
         _ => return Err(TypeError::ConstantExpressionRequired),
@@ -298,29 +287,29 @@ impl<'a> Context<'a> {
       let type_stack = TypeStack::new();
       let mut idx = 0;
       while idx < init.len() {
-        let x = &init[idx];
+        let x = init[idx];
         idx += 1;
-        match x {
-          Inst::I32Const => {
+        match Isa::from(x) {
+          Isa::I32Const => {
             idx += 4;
             type_stack.push(ValueTypes::I32);
           }
-          Inst::I64Const => {
+          Isa::I64Const => {
             idx += 8;
             type_stack.push(ValueTypes::I64);
           }
-          Inst::F32Const => {
+          Isa::F32Const => {
             idx += 4;
             type_stack.push(ValueTypes::F32);
           }
-          Inst::F64Const => {
+          Isa::F64Const => {
             idx += 8;
             type_stack.push(ValueTypes::F64);
           }
-          Inst::GetGlobal => {
+          Isa::GetGlobal => {
             return Err(TypeError::ConstantExpressionRequired);
           }
-          Inst::End => {
+          Isa::End => {
             break;
           }
           _ => return Err(TypeError::ConstantExpressionRequired),
@@ -542,7 +531,7 @@ impl<'a> Context<'a> {
   }
 
   fn validate_function(&self, function: &Function) -> Result<()> {
-    use self::Inst::*;
+    use self::Isa::*;
     let cxt = &function.type_stack;
     let labels = &mut self.labels.borrow_mut();
     let locals = &mut self.locals.borrow_mut();
@@ -565,7 +554,8 @@ impl<'a> Context<'a> {
     );
 
     while let Some(inst) = function.pop() {
-      match inst {
+      match Isa::from(*inst) {
+        Reserved => unreachable!(),
         Unreachable => {}
         Nop => {}
         Block => {
@@ -840,10 +830,10 @@ impl<'a> Context<'a> {
         I32EqualZero => self.validate_test_inst(cxt, &TYPE_I32)?,
         I64EqualZero => self.validate_test_inst(cxt, &TYPE_I64)?,
 
-        Equal => rel_op!(cxt),
-        NotEqual => rel_op!(cxt),
-        LessThanSign => rel_op!(cxt),
-        LessThanUnsign => rel_op!(cxt),
+        I32Equal => rel_op!(cxt),
+        I32NotEqual => rel_op!(cxt),
+        I32LessThanSign => rel_op!(cxt),
+        I32LessThanUnsign => rel_op!(cxt),
         I32GreaterThanSign => rel_op!(cxt),
         I32GreaterThanUnsign => rel_op!(cxt),
         I32LessEqualSign => rel_op!(cxt),
@@ -944,8 +934,6 @@ impl<'a> Context<'a> {
         I64ReinterpretF64 => self.validate_convert(cxt, &TYPE_F64, ValueTypes::I64)?,
         F32ReinterpretI32 => self.validate_convert(cxt, &TYPE_I32, ValueTypes::F32)?,
         F64ReinterpretI64 => self.validate_convert(cxt, &TYPE_I64, ValueTypes::F64)?,
-
-        RuntimeValue(_) | ExperimentalByte(_) => unreachable!(),
       }
     }
     Ok(())

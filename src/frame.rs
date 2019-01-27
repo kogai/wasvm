@@ -1,13 +1,11 @@
-#[cfg(not(test))]
-use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{RefCell, RefMut};
 use core::fmt;
 use core::ops::{AddAssign, Sub};
 use function::FunctionInstance;
-use isa::{Indice, Inst};
+use indice::Indice;
 use stack::StackEntry;
-use trap::{Result, Trap};
+use trap::Result;
 use value_type::ValueTypes;
 
 #[derive(PartialEq)]
@@ -76,32 +74,28 @@ impl Frame {
     self.ptr.borrow().sub(1)
   }
 
-  pub fn peek(&self) -> Option<&Inst> {
+  pub fn peek(&self) -> Option<&u8> {
     let ptr = self.ptr.borrow();
     self.function_instance.get(*ptr as usize)
   }
 
-  pub fn pop_ref(&self) -> Option<&Inst> {
+  pub fn pop_ref(&self) -> Option<&u8> {
     let head = self.peek();
     self.ptr.borrow_mut().add_assign(1);
     head
   }
 
   pub fn pop_runtime_type(&self) -> Option<ValueTypes> {
-    match self.pop_ref()? {
-      Inst::RuntimeValue(ty) => Some(ty.to_owned()),
-      _ => None,
+    match self.pop_ref() {
+      Some(byte) => Some(ValueTypes::from(Some(*byte))),
+      None => None,
     }
   }
 
   pub fn pop_raw_u32(&self) -> Result<u32> {
     let mut buf = [0; 4];
     for i in 0..buf.len() {
-      let raw_byte = match self.pop_ref() {
-        Some(Inst::ExperimentalByte(b)) => b,
-        _ => return Err(Trap::Undefined),
-      };
-      buf[i] = *raw_byte;
+      buf[i] = *self.pop_ref()?;
     }
     let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
     Ok(idx)
@@ -110,11 +104,7 @@ impl Frame {
   pub fn pop_raw_u64(&self) -> Result<u64> {
     let mut buf = [0; 8];
     for i in 0..buf.len() {
-      let raw_byte = match self.pop_ref() {
-        Some(Inst::ExperimentalByte(b)) => b,
-        _ => return Err(Trap::Undefined),
-      };
-      buf[i] = *raw_byte;
+      buf[i] = *self.pop_ref()?;
     }
     let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
     Ok(idx)

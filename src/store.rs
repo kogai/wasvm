@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::default::Default;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstances;
-use isa::Indice;
+use indice::Indice;
 use memory::MemoryInstances;
 use table::{TableInstance, TableInstances};
 use trap::Result;
