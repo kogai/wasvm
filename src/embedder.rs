@@ -1,6 +1,6 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
-use decode::{Byte, Section};
+use decode::{Byte, Module};
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
@@ -8,17 +8,17 @@ use store::Store;
 use trap::Result;
 use validate;
 use validate::Context;
-use vm::Vm;
+use vm::ModuleInstance;
 
 pub fn init_store() -> Store {
   Default::default()
 }
 
-pub fn decode_module(bytes: &[u8]) -> Result<Section> {
+pub fn decode_module(bytes: &[u8]) -> Result<Module> {
   Byte::new_with_drop(&bytes)?.decode()
 }
 
-pub fn validate_module(module: &Result<Section>) -> validate::Result<()> {
+pub fn validate_module(module: &Result<Module>) -> validate::Result<()> {
   match module {
     Ok(module) => Context::new(module)?.validate(),
     Err(err) => Err(validate::TypeError::Trap(err.to_owned())),
@@ -27,12 +27,12 @@ pub fn validate_module(module: &Result<Section>) -> validate::Result<()> {
 
 pub fn instantiate_module(
   mut store: Store,
-  section: Result<Section>, // module: Module(PreVm)
+  section: Result<Module>, // module: Module(PreVm)
   external_modules: ExternalModules,
-) -> Result<Vm> {
+) -> Result<ModuleInstance> {
   // TODO: Return pair of (Store, Vm) by using Rc<Store> type.
   let internal_module = section?.complete(&external_modules, &mut store)?;
-  let mut vm = Vm::new_from(store, internal_module, external_modules)?;
+  let mut vm = ModuleInstance::new_from(store, internal_module, external_modules)?;
   if let Some(idx) = vm.start_index().clone() {
     let function_instance = vm.get_function_instance(&idx)?;
     let frame = Frame::new(

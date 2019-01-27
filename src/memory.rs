@@ -395,7 +395,6 @@ impl MemoryInstances {
   }
 
   pub fn data_size_small_than(&self, ptr: u32) -> bool {
-    // FIXME: Use macro for commonize same borrowing procedure.
     self
       .0
       .borrow()

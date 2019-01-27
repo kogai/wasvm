@@ -4,7 +4,7 @@ use alloc::collections::VecDeque;
 use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
-use decode::{Data, Element, Section, TableType};
+use decode::{Data, Element, Module, TableType};
 use function::FunctionType;
 use global::GlobalType;
 use indice::Indice;
@@ -102,7 +102,7 @@ impl<'a> Function<'a> {
 
   fn pop_value_type(&self) -> Option<ValueTypes> {
     match self.pop() {
-      Some(byte) => Some(ValueTypes::from(Some(*byte))),
+      Some(byte) => Some(ValueTypes::from(*byte)),
       _ => None,
     }
   }
@@ -165,7 +165,7 @@ macro_rules! rel_op {
 }
 
 impl<'a> Context<'a> {
-  pub fn new(module: &'a Section) -> Result<Self> {
+  pub fn new(module: &'a Module) -> Result<Self> {
     Ok(Context {
       function_types: &module.function_types,
       functions: module
@@ -193,7 +193,7 @@ impl<'a> Context<'a> {
 
       locals: RefCell::new(Vec::new()),
       labels: RefCell::new(VecDeque::new()),
-      return_type: RefCell::new([ValueTypes::Empty; 1]),
+      return_type: RefCell::new([ValueTypes::Unit; 1]),
     })
   }
 
@@ -549,7 +549,7 @@ impl<'a> Context<'a> {
     labels.push_front(
       [match function.function_type.returns().first() {
         Some(ty) => ty.clone(),
-        None => ValueTypes::Empty,
+        None => ValueTypes::Unit,
       }; 1],
     );
 
@@ -596,7 +596,7 @@ impl<'a> Context<'a> {
               cxt.pop_until_label()?;
             }
             _ => {
-              if expect != ValueTypes::Empty {
+              if expect != ValueTypes::Unit {
                 return Err(TypeError::TypeMismatch);
               }
             }

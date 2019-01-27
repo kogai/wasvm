@@ -46,7 +46,7 @@ pub use self::module::{ExternalModule, ExternalModules};
 pub use self::spectest::create_spectest;
 pub use self::trap::Trap;
 pub use self::value::Values;
-pub use self::vm::Vm;
+pub use self::vm::ModuleInstance;
 
 #[cfg(test)]
 mod tests {

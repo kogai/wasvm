@@ -1,5 +1,5 @@
 use super::decodable::{Decodable, Leb128Decodable, U32Decodable};
-use super::section::{Section, SectionCode};
+use super::section::{Module, SectionCode};
 use super::*;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
@@ -48,13 +48,12 @@ impl Byte {
     Ok(bytes)
   }
 
-  pub fn decode(&mut self) -> Result<Section> {
+  pub fn decode(&mut self) -> Result<Module> {
     use self::SectionCode::*;
-    let mut section = Section::default();
+    let mut section = Module::default();
     while self.has_next() {
       let code = SectionCode::try_from(self.next())?;
       let bytes = self.decode_section()?;
-      // TODO: May can conccurrent.
       match code {
         Type => section.function_types(&mut sec_type::Section::new(bytes).decode()?),
         Function => section.functions(&mut sec_function::Section::new(bytes).decode()?),
@@ -83,7 +82,7 @@ mod tests {
   use module::ExternalModules;
   use std::fs::File;
   use std::io::Read;
-  use value_type::ValueTypes;
+  use value_type::TYPE_I32;
 
   macro_rules! test_decode {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
@@ -111,7 +110,7 @@ mod tests {
     "dist/cons8",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![], vec![ValueTypes::I32]),
+      FunctionType::new(vec![], vec![TYPE_I32]),
       vec![],
       into_vec_u8(&[
         Cc::Code(I32Const),
@@ -129,7 +128,7 @@ mod tests {
     "dist/cons16",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![], vec![ValueTypes::I32]),
+      FunctionType::new(vec![], vec![TYPE_I32]),
       vec![],
       into_vec_u8(&[
         Cc::Code(I32Const),
@@ -146,7 +145,7 @@ mod tests {
     "dist/signed",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![], vec![ValueTypes::I32]),
+      FunctionType::new(vec![], vec![TYPE_I32]),
       vec![],
       into_vec_u8(&[
         Cc::Code(I32Const),
@@ -163,10 +162,7 @@ mod tests {
     "dist/add",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(
-        vec![ValueTypes::I32, ValueTypes::I32],
-        vec![ValueTypes::I32],
-      ),
+      FunctionType::new(vec![TYPE_I32, TYPE_I32], vec![TYPE_I32]),
       vec![],
       into_vec_u8(&[
         Cc::Code(GetLocal),
@@ -189,7 +185,7 @@ mod tests {
     "dist/sub",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
+      FunctionType::new(vec![TYPE_I32], vec![TYPE_I32]),
       vec![],
       into_vec_u8(&[
         Cc::Code(I32Const),
@@ -212,10 +208,7 @@ mod tests {
     "dist/add_five",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(
-        vec![ValueTypes::I32, ValueTypes::I32],
-        vec![ValueTypes::I32],
-      ),
+      FunctionType::new(vec![TYPE_I32, TYPE_I32], vec![TYPE_I32],),
       vec![],
       into_vec_u8(&[
         Cc::Code(GetLocal),
@@ -245,8 +238,8 @@ mod tests {
     "dist/if_lt",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
-      vec![ValueTypes::I32],
+      FunctionType::new(vec![TYPE_I32], vec![TYPE_I32]),
+      vec![TYPE_I32],
       into_vec_u8(&[
         Cc::Code(GetLocal),
         Cc::Byte(0),
@@ -340,8 +333,8 @@ mod tests {
     "dist/if_gt",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
-      vec![ValueTypes::I32],
+      FunctionType::new(vec![TYPE_I32], vec![TYPE_I32]),
+      vec![TYPE_I32],
       into_vec_u8(&[
         Cc::Code(GetLocal),
         Cc::Byte(0),
@@ -435,7 +428,7 @@ mod tests {
     "dist/if_eq",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
+      FunctionType::new(vec![TYPE_I32], vec![TYPE_I32]),
       vec![],
       into_vec_u8(&[
         Cc::Code(GetLocal),
@@ -487,8 +480,8 @@ mod tests {
     "dist/count",
     FunctionInstance::new(
       Some("_subject".to_owned()),
-      FunctionType::new(vec![ValueTypes::I32], vec![ValueTypes::I32],),
-      vec![ValueTypes::I32],
+      FunctionType::new(vec![TYPE_I32], vec![TYPE_I32]),
+      vec![TYPE_I32],
       into_vec_u8(&[
         Cc::Code(GetLocal),
         Cc::Byte(0),

@@ -1,25 +1,42 @@
 use alloc::vec::Vec;
-use core::cell::{RefCell, RefMut};
+use core::cell::{Cell, RefCell, RefMut};
 use core::fmt;
-use core::ops::{AddAssign, Sub};
+use core::ops::Sub;
 use function::FunctionInstance;
 use indice::Indice;
 use stack::StackEntry;
 use trap::Result;
 use value_type::ValueTypes;
 
+macro_rules! impl_pop_bytes {
+  ($name: ident, $ty: ty, $width: expr) => {
+    pub(crate) fn $name(&self) -> Result<$ty> {
+      let mut buf = [0; $width];
+      let body = self.function_instance.body();
+      let start = self.ptr.get() as usize;
+      let end = start + $width;
+      buf.clone_from_slice(&body[start..end]);
+      self.ptr.set((start + $width) as u32);
+      Ok(unsafe { core::mem::transmute::<_, $ty>(buf) })
+    }
+  };
+}
+
 #[derive(PartialEq)]
 pub struct Frame {
   // FIXME: No need to hold local_variables in frame.
   local_variables: RefCell<Vec<StackEntry>>,
   pub(crate) function_instance: FunctionInstance,
-  ptr: RefCell<u32>,
-  pub last_ptr: u32, // FIXME: Use Indice type for indices of instructions.
+  ptr: Cell<u32>,
+  pub last_ptr: u32,
   pub return_ptr: usize,
   pub prev_return_ptr: usize,
 }
 
 impl Frame {
+  impl_pop_bytes!(pop_raw_u32, u32, 4);
+  impl_pop_bytes!(pop_raw_u64, u64, 8);
+
   pub fn new(
     return_ptr: usize,
     prev_return_ptr: usize,
@@ -36,16 +53,16 @@ impl Frame {
       last_ptr,
       return_ptr,
       prev_return_ptr,
-      ptr: RefCell::new(0),
+      ptr: Cell::new(0),
     }
   }
 
   pub fn is_completed(&self) -> bool {
-    self.ptr.borrow().ge(&self.last_ptr)
+    self.ptr.get().ge(&self.last_ptr)
   }
 
   pub fn is_fresh(&self) -> bool {
-    self.ptr.borrow().eq(&0)
+    self.ptr.get().eq(&0)
   }
 
   pub fn get_local_variables(&self) -> RefMut<Vec<StackEntry>> {
@@ -71,43 +88,26 @@ impl Frame {
   }
 
   pub fn get_start_of_label(&self) -> u32 {
-    self.ptr.borrow().sub(1)
+    self.ptr.get().sub(1)
   }
 
   pub fn peek(&self) -> Option<&u8> {
-    let ptr = self.ptr.borrow();
-    self.function_instance.get(*ptr as usize)
+    let ptr = self.ptr.get();
+    self.function_instance.get(ptr as usize)
   }
 
   pub fn pop_ref(&self) -> Option<&u8> {
     let head = self.peek();
-    self.ptr.borrow_mut().add_assign(1);
+    let ptr = self.ptr.get();
+    self.ptr.set(ptr + 1);
     head
   }
 
   pub fn pop_runtime_type(&self) -> Option<ValueTypes> {
     match self.pop_ref() {
-      Some(byte) => Some(ValueTypes::from(Some(*byte))),
+      Some(byte) => Some(ValueTypes::from(*byte)),
       None => None,
     }
-  }
-
-  pub fn pop_raw_u32(&self) -> Result<u32> {
-    let mut buf = [0; 4];
-    for i in 0..buf.len() {
-      buf[i] = *self.pop_ref()?;
-    }
-    let idx = unsafe { core::mem::transmute::<_, u32>(buf) };
-    Ok(idx)
-  }
-
-  pub fn pop_raw_u64(&self) -> Result<u64> {
-    let mut buf = [0; 8];
-    for i in 0..buf.len() {
-      buf[i] = *self.pop_ref()?;
-    }
-    let idx = unsafe { core::mem::transmute::<_, u64>(buf) };
-    Ok(idx)
   }
 
   pub fn is_next_empty(&self) -> bool {

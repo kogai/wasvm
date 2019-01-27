@@ -20,7 +20,7 @@ impl Decodable for Section {
     let count_of_section = self.decode_leb128_u32()?;
     (0..count_of_section)
       .map(|_| {
-        let value_type = ValueTypes::from(self.next());
+        let value_type = ValueTypes::from(self.next()?);
         let global_type = GlobalType::new(self.next(), value_type)?;
         let init = self.decode_instructions()?;
         Ok((global_type, init))

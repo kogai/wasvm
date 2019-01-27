@@ -16,7 +16,7 @@ use stack::{Stack, StackEntry};
 use store::Store;
 use trap::{Result, Trap};
 use value::Values;
-use value_type::ValueTypes;
+use value_type::TYPE_UNIT;
 
 macro_rules! impl_load_inst {
     ($fn_name: ident, $load_fn: ident, $ty: ty) => {
@@ -116,16 +116,15 @@ macro_rules! impl_try_binary_inst {
     };
 }
 
-// FIXME: May rename to `ModuleInstance`
 #[derive(Debug)]
-pub struct Vm {
+pub struct ModuleInstance {
     store: Store,
     pub(crate) stack: Stack,
     internal_module: InternalModule,
     external_modules: ExternalModules,
 }
 
-impl Vm {
+impl ModuleInstance {
     impl_load_inst!(load_data_32, load_data_32, u32);
     impl_load_inst!(load_data_64, load_data_64, u64);
     impl_load_inst!(load_data_f32, load_data_f32, f32);
@@ -225,7 +224,7 @@ impl Vm {
         internal_module: InternalModule,
         external_modules: ExternalModules,
     ) -> Result<Self> {
-        Ok(Vm {
+        Ok(ModuleInstance {
             store,
             internal_module,
             stack: Stack::new(65536),
@@ -287,10 +286,7 @@ impl Vm {
         })
     }
 
-    fn evaluate_instructions(
-        &mut self,
-        frame: &Frame, /* TODO: Consider to use RefCell type. */
-    ) -> Result<()> {
+    fn evaluate_instructions(&mut self, frame: &Frame) -> Result<()> {
         use self::Isa::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
@@ -338,15 +334,6 @@ impl Vm {
                     self.stack.push(label)?;
                 }
                 Loop => {
-                    // Size = 10 = 1(Loop) + 1(BlockType) + 7(Instructions) + 1(End)
-                    // In case for ptr of frame starts by 5,
-                    //
-                    // [05] Loop                    | <- continuation
-                    // [06] Block_type              | <- frame.ptr
-                    //        Instructions * 6      |
-                    // [13]   Last Instruction      |
-                    // [14] End                     | <- frame.ptr when evaluation of frame completed
-                    //                              |    without any label instruction.
                     let start_of_label = frame.get_start_of_label();
                     let block_type = frame.pop_runtime_type()?;
                     let label_continue =
@@ -766,7 +753,7 @@ impl Vm {
                 let return_type = frame
                     .get_return_type()
                     .first()
-                    .map_or(ValueTypes::Empty, |x| x.to_owned());
+                    .map_or(TYPE_UNIT, |x| x.to_owned());
                 let label = StackEntry::new_label(frame.last_ptr, return_type, LabelKind::Frame);
                 self.stack.frame_ptr.set(frame.return_ptr);
                 self.stack.push_entries(&mut frame.get_local_variables())?;

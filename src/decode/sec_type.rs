@@ -21,11 +21,11 @@ impl Decodable for Section {
         let _type_function = Isa::from(self.next()?);
         let size_of_arity = self.decode_leb128_u32()?;
         for _ in 0..size_of_arity {
-          parameters.push(ValueTypes::from(self.next()));
+          parameters.push(ValueTypes::from(self.next()?));
         }
         let size_of_result = self.decode_leb128_u32()?;
         for _ in 0..size_of_result {
-          returns.push(ValueTypes::from(self.next()));
+          returns.push(ValueTypes::from(self.next()?));
         }
         Ok(FunctionType::new(parameters, returns))
       })
