@@ -11,7 +11,7 @@ use core::u32;
 use decode::Data;
 use global::GlobalInstances;
 use indice::Indice;
-use isa::Code;
+use isa::Isa;
 use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
 use trap::{Result, Trap};
 use value::Values;
@@ -149,8 +149,8 @@ impl MemoryInstance {
     let initial_size = limit.initial_min_size();
     let mut data = vec![0; initial_size];
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match Code::from(*offset.first()?) {
-        Code::I32Const => {
+      let offset = match Isa::from(*offset.first()?) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -159,7 +159,7 @@ impl MemoryInstance {
           }
           offset
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
@@ -194,13 +194,13 @@ impl MemoryInstance {
     };
     let data: &mut Vec<u8> = self.data.as_mut();
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match Code::from(*offset.first()?) {
-        Code::I32Const => {
+      let offset = match Isa::from(*offset.first()?) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           unsafe { core::mem::transmute::<_, i32>(buf) }
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
@@ -226,8 +226,8 @@ impl MemoryInstance {
       None => self.limit.initial_min_size(),
     };
     for Data { offset, init, .. } in datas.iter() {
-      let offset = match Code::from(*offset.first()?) {
-        Code::I32Const => {
+      let offset = match Isa::from(*offset.first()?) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -236,7 +236,7 @@ impl MemoryInstance {
           }
           offset
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });

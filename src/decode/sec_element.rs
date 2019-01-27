@@ -11,7 +11,7 @@ use trap::Result;
 pub struct Element {
   pub(crate) table_idx: Indice,
   pub(crate) offset: Vec<u8>,
-  pub(crate) init: Vec<Indice>, // FIXME: Vec of funcidx, Use Indice type
+  pub(crate) init: Vec<Indice>,
 }
 
 impl Element {

@@ -5,7 +5,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use indice::Indice;
-use isa::Code;
+use isa::Isa;
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
   GLOBAL_DESCRIPTOR,
@@ -110,32 +110,32 @@ impl GlobalInstances {
         .find_kind_by_idx(idx as u32, &GLOBAL_DESCRIPTOR)
         .map(|x| x.name.to_owned());
       let init_first = init.first()?;
-      let value = match Code::from(*init_first) {
-        Code::I32Const => {
+      let value = match Isa::from(*init_first) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&init[1..5]);
           Values::I32(unsafe { core::mem::transmute::<_, u32>(buf) } as i32)
         }
-        Code::I64Const => {
+        Isa::I64Const => {
           let mut buf = [0; 8];
           buf.clone_from_slice(&init[1..9]);
           Values::I64(unsafe { core::mem::transmute::<_, u64>(buf) } as i64)
         }
-        Code::F32Const => {
+        Isa::F32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&init[1..5]);
           Values::F32(f32::from_bits(unsafe {
             core::mem::transmute::<_, u32>(buf)
           }))
         }
-        Code::F64Const => {
+        Isa::F64Const => {
           let mut buf = [0; 8];
           buf.clone_from_slice(&init[1..9]);
           Values::F64(f64::from_bits(unsafe {
             core::mem::transmute::<_, u64>(buf)
           }))
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&init[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });

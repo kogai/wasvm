@@ -8,7 +8,7 @@ use decode::{Data, Element, Section, TableType};
 use function::FunctionType;
 use global::GlobalType;
 use indice::Indice;
-use isa::Code;
+use isa::Isa;
 use memory::Limit;
 use module::{
   ExportDescriptor, ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor,
@@ -203,29 +203,28 @@ impl<'a> Context<'a> {
     while idx < expr.len() {
       let x = expr[idx];
       idx += 1;
-      match Code::from(x) {
-        Code::I32Const => {
+      match Isa::from(x) {
+        Isa::I32Const => {
           idx += 4;
           type_stack.push(ValueTypes::I32);
         }
-        Code::I64Const => {
+        Isa::I64Const => {
           idx += 8;
           type_stack.push(ValueTypes::I64);
         }
-        Code::F32Const => {
+        Isa::F32Const => {
           idx += 4;
           type_stack.push(ValueTypes::F32);
         }
-        Code::F64Const => {
+        Isa::F64Const => {
           idx += 8;
           type_stack.push(ValueTypes::F64);
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           for i in 0..buf.len() {
             idx += 1;
-            // FIXME: Do not need substruction.
-            buf[3 - i] = expr[idx];
+            buf[i] = expr[idx];
           }
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
           match self.globals.get(idx.to_usize()) {
@@ -235,7 +234,7 @@ impl<'a> Context<'a> {
             _ => return Err(TypeError::ConstantExpressionRequired),
           }
         }
-        Code::End => {
+        Isa::End => {
           break;
         }
         _ => return Err(TypeError::ConstantExpressionRequired),
@@ -290,27 +289,27 @@ impl<'a> Context<'a> {
       while idx < init.len() {
         let x = init[idx];
         idx += 1;
-        match Code::from(x) {
-          Code::I32Const => {
+        match Isa::from(x) {
+          Isa::I32Const => {
             idx += 4;
             type_stack.push(ValueTypes::I32);
           }
-          Code::I64Const => {
+          Isa::I64Const => {
             idx += 8;
             type_stack.push(ValueTypes::I64);
           }
-          Code::F32Const => {
+          Isa::F32Const => {
             idx += 4;
             type_stack.push(ValueTypes::F32);
           }
-          Code::F64Const => {
+          Isa::F64Const => {
             idx += 8;
             type_stack.push(ValueTypes::F64);
           }
-          Code::GetGlobal => {
+          Isa::GetGlobal => {
             return Err(TypeError::ConstantExpressionRequired);
           }
-          Code::End => {
+          Isa::End => {
             break;
           }
           _ => return Err(TypeError::ConstantExpressionRequired),
@@ -532,7 +531,7 @@ impl<'a> Context<'a> {
   }
 
   fn validate_function(&self, function: &Function) -> Result<()> {
-    use self::Code::*;
+    use self::Isa::*;
     let cxt = &function.type_stack;
     let labels = &mut self.labels.borrow_mut();
     let locals = &mut self.locals.borrow_mut();
@@ -555,7 +554,7 @@ impl<'a> Context<'a> {
     );
 
     while let Some(inst) = function.pop() {
-      match Code::from(*inst) {
+      match Isa::from(*inst) {
         Reserved => unreachable!(),
         Unreachable => {}
         Nop => {}

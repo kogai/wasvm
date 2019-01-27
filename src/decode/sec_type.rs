@@ -2,7 +2,7 @@ use super::decodable::{Decodable, Leb128Decodable, U32Decodable, U8Iterator};
 use alloc::vec::Vec;
 use core::convert::From;
 use function::FunctionType;
-use isa::Code;
+use isa::Isa;
 use trap::Result;
 use value_type::ValueTypes;
 
@@ -18,7 +18,7 @@ impl Decodable for Section {
       .map(|_| {
         let mut parameters = vec![];
         let mut returns = vec![];
-        let _type_function = Code::from(self.next()?);
+        let _type_function = Isa::from(self.next()?);
         let size_of_arity = self.decode_leb128_u32()?;
         for _ in 0..size_of_arity {
           parameters.push(ValueTypes::from(self.next()));

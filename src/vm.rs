@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use frame::Frame;
 use function::FunctionInstance;
 use indice::Indice;
-use isa::Code;
+use isa::Isa;
 use label::{Label, LabelKind};
 use memory::MemoryInstances;
 use module::{
@@ -291,10 +291,10 @@ impl Vm {
         &mut self,
         frame: &Frame, /* TODO: Consider to use RefCell type. */
     ) -> Result<()> {
-        use self::Code::*;
+        use self::Isa::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
-            match Code::from(*expression) {
+            match Isa::from(*expression) {
                 Reserved => unreachable!(),
                 Unreachable => return Err(Trap::Unreachable),
                 Return => {

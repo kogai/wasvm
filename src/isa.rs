@@ -3,7 +3,7 @@ use core::convert::From;
 use core::convert::Into;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Code {
+pub enum Isa {
   Reserved,
   Unreachable,
   Nop,
@@ -179,9 +179,9 @@ pub enum Code {
   F64ReinterpretI64,
 }
 
-impl From<u8> for Code {
+impl From<u8> for Isa {
   fn from(code: u8) -> Self {
-    use self::Code::*;
+    use self::Isa::*;
     match code {
       0x0 => Unreachable,
       0x1 => Nop,
@@ -363,9 +363,9 @@ impl From<u8> for Code {
   }
 }
 
-impl Into<u8> for Code {
+impl Into<u8> for Isa {
   fn into(self) -> u8 {
-    use self::Code::*;
+    use self::Isa::*;
     match self {
       Reserved => unreachable!(),
       Unreachable => 0x0,
@@ -545,7 +545,7 @@ impl Into<u8> for Code {
 }
 
 pub enum ComposedCode {
-  Code(Code),
+  Code(Isa),
   Byte(u8),
 }
 
@@ -553,13 +553,13 @@ pub fn into_vec_u8(this: &[ComposedCode]) -> Vec<u8> {
   this
     .iter()
     .map(|x| match x {
-      ComposedCode::Code(code) => Code::into(code.clone()),
+      ComposedCode::Code(code) => Isa::into(code.clone()),
       ComposedCode::Byte(byte) => *byte,
     })
     .collect()
 }
 
-impl Code {
+impl Isa {
   pub fn is_else_or_end(code: Option<u8>) -> bool {
     match code {
       Some(0x5) | Some(0x0b) => true,

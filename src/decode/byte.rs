@@ -89,7 +89,7 @@ mod tests {
     ($fn_name:ident, $file_name:expr, $fn_insts: expr) => {
       #[test]
       fn $fn_name() {
-        use isa::Code::*;
+        use isa::Isa::*;
         let mut file = File::open(format!("./{}.wasm", $file_name)).unwrap();
         let mut buffer = vec![];
         let _ = file.read_to_end(&mut buffer);

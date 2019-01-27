@@ -1,5 +1,6 @@
 use super::decodable::{Peekable, SignedIntegerDecodable, U32Decodable};
 use alloc::vec::Vec;
+use isa::Isa;
 use trap::{Result, Trap};
 
 macro_rules! impl_decode_float {
@@ -52,16 +53,16 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
   }
 
   fn decode_instructions(&mut self) -> Result<Vec<u8>> {
-    use isa::Code;
+    use self::Isa::*;
     let mut expressions = vec![];
-    while !Code::is_else_or_end(self.peek()) {
+    while !Isa::is_else_or_end(self.peek()) {
       let code = self.next()?;
-      match Code::from(code) {
+      match Isa::from(code) {
         // NOTE: Else and End are already consumed at decoding "If" instructions.
-        Code::Reserved | Code::End | Code::Else => unreachable!("{:?}", code),
-        Code::Unreachable | Code::Nop | Code::Return | Code::DropInst => expressions.push(code),
+        Reserved | End | Else => unreachable!("{:?}", code),
+        Unreachable | Nop | Return | DropInst => expressions.push(code),
 
-        Code::Block => {
+        Block => {
           let block_type = self.next()?;
           let mut instructions = self.decode_instructions()?;
           let size =
@@ -71,20 +72,20 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           expressions.push(block_type);
           expressions.append(&mut instructions);
         }
-        Code::Loop => {
+        Loop => {
           let block_type = self.next()?;
           let mut instructions = self.decode_instructions()?;
           expressions.push(code);
           expressions.push(block_type);
           expressions.append(&mut instructions);
         }
-        Code::If => {
+        If => {
           let block_type = self.next()?;
           let mut if_insts = self.decode_instructions()?;
           let last = *if_insts.last()?;
-          let mut else_insts = match Code::from(last) {
-            Code::Else => self.decode_instructions()?,
-            Code::End => vec![],
+          let mut else_insts = match Isa::from(last) {
+            Else => self.decode_instructions()?,
+            End => vec![],
             x => unreachable!("{:?}", x),
           };
           let size_of_if = (2 /* If inst + Type of block */ + 8 + if_insts.len()) as u32;
@@ -97,20 +98,13 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           expressions.append(&mut else_insts);
         }
 
-        Code::GetLocal
-        | Code::SetLocal
-        | Code::TeeLocal
-        | Code::GetGlobal
-        | Code::SetGlobal
-        | Code::Br
-        | Code::BrIf
-        | Code::Call => {
+        GetLocal | SetLocal | TeeLocal | GetGlobal | SetGlobal | Br | BrIf | Call => {
           expressions.push(code);
           let idx = self.decode_leb128_u32()?;
           self.push_u32_as_bytes(idx, &mut expressions);
         }
 
-        Code::BrTable => {
+        BrTable => {
           expressions.push(code);
           let len = self.decode_leb128_u32()?;
           self.push_u32_as_bytes(len, &mut expressions);
@@ -121,192 +115,175 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
           let idx = self.decode_leb128_u32()?;
           self.push_u32_as_bytes(idx, &mut expressions);
         }
-        Code::CallIndirect => {
+        CallIndirect => {
           expressions.push(code);
           let idx = self.decode_leb128_u32()?;
           self.push_u32_as_bytes(idx, &mut expressions);
           self.next(); // Drop code 0x00.
         }
 
-        Code::I32Const => {
+        I32Const => {
           expressions.push(code);
           let value = self.decode_leb128_i32()?;
           self.push_u32_as_bytes(value, &mut expressions);
         }
-        Code::I64Const => {
+        I64Const => {
           expressions.push(code);
           let value = self.decode_leb128_i64()?;
           self.push_u64_as_bytes(value, &mut expressions);
         }
-        Code::F32Const => {
+        F32Const => {
           expressions.push(code);
           let value = self.decode_f32()?;
           self.push_u32_as_bytes(value, &mut expressions);
         }
-        Code::F64Const => {
+        F64Const => {
           expressions.push(code);
           let value = self.decode_f64()?;
           self.push_u64_as_bytes(value, &mut expressions);
         }
 
-        Code::I32Load
-        | Code::I64Load
-        | Code::F32Load
-        | Code::F64Load
-        | Code::I32Load8Sign
-        | Code::I32Load8Unsign
-        | Code::I32Load16Sign
-        | Code::I32Load16Unsign
-        | Code::I64Load8Sign
-        | Code::I64Load8Unsign
-        | Code::I64Load16Sign
-        | Code::I64Load16Unsign
-        | Code::I64Load32Sign
-        | Code::I64Load32Unsign
-        | Code::I32Store
-        | Code::I64Store
-        | Code::F32Store
-        | Code::F64Store
-        | Code::I32Store8
-        | Code::I32Store16
-        | Code::I64Store8
-        | Code::I64Store16
-        | Code::I64Store32 => self.decode_memory(code, &mut expressions)?,
+        I32Load | I64Load | F32Load | F64Load | I32Load8Sign | I32Load8Unsign | I32Load16Sign
+        | I32Load16Unsign | I64Load8Sign | I64Load8Unsign | I64Load16Sign | I64Load16Unsign
+        | I64Load32Sign | I64Load32Unsign | I32Store | I64Store | F32Store | F64Store
+        | I32Store8 | I32Store16 | I64Store8 | I64Store16 | I64Store32 => {
+          self.decode_memory(code, &mut expressions)?
+        }
 
-        Code::MemorySize | Code::MemoryGrow => {
+        MemorySize | MemoryGrow => {
           self.next()?; // Drop 0x00;
           expressions.push(code);
         }
 
-        Code::I32CountLeadingZero
-        | Code::I32CountTrailingZero
-        | Code::I32CountNonZero
-        | Code::I32Add
-        | Code::I32Sub
-        | Code::I32Mul
-        | Code::I32DivSign
-        | Code::I32DivUnsign
-        | Code::I32RemSign
-        | Code::I32RemUnsign
-        | Code::I32And
-        | Code::I32Or
-        | Code::I32Xor
-        | Code::I32ShiftLeft
-        | Code::I32ShiftRIghtSign
-        | Code::I32ShiftRightUnsign
-        | Code::I32RotateLeft
-        | Code::I32RotateRight
-        | Code::I64CountLeadingZero
-        | Code::I64CountTrailingZero
-        | Code::I64CountNonZero
-        | Code::I64Add
-        | Code::I64Sub
-        | Code::I64Mul
-        | Code::I64DivSign
-        | Code::I64DivUnsign
-        | Code::I64RemSign
-        | Code::I64RemUnsign
-        | Code::I64And
-        | Code::I64Or
-        | Code::I64Xor
-        | Code::I64ShiftLeft
-        | Code::I64ShiftRightSign
-        | Code::I64ShiftRightUnsign
-        | Code::I64RotateLeft
-        | Code::I64RotateRight
-        | Code::I64EqualZero
-        | Code::I64Equal
-        | Code::I64NotEqual
-        | Code::I64LessThanSign
-        | Code::I64LessThanUnSign
-        | Code::I64GreaterThanSign
-        | Code::I64GreaterThanUnSign
-        | Code::I64LessEqualSign
-        | Code::I64LessEqualUnSign
-        | Code::I64GreaterEqualSign
-        | Code::I64GreaterEqualUnSign
-        | Code::I32WrapI64
-        | Code::I32EqualZero
-        | Code::I32Equal
-        | Code::I32NotEqual
-        | Code::I32LessThanSign
-        | Code::I32LessThanUnsign
-        | Code::I32GreaterThanSign
-        | Code::I32GreaterThanUnsign
-        | Code::I32LessEqualSign
-        | Code::I32LessEqualUnsign
-        | Code::I32GreaterEqualSign
-        | Code::I32GreaterEqualUnsign
-        | Code::F32Equal
-        | Code::F32NotEqual
-        | Code::F32LessThan
-        | Code::F32GreaterThan
-        | Code::F32LessEqual
-        | Code::F32GreaterEqual
-        | Code::F64Equal
-        | Code::F64NotEqual
-        | Code::F64LessThan
-        | Code::F64GreaterThan
-        | Code::F64LessEqual
-        | Code::F64GreaterEqual
-        | Code::F32Abs
-        | Code::F32Neg
-        | Code::F32Ceil
-        | Code::F32Floor
-        | Code::F32Trunc
-        | Code::F32Nearest
-        | Code::F32Sqrt
-        | Code::F32Add
-        | Code::F32Sub
-        | Code::F32Mul
-        | Code::F32Div
-        | Code::F32Min
-        | Code::F32Max
-        | Code::F32Copysign
-        | Code::F64Abs
-        | Code::F64Neg
-        | Code::F64Ceil
-        | Code::F64Floor
-        | Code::F64Trunc
-        | Code::F64Nearest
-        | Code::F64Sqrt
-        | Code::F64Add
-        | Code::F64Sub
-        | Code::F64Mul
-        | Code::F64Div
-        | Code::F64Min
-        | Code::F64Max
-        | Code::F64Copysign
-        | Code::I32TruncSignF32
-        | Code::I32TruncUnsignF32
-        | Code::I32TruncSignF64
-        | Code::I32TruncUnsignF64
-        | Code::I64ExtendSignI32
-        | Code::I64ExtendUnsignI32
-        | Code::I64TruncSignF32
-        | Code::I64TruncUnsignF32
-        | Code::I64TruncSignF64
-        | Code::I64TruncUnsignF64
-        | Code::F32ConvertSignI32
-        | Code::F32ConvertUnsignI32
-        | Code::F32ConvertSignI64
-        | Code::F32ConvertUnsignI64
-        | Code::F32DemoteF64
-        | Code::F64ConvertSignI32
-        | Code::F64ConvertUnsignI32
-        | Code::F64ConvertSignI64
-        | Code::F64ConvertUnsignI64
-        | Code::F64PromoteF32
-        | Code::I32ReinterpretF32
-        | Code::I64ReinterpretF64
-        | Code::F32ReinterpretI32
-        | Code::F64ReinterpretI64
-        | Code::Select => expressions.push(code),
+        I32CountLeadingZero
+        | I32CountTrailingZero
+        | I32CountNonZero
+        | I32Add
+        | I32Sub
+        | I32Mul
+        | I32DivSign
+        | I32DivUnsign
+        | I32RemSign
+        | I32RemUnsign
+        | I32And
+        | I32Or
+        | I32Xor
+        | I32ShiftLeft
+        | I32ShiftRIghtSign
+        | I32ShiftRightUnsign
+        | I32RotateLeft
+        | I32RotateRight
+        | I64CountLeadingZero
+        | I64CountTrailingZero
+        | I64CountNonZero
+        | I64Add
+        | I64Sub
+        | I64Mul
+        | I64DivSign
+        | I64DivUnsign
+        | I64RemSign
+        | I64RemUnsign
+        | I64And
+        | I64Or
+        | I64Xor
+        | I64ShiftLeft
+        | I64ShiftRightSign
+        | I64ShiftRightUnsign
+        | I64RotateLeft
+        | I64RotateRight
+        | I64EqualZero
+        | I64Equal
+        | I64NotEqual
+        | I64LessThanSign
+        | I64LessThanUnSign
+        | I64GreaterThanSign
+        | I64GreaterThanUnSign
+        | I64LessEqualSign
+        | I64LessEqualUnSign
+        | I64GreaterEqualSign
+        | I64GreaterEqualUnSign
+        | I32WrapI64
+        | I32EqualZero
+        | I32Equal
+        | I32NotEqual
+        | I32LessThanSign
+        | I32LessThanUnsign
+        | I32GreaterThanSign
+        | I32GreaterThanUnsign
+        | I32LessEqualSign
+        | I32LessEqualUnsign
+        | I32GreaterEqualSign
+        | I32GreaterEqualUnsign
+        | F32Equal
+        | F32NotEqual
+        | F32LessThan
+        | F32GreaterThan
+        | F32LessEqual
+        | F32GreaterEqual
+        | F64Equal
+        | F64NotEqual
+        | F64LessThan
+        | F64GreaterThan
+        | F64LessEqual
+        | F64GreaterEqual
+        | F32Abs
+        | F32Neg
+        | F32Ceil
+        | F32Floor
+        | F32Trunc
+        | F32Nearest
+        | F32Sqrt
+        | F32Add
+        | F32Sub
+        | F32Mul
+        | F32Div
+        | F32Min
+        | F32Max
+        | F32Copysign
+        | F64Abs
+        | F64Neg
+        | F64Ceil
+        | F64Floor
+        | F64Trunc
+        | F64Nearest
+        | F64Sqrt
+        | F64Add
+        | F64Sub
+        | F64Mul
+        | F64Div
+        | F64Min
+        | F64Max
+        | F64Copysign
+        | I32TruncSignF32
+        | I32TruncUnsignF32
+        | I32TruncSignF64
+        | I32TruncUnsignF64
+        | I64ExtendSignI32
+        | I64ExtendUnsignI32
+        | I64TruncSignF32
+        | I64TruncUnsignF32
+        | I64TruncSignF64
+        | I64TruncUnsignF64
+        | F32ConvertSignI32
+        | F32ConvertUnsignI32
+        | F32ConvertSignI64
+        | F32ConvertUnsignI64
+        | F32DemoteF64
+        | F64ConvertSignI32
+        | F64ConvertUnsignI32
+        | F64ConvertSignI64
+        | F64ConvertUnsignI64
+        | F64PromoteF32
+        | I32ReinterpretF32
+        | I64ReinterpretF64
+        | F32ReinterpretI32
+        | F64ReinterpretI64
+        | Select => expressions.push(code),
       };
     }
     let end_code = self.next()?;
-    match Code::from(end_code) {
-      Code::Else | Code::End => expressions.push(end_code),
+    match Isa::from(end_code) {
+      Else | End => expressions.push(end_code),
       x => unreachable!("{:?}", x),
     }
     Ok(expressions)

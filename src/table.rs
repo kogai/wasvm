@@ -9,7 +9,7 @@ use decode::{Element, TableType};
 use function::FunctionInstance;
 use global::GlobalInstances;
 use indice::Indice;
-use isa::Code;
+use isa::Isa;
 use memory::Limit;
 use trap::{Result, Trap};
 
@@ -33,8 +33,8 @@ impl TableInstance {
     } as usize;
     let mut function_elements = vec![None; table_size];
     for el in elements.into_iter() {
-      let offset = match Code::from(*el.offset.first()?) {
-        Code::I32Const => {
+      let offset = match Isa::from(*el.offset.first()?) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -43,7 +43,7 @@ impl TableInstance {
           }
           offset
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
@@ -75,8 +75,8 @@ impl TableInstance {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
     } as usize;
     for el in elements.iter() {
-      let offset = match Code::from(*el.offset.first()?) {
-        Code::I32Const => {
+      let offset = match Isa::from(*el.offset.first()?) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -85,7 +85,7 @@ impl TableInstance {
           }
           offset
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
@@ -158,13 +158,13 @@ impl TableInstances {
     let function_elements = &mut table_instance.function_elements;
 
     for el in elements.iter() {
-      let offset = match Code::from(*el.offset.first()?) {
-        Code::I32Const => {
+      let offset = match Isa::from(*el.offset.first()?) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           unsafe { core::mem::transmute::<_, i32>(buf) }
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
@@ -190,8 +190,8 @@ impl TableInstances {
     let function_elements = &mut table_instance.function_elements;
 
     for el in elements.iter() {
-      let offset = match Code::from(*el.offset.first()?) {
-        Code::I32Const => {
+      let offset = match Isa::from(*el.offset.first()?) {
+        Isa::I32Const => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
@@ -200,7 +200,7 @@ impl TableInstances {
           }
           offset
         }
-        Code::GetGlobal => {
+        Isa::GetGlobal => {
           let mut buf = [0; 4];
           buf.clone_from_slice(&el.offset[1..5]);
           let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
