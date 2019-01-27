@@ -102,7 +102,7 @@ impl<'a> Function<'a> {
 
   fn pop_value_type(&self) -> Option<ValueTypes> {
     match self.pop() {
-      Some(byte) => Some(ValueTypes::from(Some(*byte))),
+      Some(byte) => Some(ValueTypes::from(*byte)),
       _ => None,
     }
   }

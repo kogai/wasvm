@@ -105,7 +105,7 @@ impl Frame {
 
   pub fn pop_runtime_type(&self) -> Option<ValueTypes> {
     match self.pop_ref() {
-      Some(byte) => Some(ValueTypes::from(Some(*byte))),
+      Some(byte) => Some(ValueTypes::from(*byte)),
       None => None,
     }
   }

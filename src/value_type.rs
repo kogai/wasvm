@@ -15,15 +15,14 @@ pub const TYPE_I64: ValueTypes = ValueTypes::I64;
 pub const TYPE_F32: ValueTypes = ValueTypes::F32;
 pub const TYPE_F64: ValueTypes = ValueTypes::F64;
 
-// FIXME: Change implementation to From<&u8>
-impl From<Option<u8>> for ValueTypes {
-  fn from(code: Option<u8>) -> Self {
+impl From<u8> for ValueTypes {
+  fn from(code: u8) -> Self {
     match code {
-      Some(0x40) => ValueTypes::Empty,
-      Some(0x7f) => ValueTypes::I32,
-      Some(0x7e) => ValueTypes::I64,
-      Some(0x7d) => ValueTypes::F32,
-      Some(0x7c) => ValueTypes::F64,
+      0x40 => ValueTypes::Empty,
+      0x7f => ValueTypes::I32,
+      0x7e => ValueTypes::I64,
+      0x7d => ValueTypes::F32,
+      0x7c => ValueTypes::F64,
       x => unreachable!("Expected value type, got {:?}", x),
     }
   }

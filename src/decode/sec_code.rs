@@ -27,7 +27,7 @@ impl Decodable for Section {
         let mut locals: Vec<ValueTypes> = Vec::with_capacity(count_of_locals);
         for _ in 0..count_of_locals {
           let count_of_type = self.decode_leb128_u32()?;
-          let value_type = ValueTypes::from(self.next());
+          let value_type = ValueTypes::from(self.next()?);
           for _ in 0..count_of_type {
             locals.push(value_type.clone());
           }
