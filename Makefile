@@ -5,7 +5,8 @@ WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
 BENCH_DIR := life/bench/cases
 C_WASMS=$(CSRCS:.c=.wasm)
 WASMS=$(WASTS:.wast=.wasm)
-TARGET := thumbv7m-none-eabi
+TARGET := thumbv7em-none-eabihf
+ARM_GDB := arm-none-eabi-gdb
 
 all: $(C_WASMS)
 discovery: discovery/target/$(TARGET)/release/$(NAME)
@@ -19,7 +20,13 @@ $(C_WASMS): $(CSRCS)
 
 discovery/target/$(TARGET)/release/$(NAME): $(SRC)
 	cd discovery && \
-	cargo build --release --target=$(TARGET)
+	cargo build --release
+
+.PHONY: debug_smt
+debug_smt:
+	cd discovery && \
+	cargo build && \
+	$(ARM_GDB) -x openocd.gdb target/$(TARGET)/debug/app
 
 target/release/main: $(SRC) Makefile
 	RUSTFLAGS='-g' cargo build --release
