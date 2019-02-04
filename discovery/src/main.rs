@@ -15,7 +15,7 @@ extern crate panic_halt;
 // use alloc::alloc::Layout;
 // use alloc_cortex_m::CortexMHeap;
 // use cortex_m::asm;
-use cortex_m_rt::entry;
+use cortex_m_rt::{entry, heap_start};
 use cortex_m_semihosting::hprintln;
 // use wasvm::{decode_module, init_store, instantiate_module, ExternalModules, Values};
 
@@ -24,12 +24,13 @@ use cortex_m_semihosting::hprintln;
 
 #[entry]
 fn main() -> ! {
-    // Need to enable semihosting of gdb
-    hprintln!("Hello, world").unwrap();
-
     // let start = rt::heap_start() as usize;
     // let size = 1024;
     // unsafe { ALLOCATOR.init(start, size) }
+    // let xs = vec![1, 2, 3];
+
+    // Need to enable semihosting of gdb
+    hprintln!("Hello, world, result={}", 10).unwrap();
 
     // // add.wasm
     // let bytes = [
