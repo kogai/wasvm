@@ -1,36 +1,40 @@
 #![no_std]
 #![no_main]
-// #![feature(alloc)]
-// #![feature(alloc_error_handler)]
+#![feature(alloc)]
+#![feature(alloc_error_handler)]
 // #![feature(custom_attribute)]
 
-// extern crate alloc;
-// extern crate alloc_cortex_m;
+extern crate alloc;
+extern crate alloc_cortex_m;
 extern crate cortex_m;
 extern crate cortex_m_rt;
 extern crate cortex_m_semihosting;
 extern crate panic_halt;
 // extern crate wasvm;
 
-// use alloc::alloc::Layout;
-// use alloc_cortex_m::CortexMHeap;
-// use cortex_m::asm;
+use alloc::alloc::Layout;
+use alloc::vec::Vec;
+use alloc_cortex_m::CortexMHeap;
+use cortex_m::asm;
 use cortex_m_rt::{entry, heap_start};
 use cortex_m_semihosting::hprintln;
 // use wasvm::{decode_module, init_store, instantiate_module, ExternalModules, Values};
 
-// #[global_allocator]
-// static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
+#[global_allocator]
+static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
 
 #[entry]
 fn main() -> ! {
-    // let start = rt::heap_start() as usize;
-    // let size = 1024;
-    // unsafe { ALLOCATOR.init(start, size) }
-    // let xs = vec![1, 2, 3];
+    let start = heap_start() as usize;
+    let size = 1024;
+    unsafe { ALLOCATOR.init(start, size) }
+    let mut xs = Vec::new();
+    xs.push(1);
+    xs.push(2);
+    xs.push(3);
 
     // Need to enable semihosting of gdb
-    hprintln!("Hello, world, result={}", 10).unwrap();
+    hprintln!("Hello, world, result={}", xs[0]).unwrap();
 
     // // add.wasm
     // let bytes = [
@@ -49,9 +53,9 @@ fn main() -> ! {
     }
 }
 
-// #[alloc_error_handler]
-// fn on_oom(_layout: Layout) -> ! {
-//     asm::bkpt();
+#[alloc_error_handler]
+fn on_oom(_layout: Layout) -> ! {
+    asm::bkpt();
 
-//     loop {}
-// }
+    loop {}
+}
