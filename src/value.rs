@@ -487,17 +487,18 @@ macro_rules! impl_try_trunc {
     impl TruncFloat<$to> for $from {
       #![allow(clippy::cast_lossless)]
       fn try_trunc_to(&self) -> Result<$to> {
-        if self.is_nan() {
-          return Err(Trap::InvalidConversionToInt);
-        }
-        if self.is_infinite() {
-          return Err(Trap::IntegerOverflow);
-        }
-        let result = *self as $to;
-        if (result as $from).ne(&unsafe { $trunc(*self) }) {
-          return Err(Trap::IntegerOverflow);
-        }
-        Ok(result as $to)
+        // if self.is_nan() {
+        //   return Err(Trap::InvalidConversionToInt);
+        // }
+        // if self.is_infinite() {
+        //   return Err(Trap::IntegerOverflow);
+        // }
+        // let result = *self as $to;
+        // if (result as $from).ne(&unsafe { $trunc(*self) }) {
+        //   return Err(Trap::IntegerOverflow);
+        // }
+        // Ok(result as $to)
+        unreachable!();
       }
     }
   };
@@ -722,90 +723,99 @@ impl Values {
       _ => unimplemented!(),
     }
   }
+
   pub fn max(&self, other: &Self) -> Self {
-    match (self, other) {
-      (Values::F32(l), Values::F32(r)) => {
-        if l.is_nan() || r.is_nan() {
-          Values::F32(f32::NAN)
-        } else {
-          Values::F32(l.max(*r))
-        }
-      }
-      (Values::F64(l), Values::F64(r)) => {
-        if l.is_nan() || r.is_nan() {
-          Values::F64(f64::NAN)
-        } else {
-          Values::F64(l.max(*r))
-        }
-      }
-      _ => unimplemented!(),
-    }
+    unreachable!();
+    // match (self, other) {
+    //   (Values::F32(l), Values::F32(r)) => {
+    //     if l.is_nan() || r.is_nan() {
+    //       Values::F32(f32::NAN)
+    //     } else {
+    //       Values::F32(l.max(*r))
+    //     }
+    //   }
+    //   (Values::F64(l), Values::F64(r)) => {
+    //     if l.is_nan() || r.is_nan() {
+    //       Values::F64(f64::NAN)
+    //     } else {
+    //       Values::F64(l.max(*r))
+    //     }
+    //   }
+    //   _ => unimplemented!(),
+    // }
   }
+
   pub fn sqrt(&self) -> Self {
-    match self {
-      Values::F32(n) => Values::F32(unsafe { sqrtf32(*n) }),
-      Values::F64(n) => Values::F64(unsafe { sqrtf64(*n) }),
-      x => unreachable!("{:?}", x),
-    }
+    unreachable!();
+    // match self {
+    //   Values::F32(n) => Values::F32(unsafe { sqrtf32(*n) }),
+    //   Values::F64(n) => Values::F64(unsafe { sqrtf64(*n) }),
+    //   x => unreachable!("{:?}", x),
+    // }
   }
+
   pub fn ceil(&self) -> Self {
-    match self {
-      Values::F32(l) => Values::F32(unsafe { ceilf32(*l) }),
-      Values::F64(l) => Values::F64(unsafe { ceilf64(*l) }),
-      x => unreachable!("{:?}", x),
-    }
+    unreachable!();
+    // match self {
+    //   Values::F32(l) => Values::F32(unsafe { ceilf32(*l) }),
+    //   Values::F64(l) => Values::F64(unsafe { ceilf64(*l) }),
+    //   x => unreachable!("{:?}", x),
+    // }
   }
 
   pub fn floor(&self) -> Self {
-    match self {
-      Values::F32(l) => Values::F32(unsafe { floorf32(*l) }),
-      Values::F64(l) => Values::F64(unsafe { floorf64(*l) }),
-      x => unreachable!("{:?}", x),
-    }
+    // match self {
+    //   Values::F32(l) => Values::F32(unsafe { floorf32(*l) }),
+    //   Values::F64(l) => Values::F64(unsafe { floorf64(*l) }),
+    //   x => unreachable!("{:?}", x),
+    // }
+    unreachable!();
   }
 
   pub fn trunc(&self) -> Self {
-    match self {
-      Values::F32(l) => Values::F32(unsafe { truncf32(*l) }),
-      Values::F64(l) => Values::F64(unsafe { truncf64(*l) }),
-      x => unreachable!("{:?}", x),
-    }
+    // match self {
+    //   Values::F32(l) => Values::F32(unsafe { truncf32(*l) }),
+    //   Values::F64(l) => Values::F64(unsafe { truncf64(*l) }),
+    //   x => unreachable!("{:?}", x),
+    // }
+    unreachable!();
   }
 
   pub fn nearest(&self) -> Self {
-    match self {
-      Values::F32(l) => {
-        if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
-          Values::F32(0.0)
-        } else {
-          let round = unsafe { roundf32(*l) };
-          let result = if round.rem(2.0).eq(&1.0) {
-            unsafe { floorf32(*l) }
-          } else if round.rem(2.0).eq(&-1.0) {
-            unsafe { ceilf32(*l) }
-          } else {
-            round
-          };
-          Values::F32(result)
-        }
-      }
-      Values::F64(l) => {
-        if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
-          Values::F64(0.0)
-        } else {
-          let round = unsafe { roundf64(*l) };
-          let result = if round.rem(2.0).eq(&1.0) {
-            unsafe { floorf64(*l) }
-          } else if round.rem(2.0).eq(&-1.0) {
-            unsafe { ceilf64(*l) }
-          } else {
-            round
-          };
-          Values::F64(result)
-        }
-      }
-      _ => unimplemented!(),
-    }
+    unreachable!();
+    // match self {
+    //   Values::F32(l) => {
+    //     if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
+    //       Values::F32(0.0)
+    //     } else {
+    //       let round = unsafe { roundf32(*l) };
+    //       let result = if round.rem(2.0).eq(&1.0) {
+    //         unsafe { floorf32(*l) }
+    //       } else if round.rem(2.0).eq(&-1.0) {
+    //         unsafe { ceilf32(*l) }
+    //       } else {
+    //         round
+    //       };
+    //       Values::F32(result)
+    //     }
+    //   }
+    //   Values::F64(l) => {
+    //     if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
+    //       Values::F64(0.0)
+    //     } else {
+    //       let round = unsafe { roundf64(*l) };
+    //       let result = if round.rem(2.0).eq(&1.0) {
+    //         unsafe { floorf64(*l) }
+    //       } else if round.rem(2.0).eq(&-1.0) {
+    //         unsafe { ceilf64(*l) }
+    //       } else {
+    //         round
+    //       };
+    //       Values::F64(result)
+    //     }
+    //   }
+    //   _ => unimplemented!(),
+    // }
   }
 }
 

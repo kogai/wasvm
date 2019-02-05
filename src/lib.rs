@@ -54,6 +54,11 @@ mod tests {
     use std::fs::File;
     use std::io::Read;
 
+    #[test]
+    fn test_repl() {
+        assert_eq!(core::mem::size_of::<stack::StackEntry>(), 8);
+    }
+
     macro_rules! test_eval {
         ($fn_name:ident, $file_name:expr, $call_arguments: expr, $expect_value: expr) => {
             #[test]

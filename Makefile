@@ -18,15 +18,23 @@ $(C_WASMS): $(CSRCS)
 	wasm2wat dist/$(shell basename $@) -o dist/$(shell basename $@ .wasm).wat
 	rm ./$(shell basename $@ .wasm).*
 
-discovery/target/$(TARGET)/release/$(NAME): $(SRC)
+# discovery/target/$(TARGET)/release/app: $(SRC)
+.PHONY: release_smt
+release_smt:
 	cd discovery && \
-	cargo build --release
+	cargo build --release && \
+	$(ARM_GDB) -x openocd.gdb target/$(TARGET)/release/app
 
 .PHONY: debug_smt
 debug_smt:
 	cd discovery && \
 	cargo build && \
 	$(ARM_GDB) -x openocd.gdb target/$(TARGET)/debug/app
+	# cargo build
+.PHONY: build_discovery
+build_discovery:
+	cd discovery && \
+	cargo build
 
 target/release/main: $(SRC) Makefile
 	RUSTFLAGS='-g' cargo build --release

@@ -227,7 +227,7 @@ impl ModuleInstance {
         Ok(ModuleInstance {
             store,
             internal_module,
-            stack: Stack::new(65536),
+            stack: Stack::new(128),
             external_modules,
         })
     }
@@ -827,7 +827,7 @@ impl ModuleInstance {
 
     #[cfg(debug_assertions)]
     pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
-        self.stack = Stack::new(65536);
+        self.stack = Stack::new(128);
         self.run_internal(invoke, arguments)
     }
 }
