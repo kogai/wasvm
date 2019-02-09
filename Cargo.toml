@@ -4,6 +4,7 @@ version = "0.2.0"
 authors = ["Shinichi Kogai <kogai0121@gmail.com>"]
 
 [dependencies]
+libm = "0.1.2"
 
 [dependencies.hashbrown]
 version = "0.1"

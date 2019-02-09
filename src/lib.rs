@@ -19,6 +19,7 @@ extern crate alloc;
 extern crate core;
 
 extern crate hashbrown;
+extern crate libm;
 
 #[macro_use]
 mod decode;

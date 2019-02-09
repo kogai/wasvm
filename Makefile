@@ -35,10 +35,10 @@ openocd:
 	openocd -f discovery/openocd.cfg
 
 gdb/debug:
-	$(ARM_GDB) -x discovery/openocd.gdb target/$(TARGET)/debug/$(DISCOVERY)
+	$(ARM_GDB) -x discovery/openocd.gdb discovery/target/$(TARGET)/debug/$(DISCOVERY)
 
 gdb/release:
-	$(ARM_GDB) -x discovery/openocd.gdb target/$(TARGET)/release/$(DISCOVERY)
+	$(ARM_GDB) -x discovery/openocd.gdb discovery/target/$(TARGET)/release/$(DISCOVERY)
 
 target/release/main: $(SRC) Makefile
 	RUSTFLAGS='-g' cargo build --release
