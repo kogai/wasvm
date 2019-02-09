@@ -24,7 +24,7 @@ $(C_WASMS): $(CSRCS)
 
 discovery/target/$(TARGET)/debug/$(DISCOVERY): $(SRC)
 	cd discovery && \
-	cargo build
+	cargo build 
 
 discovery/target/$(TARGET)/release/$(DISCOVERY): $(SRC)
 	cd discovery && \

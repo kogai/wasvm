@@ -72,7 +72,7 @@ impl<'a> E2ETest<'a> {
     let store = init_store();
     let section = decode_module(&bytes);
     let vm_ref = Rc::new(RefCell::new(
-      instantiate_module(store, section, self.external_modules.clone()).unwrap(),
+      instantiate_module(store, section, self.external_modules.clone(), 65536).unwrap(),
     ));
     self.modules.insert(None, vm_ref.clone());
     self.modules.insert(name.clone(), vm_ref.clone());
@@ -147,7 +147,7 @@ impl<'a> E2ETest<'a> {
     let bytes = module.clone().into_vec();
     let store = init_store();
     let module = decode_module(&bytes);
-    let err = instantiate_module(store, module, Default::default()).unwrap_err();
+    let err = instantiate_module(store, module, Default::default(), 65536).unwrap_err();
     let actual = String::from(err);
     match message {
       "unreachable" => assert_eq!(actual, format!("{} executed", message)),
@@ -166,7 +166,7 @@ impl<'a> E2ETest<'a> {
     let bytes = module.clone().into_vec();
     let store = init_store();
     let module = decode_module(&bytes);
-    let err = instantiate_module(store, module, Default::default()).unwrap_err();
+    let err = instantiate_module(store, module, Default::default(), 65536).unwrap_err();
     use self::Trap::*;
     if let UnsupportedTextform = err {
       println!("Skip malformed text form at line:{}.", line);
@@ -225,7 +225,8 @@ impl<'a> E2ETest<'a> {
       println!("Assert unlinkable at {}.", line,);
       let store = init_store();
       let section = decode_module(&bytes);
-      let err = instantiate_module(store, section, self.external_modules.clone()).unwrap_err();
+      let err =
+        instantiate_module(store, section, self.external_modules.clone(), 65536).unwrap_err();
       let actual = String::from(err);
       match message {
         "incompatible import type" => {}

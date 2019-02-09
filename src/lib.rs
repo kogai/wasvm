@@ -70,7 +70,7 @@ mod tests {
 
                 let store = init_store();
                 let section = decode_module(&bytes);
-                let mut vm = instantiate_module(store, section, Default::default()).unwrap();
+                let mut vm = instantiate_module(store, section, Default::default(), 65536).unwrap();
                 let actual = vm.run("_subject", $call_arguments);
                 assert_eq!(actual, format!("i32:{}", $expect_value));
             }

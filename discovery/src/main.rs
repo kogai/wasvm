@@ -29,6 +29,8 @@ fn main() -> ! {
     let size = 65536;
     unsafe { ALLOCATOR.init(start, size) }
 
+    hprintln!("Start...").unwrap();
+
     let bytes = include_bytes!("add.wasm");
     let store = init_store();
     let section = decode_module(bytes);

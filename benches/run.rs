@@ -47,7 +47,7 @@ macro_rules! impl_benches {
       // b.iter(|| {
       let store = init_store();
       let module = decode_module(&bytes);
-      let mut vm = instantiate_module(store, module, Default::default()).unwrap();
+      let mut vm = instantiate_module(store, module, Default::default(), 65536).unwrap();
       assert_eq!(vm.run("app_main", vec![]), $expect);
       // });
       flame::end($bench_name);
