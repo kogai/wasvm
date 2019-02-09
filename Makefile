@@ -1,15 +1,20 @@
-SRC := $(wildcard ./src/*.rs)
+SRC := $(wildcard *.rs)
 TRIPLE := wasm32-unknown-unknown
 CSRCS=$(wildcard ./fixtures/*.c)
 WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
 BENCH_DIR := life/bench/cases
 C_WASMS=$(CSRCS:.c=.wasm)
 WASMS=$(WASTS:.wast=.wasm)
-TARGET := thumbv7m-none-eabi
+TARGET := thumbv7em-none-eabihf
+ARM_GDB := arm-none-eabi-gdb
+DISCOVERY := discovery
 
 all: $(C_WASMS)
-discovery: discovery/target/$(TARGET)/release/$(NAME)
 dist: $(C_WASMS)
+
+discovery/debug: discovery/target/$(TARGET)/debug/$(DISCOVERY)
+discovery/release: discovery/target/$(TARGET)/release/$(DISCOVERY)
+discovery: discovery/debug discovery/release
 
 $(C_WASMS): $(CSRCS)
 	emcc -O3 -g0 fixtures/$(shell basename $@ .wasm).c -s "EXPORTED_FUNCTIONS=['_subject', '_f', '_g']" -s WASM=1 -o $(shell basename $@ .wasm).js
@@ -17,9 +22,23 @@ $(C_WASMS): $(CSRCS)
 	wasm2wat dist/$(shell basename $@) -o dist/$(shell basename $@ .wasm).wat
 	rm ./$(shell basename $@ .wasm).*
 
-discovery/target/$(TARGET)/release/$(NAME): $(SRC)
+discovery/target/$(TARGET)/debug/$(DISCOVERY): $(SRC)
 	cd discovery && \
-	cargo build --release --target=$(TARGET)
+	cargo build 
+
+discovery/target/$(TARGET)/release/$(DISCOVERY): $(SRC)
+	cd discovery && \
+	cargo build --release
+
+.PHONY: openocd gdb/debug gdb/release
+openocd:
+	openocd -f discovery/openocd.cfg
+
+gdb/debug:
+	$(ARM_GDB) -x discovery/openocd.gdb discovery/target/$(TARGET)/debug/$(DISCOVERY)
+
+gdb/release:
+	$(ARM_GDB) -x discovery/openocd.gdb discovery/target/$(TARGET)/release/$(DISCOVERY)
 
 target/release/main: $(SRC) Makefile
 	RUSTFLAGS='-g' cargo build --release

@@ -19,7 +19,7 @@ fn main() -> io::Result<()> {
 
       let store = init_store();
       let module = decode_module(&bytes);
-      let mut vm = instantiate_module(store, module, Default::default()).unwrap();
+      let mut vm = instantiate_module(store, module, Default::default(), 65536).unwrap();
       let result = vm.run(
         "_subject",
         arguments

@@ -121,7 +121,7 @@ macro_rules! impl_pop_value_ext {
 /// | ...           | <- Frame pointer
 /// +---------------+
 pub struct Stack {
-  stack_size: usize,
+  pub(crate) stack_size: usize,
   operand_stack: RefCell<Vec<StackEntry>>,
   call_stack: RefCell<Vec<Frame>>,
   pub(crate) stack_ptr: Cell<usize>,

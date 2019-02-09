@@ -1,14 +1,13 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
 use alloc::string::String;
-use core::intrinsics::{
-  ceilf32, ceilf64, fabsf32, fabsf64, floorf32, floorf64, roundf32, roundf64, sqrtf32, sqrtf64,
-  truncf32, truncf64,
-};
+use core::intrinsics::{fabsf32, fabsf64};
 use core::mem::transmute;
 use core::ops::Rem;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
 use core::{f32, f64, fmt};
+#[cfg(not(test))]
+use libm::{F32Ext, F64Ext};
 use trap::{Result, Trap};
 use value_type::ValueTypes;
 
@@ -483,7 +482,7 @@ trait TruncFloat<T> {
 }
 
 macro_rules! impl_try_trunc {
-  ($from: ty, $to: ty, $trunc: ident) => {
+  ($from: ty, $to: ty) => {
     impl TruncFloat<$to> for $from {
       #![allow(clippy::cast_lossless)]
       fn try_trunc_to(&self) -> Result<$to> {
@@ -494,7 +493,7 @@ macro_rules! impl_try_trunc {
           return Err(Trap::IntegerOverflow);
         }
         let result = *self as $to;
-        if (result as $from).ne(&unsafe { $trunc(*self) }) {
+        if (result as $from).ne(&self.trunc()) {
           return Err(Trap::IntegerOverflow);
         }
         Ok(result as $to)
@@ -527,14 +526,14 @@ impl_integer_traits!(i64, u64);
 impl_float_traits!(f32);
 impl_float_traits!(f64);
 
-impl_try_trunc!(f32, i32, truncf32);
-impl_try_trunc!(f32, u32, truncf32);
-impl_try_trunc!(f32, i64, truncf32);
-impl_try_trunc!(f32, u64, truncf32);
-impl_try_trunc!(f64, i32, truncf64);
-impl_try_trunc!(f64, u32, truncf64);
-impl_try_trunc!(f64, i64, truncf64);
-impl_try_trunc!(f64, u64, truncf64);
+impl_try_trunc!(f32, i32);
+impl_try_trunc!(f32, u32);
+impl_try_trunc!(f32, i64);
+impl_try_trunc!(f32, u64);
+impl_try_trunc!(f64, i32);
+impl_try_trunc!(f64, u32);
+impl_try_trunc!(f64, i64);
+impl_try_trunc!(f64, u64);
 
 impl Values {
   binary_inst!(and, bitand);
@@ -722,6 +721,7 @@ impl Values {
       _ => unimplemented!(),
     }
   }
+
   pub fn max(&self, other: &Self) -> Self {
     match (self, other) {
       (Values::F32(l), Values::F32(r)) => {
@@ -741,33 +741,35 @@ impl Values {
       _ => unimplemented!(),
     }
   }
+
   pub fn sqrt(&self) -> Self {
     match self {
-      Values::F32(n) => Values::F32(unsafe { sqrtf32(*n) }),
-      Values::F64(n) => Values::F64(unsafe { sqrtf64(*n) }),
+      Values::F32(n) => Values::F32(n.sqrt()),
+      Values::F64(n) => Values::F64(n.sqrt()),
       x => unreachable!("{:?}", x),
     }
   }
+
   pub fn ceil(&self) -> Self {
     match self {
-      Values::F32(l) => Values::F32(unsafe { ceilf32(*l) }),
-      Values::F64(l) => Values::F64(unsafe { ceilf64(*l) }),
+      Values::F32(l) => Values::F32(l.ceil()),
+      Values::F64(l) => Values::F64(l.ceil()),
       x => unreachable!("{:?}", x),
     }
   }
 
   pub fn floor(&self) -> Self {
     match self {
-      Values::F32(l) => Values::F32(unsafe { floorf32(*l) }),
-      Values::F64(l) => Values::F64(unsafe { floorf64(*l) }),
+      Values::F32(l) => Values::F32(l.floor()),
+      Values::F64(l) => Values::F64(l.floor()),
       x => unreachable!("{:?}", x),
     }
   }
 
   pub fn trunc(&self) -> Self {
     match self {
-      Values::F32(l) => Values::F32(unsafe { truncf32(*l) }),
-      Values::F64(l) => Values::F64(unsafe { truncf64(*l) }),
+      Values::F32(l) => Values::F32(l.trunc()),
+      Values::F64(l) => Values::F64(l.trunc()),
       x => unreachable!("{:?}", x),
     }
   }
@@ -778,11 +780,11 @@ impl Values {
         if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
           Values::F32(0.0)
         } else {
-          let round = unsafe { roundf32(*l) };
+          let round = l.round();
           let result = if round.rem(2.0).eq(&1.0) {
-            unsafe { floorf32(*l) }
+            l.floor()
           } else if round.rem(2.0).eq(&-1.0) {
-            unsafe { ceilf32(*l) }
+            l.ceil()
           } else {
             round
           };
@@ -793,11 +795,11 @@ impl Values {
         if (*l > 0.0 && *l <= 0.5) || (*l < 0.0 && *l >= -0.5) {
           Values::F64(0.0)
         } else {
-          let round = unsafe { roundf64(*l) };
+          let round = l.round();
           let result = if round.rem(2.0).eq(&1.0) {
-            unsafe { floorf64(*l) }
+            l.floor()
           } else if round.rem(2.0).eq(&-1.0) {
-            unsafe { ceilf64(*l) }
+            l.ceil()
           } else {
             round
           };
