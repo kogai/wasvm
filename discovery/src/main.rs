@@ -35,7 +35,7 @@ fn main() -> ! {
     let store = init_store();
     let section = decode_module(bytes);
     let external_modules = ExternalModules::default();
-    let instance = instantiate_module(store, section, external_modules);
+    let instance = instantiate_module(store, section, external_modules, 128);
     let mut vm = instance.unwrap();
     let result = vm.run("_subject", [Values::I32(10), Values::I32(20)].to_vec());
 

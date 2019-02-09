@@ -544,6 +544,7 @@ impl Into<u8> for Isa {
   }
 }
 
+#[allow(dead_code)]
 pub enum ComposedCode {
   Code(Isa),
   Byte(u8),
