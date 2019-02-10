@@ -10,7 +10,7 @@ use value::Values;
 use value_type::{TYPE_F32, TYPE_F64, TYPE_I32};
 
 fn host_function(_values: &[Values]) -> Vec<Values> {
-  unimplemented!();
+  vec![]
 }
 
 pub fn create_spectest() -> ExternalModule {

@@ -291,11 +291,10 @@ impl ModuleInstance {
         use self::Isa::*;
         if let FunctionInstance::HostFn(ref f) = &frame.function_instance {
             let arity = frame.function_instance.get_arity();
-            let mut arguments = vec![Values::I32(0); arity as usize];
-            let mut i = 0;
-            while i < arity {
-                arguments[(arity - i) as usize] = self.stack.pop_value_ext();
-                i += 1;
+            let mut arguments = vec![];
+            for i in 0..arity {
+                self.get_local(&Indice::from(i))?;
+                arguments.push(self.stack.pop_value_ext());
             }
             let results = f.call(arguments.as_slice());
             for r in results.into_iter() {

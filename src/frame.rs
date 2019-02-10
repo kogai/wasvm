@@ -59,11 +59,11 @@ impl Frame {
         }
       }
       FunctionInstance::HostFn(_) => Frame {
-        local_variables: RefCell::new(vec![]),
+        local_variables: Frame::derive_local_variables(arguments, vec![]),
         function_instance: function_instance,
         last_ptr: 0,
-        return_ptr: 0,
-        prev_return_ptr: 0,
+        return_ptr,
+        prev_return_ptr,
         ptr: Cell::new(0),
       },
     }
