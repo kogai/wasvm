@@ -10,6 +10,7 @@
 #[macro_use]
 extern crate std as alloc;
 
+// FIXME: Use 'heapless' crate.
 #[cfg(not(test))]
 #[macro_use]
 extern crate alloc;
