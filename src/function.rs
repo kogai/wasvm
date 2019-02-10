@@ -73,11 +73,44 @@ pub struct FunctionInstanceImpl {
   source_module_name: RefCell<Option<String>>,
 }
 
-#[derive(PartialEq)]
+impl FunctionInstanceImpl {
+  pub fn get_expressions_count(&self) -> usize {
+    self.body.len()
+  }
+
+  pub fn local_variables(&self) -> Vec<StackEntry> {
+    self.local_variables.clone()
+  }
+
+  pub fn get(&self, idx: usize) -> Option<&u8> {
+    self.body.get(idx)
+  }
+
+  pub(crate) fn body(&self) -> &[u8] {
+    &self.body
+  }
+}
+
 pub struct HostFunction {
   export_name: Option<String>,
   function_type: FunctionType,
   source_module_name: RefCell<Option<String>>,
+  callable: &'static Fn(&[Values]) -> Vec<Values>,
+}
+
+impl HostFunction {
+  pub(crate) fn call(&self, arguments: &[Values]) -> Vec<Values> {
+    let callable = self.callable;
+    callable(arguments)
+  }
+}
+
+impl PartialEq for HostFunction {
+  fn eq(&self, other: &HostFunction) -> bool {
+    self.export_name == other.export_name
+      && self.function_type == other.function_type
+      && self.source_module_name == other.source_module_name
+  }
 }
 
 #[derive(Clone, PartialEq)]
@@ -107,19 +140,20 @@ impl FunctionInstance {
     }))
   }
 
-  pub fn new_host_fn(export_name: Option<String>, function_type: FunctionType) -> Self {
+  pub fn new_host_fn<F>(
+    export_name: Option<String>,
+    function_type: FunctionType,
+    callable: &'static F,
+  ) -> Self
+  where
+    F: Fn(&[Values]) -> Vec<Values>,
+  {
     FunctionInstance::HostFn(Rc::new(HostFunction {
       export_name,
       function_type,
       source_module_name: RefCell::new(None),
+      callable,
     }))
-  }
-
-  pub fn local_variables(&self) -> Vec<StackEntry> {
-    match self {
-      FunctionInstance::LocalFn(f) => f.local_variables.clone(),
-      _ => unreachable!(),
-    }
   }
 
   pub fn function_type_ref(&self) -> &FunctionType {
@@ -143,27 +177,6 @@ impl FunctionInstance {
     match self {
       FunctionInstance::LocalFn(f) => f.source_module_name.borrow().to_owned(),
       FunctionInstance::HostFn(f) => f.source_module_name.borrow().to_owned(),
-    }
-  }
-
-  pub fn get(&self, idx: usize) -> Option<&u8> {
-    match self {
-      FunctionInstance::LocalFn(f) => f.body.get(idx),
-      _ => unreachable!(),
-    }
-  }
-
-  pub(crate) fn body(&self) -> &[u8] {
-    match self {
-      FunctionInstance::LocalFn(f) => &f.body,
-      _ => unreachable!(),
-    }
-  }
-
-  pub fn get_expressions_count(&self) -> usize {
-    match self {
-      FunctionInstance::LocalFn(f) => f.body.len(),
-      _ => unreachable!(),
     }
   }
 

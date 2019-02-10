@@ -9,34 +9,47 @@ use table::TableInstance;
 use value::Values;
 use value_type::{TYPE_F32, TYPE_F64, TYPE_I32};
 
+fn host_function(_values: &[Values]) -> Vec<Values> {
+  unimplemented!();
+}
+
 pub fn create_spectest() -> ExternalModule {
   ExternalModule::new(
     vec![
-      FunctionInstance::new_host_fn(Some("print".to_owned()), FunctionType::new(vec![], vec![])),
+      FunctionInstance::new_host_fn(
+        Some("print".to_owned()),
+        FunctionType::new(vec![], vec![]),
+        &host_function,
+      ),
       // 4
       FunctionInstance::new_host_fn(
         Some("print_i32".to_owned()),
         FunctionType::new(vec![TYPE_I32], vec![]),
+        &host_function,
       ),
       // 5
       FunctionInstance::new_host_fn(
         Some("print_i32_f32".to_owned()),
         FunctionType::new(vec![TYPE_I32, TYPE_F32], vec![]),
+        &host_function,
       ),
       // 6
       FunctionInstance::new_host_fn(
         Some("print_f64_f64".to_owned()),
         FunctionType::new(vec![TYPE_F64, TYPE_F64], vec![]),
+        &host_function,
       ),
       // 2
       FunctionInstance::new_host_fn(
         Some("print_f32".to_owned()),
         FunctionType::new(vec![TYPE_F32], vec![]),
+        &host_function,
       ),
       // 3
       FunctionInstance::new_host_fn(
         Some("print_f64".to_owned()),
         FunctionType::new(vec![TYPE_F64], vec![]),
+        &host_function,
       ),
     ],
     vec![],
