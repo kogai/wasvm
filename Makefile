@@ -85,6 +85,13 @@ tmp/snappy_compress.wasm:
 install:
 	packer -S wabt --noconfirm
 	cargo install wasm-gc cargo-binutils cargo-bloat
+	rustup target add \
+		thumbv6m-none-eabi\
+		thumbv7m-none-eabi\
+		thumbv7em-none-eabi\
+		thumbv7em-none-eabihf\
+		wasm32-unknown-emscripten
+	stup component add llvm-tools-preview
 	sudo pacman -S \
 		arm-none-eabi-gdb \
 		qemu-arch-extra
