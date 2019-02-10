@@ -290,6 +290,7 @@ impl ModuleInstance {
     fn evaluate_instructions(&mut self, frame: &Frame) -> Result<()> {
         use self::Isa::*;
         let source_of_frame = frame.function_instance.get_source_module_name();
+        // TODO: Add evaluation of host function.
         while let Some(expression) = frame.pop_ref() {
             match Isa::from(*expression) {
                 Reserved => unreachable!(),

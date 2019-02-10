@@ -107,6 +107,14 @@ impl FunctionInstance {
     }))
   }
 
+  pub fn new_host_fn(export_name: Option<String>, function_type: FunctionType) -> Self {
+    FunctionInstance::HostFn(Rc::new(HostFunction {
+      export_name,
+      function_type,
+      source_module_name: RefCell::new(None),
+    }))
+  }
+
   pub fn local_variables(&self) -> Vec<StackEntry> {
     match self {
       FunctionInstance::LocalFn(f) => f.local_variables.clone(),

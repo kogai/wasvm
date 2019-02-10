@@ -3,7 +3,6 @@ use alloc::prelude::*;
 use decode::{ElementType, TableType};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
-use isa::{into_vec_u8, ComposedCode, Isa};
 use memory::{Limit, MemoryInstance};
 use module::ExternalModule;
 use table::TableInstance;
@@ -12,48 +11,32 @@ use value_type::{TYPE_F32, TYPE_F64, TYPE_I32};
 
 pub fn create_spectest() -> ExternalModule {
   ExternalModule::new(
-    // FIXME: Change to definition as Host function.
     vec![
-      FunctionInstance::new(
-        Some("print".to_owned()),
-        FunctionType::new(vec![], vec![]),
-        vec![],
-        into_vec_u8(&[ComposedCode::Code(Isa::End)]),
-      ),
+      FunctionInstance::new_host_fn(Some("print".to_owned()), FunctionType::new(vec![], vec![])),
       // 4
-      FunctionInstance::new(
+      FunctionInstance::new_host_fn(
         Some("print_i32".to_owned()),
         FunctionType::new(vec![TYPE_I32], vec![]),
-        vec![],
-        into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 5
-      FunctionInstance::new(
+      FunctionInstance::new_host_fn(
         Some("print_i32_f32".to_owned()),
         FunctionType::new(vec![TYPE_I32, TYPE_F32], vec![]),
-        vec![],
-        into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 6
-      FunctionInstance::new(
+      FunctionInstance::new_host_fn(
         Some("print_f64_f64".to_owned()),
         FunctionType::new(vec![TYPE_F64, TYPE_F64], vec![]),
-        vec![],
-        into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 2
-      FunctionInstance::new(
+      FunctionInstance::new_host_fn(
         Some("print_f32".to_owned()),
         FunctionType::new(vec![TYPE_F32], vec![]),
-        vec![],
-        into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
       // 3
-      FunctionInstance::new(
+      FunctionInstance::new_host_fn(
         Some("print_f64".to_owned()),
         FunctionType::new(vec![TYPE_F64], vec![]),
-        vec![],
-        into_vec_u8(&[ComposedCode::Code(Isa::End)]),
       ),
     ],
     vec![],
