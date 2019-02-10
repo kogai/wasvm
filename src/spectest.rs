@@ -12,6 +12,7 @@ use value_type::{TYPE_F32, TYPE_F64, TYPE_I32};
 
 pub fn create_spectest() -> ExternalModule {
   ExternalModule::new(
+    // FIXME: Change to definition as Host function.
     vec![
       FunctionInstance::new(
         Some("print".to_owned()),

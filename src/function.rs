@@ -65,7 +65,7 @@ impl fmt::Debug for FunctionType {
 }
 
 #[derive(PartialEq)]
-struct FunctionInstanceImpl {
+pub struct FunctionInstanceImpl {
   export_name: Option<String>,
   function_type: FunctionType,
   local_variables: Vec<StackEntry>,
@@ -73,9 +73,11 @@ struct FunctionInstanceImpl {
   source_module_name: RefCell<Option<String>>,
 }
 
-// FIXME: Add enum which represents either FunctionInstance or HostFunction.
 #[derive(Clone, PartialEq)]
-pub struct FunctionInstance(Rc<FunctionInstanceImpl>);
+pub enum FunctionInstance {
+  LocalFn(Rc<FunctionInstanceImpl>),
+  HostFn,
+}
 
 impl FunctionInstance {
   pub fn new(
@@ -89,7 +91,7 @@ impl FunctionInstance {
       .iter()
       .map(|local| StackEntry::new_value(Values::from(local)))
       .collect::<Vec<_>>();
-    FunctionInstance(Rc::new(FunctionInstanceImpl {
+    FunctionInstance::LocalFn(Rc::new(FunctionInstanceImpl {
       export_name,
       function_type,
       local_variables,
@@ -99,46 +101,76 @@ impl FunctionInstance {
   }
 
   pub fn local_variables(&self) -> Vec<StackEntry> {
-    self.0.local_variables.clone()
+    match self {
+      FunctionInstance::LocalFn(f) => f.local_variables.clone(),
+      _ => unimplemented!(),
+    }
   }
 
   pub fn function_type_ref(&self) -> &FunctionType {
-    &self.0.function_type
+    match self {
+      FunctionInstance::LocalFn(f) => &f.function_type,
+      _ => unimplemented!(),
+    }
   }
 
   pub fn set_source_module_name(&self, name: &ModuleName) {
     if let Some(name) = name {
-      let mut source_module_name = self.0.source_module_name.borrow_mut();
+      let mut source_module_name = match self {
+        FunctionInstance::LocalFn(f) => f.source_module_name.borrow_mut(),
+        _ => unimplemented!(),
+      };
       source_module_name.replace(name.to_owned());
     };
   }
 
   pub fn get_source_module_name(&self) -> Option<String> {
-    self.0.source_module_name.borrow().to_owned()
+    match self {
+      FunctionInstance::LocalFn(f) => f.source_module_name.borrow().to_owned(),
+      _ => unimplemented!(),
+    }
   }
 
   pub fn get(&self, idx: usize) -> Option<&u8> {
-    self.0.body.get(idx)
+    match self {
+      FunctionInstance::LocalFn(f) => f.body.get(idx),
+      _ => unimplemented!(),
+    }
   }
 
   pub(crate) fn body(&self) -> &[u8] {
-    &self.0.body
+    match self {
+      FunctionInstance::LocalFn(f) => &f.body,
+      _ => unimplemented!(),
+    }
   }
 
   pub fn get_expressions_count(&self) -> usize {
-    self.0.body.len()
+    match self {
+      FunctionInstance::LocalFn(f) => f.body.len(),
+      _ => unimplemented!(),
+    }
   }
 
   pub fn get_arity(&self) -> u32 {
-    self.0.function_type.parameters().len() as u32
+    match self {
+      FunctionInstance::LocalFn(f) => f.function_type.parameters().len() as u32,
+      _ => unimplemented!(),
+    }
   }
 
   pub fn get_function_type(&self) -> FunctionType {
-    self.0.function_type.to_owned()
+    match self {
+      FunctionInstance::LocalFn(f) => f.function_type.to_owned(),
+      _ => unimplemented!(),
+    }
   }
 
   pub fn get_return_type(&self) -> &Vec<ValueTypes> {
-    &self.0.function_type.returns()
+    match self {
+      FunctionInstance::LocalFn(f) => f.function_type.returns(),
+      _ => unimplemented!(),
+    }
   }
 
   pub fn get_return_count(&self) -> u32 {
@@ -146,7 +178,11 @@ impl FunctionInstance {
   }
 
   pub fn validate_type(&self, other: &FunctionType) -> Result<()> {
-    if &self.0.function_type != other {
+    let my = match self {
+      FunctionInstance::LocalFn(f) => &f.function_type,
+      _ => unimplemented!(),
+    };
+    if my != other {
       Err(Trap::TypeMismatch)
     } else {
       Ok(())
@@ -154,7 +190,11 @@ impl FunctionInstance {
   }
 
   pub fn is_same_name(&self, other_name: &str) -> bool {
-    self.0.export_name.as_ref() == Some(&other_name.to_string())
+    let export_name = match self {
+      FunctionInstance::LocalFn(f) => &f.export_name,
+      _ => unimplemented!(),
+    };
+    export_name.as_ref() == Some(&other_name.to_string())
   }
 }
 
@@ -163,13 +203,31 @@ impl fmt::Debug for FunctionInstance {
     f.debug_struct("FunctionInstance")
       .field(
         "export_name",
-        &match self.0.export_name {
-          Some(ref n) => n,
+        &match self {
+          FunctionInstance::LocalFn(ref f) => match **f {
+            FunctionInstanceImpl {
+              export_name: Some(ref n),
+              ..
+            } => n,
+            _ => unimplemented!(),
+          },
           _ => "_",
         },
       )
-      .field("function_type", &self.0.function_type)
-      .field("instructions", &format_args!("{:?}", self.0.body))
+      .field(
+        "function_type",
+        &match self {
+          FunctionInstance::LocalFn(f) => &f.function_type,
+          _ => unimplemented!(),
+        },
+      )
+      .field(
+        "instructions",
+        &match self {
+          FunctionInstance::LocalFn(f) => &f.body,
+          _ => unimplemented!(),
+        },
+      )
       .finish()
   }
 }
