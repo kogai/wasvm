@@ -44,10 +44,12 @@ mod value_type;
 mod vm;
 
 pub use self::embedder::{decode_module, init_store, instantiate_module, validate_module};
+pub use self::function::{FunctionInstance, FunctionType};
 pub use self::module::{ExternalModule, ExternalModules};
 pub use self::spectest::create_spectest;
 pub use self::trap::Trap;
 pub use self::value::Values;
+pub use self::value_type::ValueTypes;
 pub use self::vm::ModuleInstance;
 
 #[cfg(test)]
@@ -76,6 +78,45 @@ mod tests {
                 assert_eq!(actual, format!("i32:{}", $expect_value));
             }
         };
+    }
+
+    fn my_hal_function(_arguments: &[Values]) -> alloc::vec::Vec<Values> {
+        [Values::I32(3 * 5)].to_vec()
+    }
+
+    #[test]
+    fn eval_discovery() {
+        let mut file = File::open("./discovery-wasm/pkg/discovery_wasm_bg.wasm").unwrap();
+        let mut bytes = vec![];
+        file.read_to_end(&mut bytes).unwrap();
+
+        let store = init_store();
+        let section = decode_module(&bytes);
+        let mut external_modules = ExternalModules::default();
+        let external_module = ExternalModule::new(
+            [FunctionInstance::new_host_fn(
+                // FIXME: no_mangle
+                Some("__wbg_myhalfunction_59a89d8df8955cf7".to_owned()),
+                FunctionType::new(
+                    [ValueTypes::I32, ValueTypes::I32].to_vec(),
+                    [ValueTypes::I32].to_vec(),
+                ),
+                &my_hal_function,
+            )]
+            .to_vec(),
+            [].to_vec(),
+            [].to_vec(),
+            [].to_vec(),
+            [].to_vec(),
+        );
+        external_modules.register_module(Some("./discovery_wasm".to_owned()), external_module);
+        let mut vm = instantiate_module(store, section, external_modules, 65536).unwrap();
+
+        let actual = vm.run(
+            "use_hal_function",
+            [Values::I32(3), Values::I32(5)].to_vec(),
+        );
+        assert_eq!(actual, format!("i32:{}", 25));
     }
 
     test_eval!(evaluate_cons8, "cons8", vec![], 42);

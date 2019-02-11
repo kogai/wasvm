@@ -9,3 +9,10 @@ wasm-bindgen = "0.2.33"
 
 [lib]
 crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = 'z'
+codegen-units = 1 # better optimizations
+debug = true # symbols are nice and they don't increase the size on Flash
+lto = true # better optimizations
+panic = 'abort'

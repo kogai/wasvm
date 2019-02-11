@@ -4,11 +4,13 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern {
-    pub fn alert(s: &str);
+    #[no_mangle]
+    pub fn my_hal_function(a: i32, b: i32) -> i32;
 }
 
+#[no_mangle]
 #[wasm_bindgen]
-pub fn greet(name: &str) {
-    alert(&format!("Hello, {}!", name));
+pub fn use_hal_function(a: i32, b: i32) -> i32 {
+    my_hal_function(a, b) + 10
 }
 
