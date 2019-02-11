@@ -8,6 +8,7 @@ authors = ["Shinichi Kogai <kogai0121@gmail.com>"]
 # https://github.com/rust-lang-nursery/libm/issues/4
 libm = { version = "0.1.2", git = "https://github.com/kogai/libm" }
 hashbrown = { version = "0.1", features = ["nightly"] }
+heapless = "0.4.1"
 
 [dev-dependencies]
 wabt = "0.7.3"
