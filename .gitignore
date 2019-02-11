@@ -5,3 +5,4 @@ out.perf_folded
 out.svg
 !tmp/.keep
 tmp/
+/discovery/src/*.wasm

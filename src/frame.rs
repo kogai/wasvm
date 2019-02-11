@@ -12,7 +12,10 @@ macro_rules! impl_pop_bytes {
   ($name: ident, $ty: ty, $width: expr) => {
     pub(crate) fn $name(&self) -> Result<$ty> {
       let mut buf = [0; $width];
-      let body = self.function_instance.body();
+      let body = match self.function_instance {
+        FunctionInstance::LocalFn(ref f) => f.body(),
+        _ => unreachable!()
+      };
       let start = self.ptr.get() as usize;
       let end = start + $width;
       buf.clone_from_slice(&body[start..end]);
@@ -43,17 +46,26 @@ impl Frame {
     function_instance: FunctionInstance,
     arguments: &mut Vec<StackEntry>,
   ) -> Self {
-    let last_ptr = function_instance.get_expressions_count() as u32;
-    Frame {
-      local_variables: Frame::derive_local_variables(
-        arguments,
-        function_instance.local_variables(),
-      ),
-      function_instance,
-      last_ptr,
-      return_ptr,
-      prev_return_ptr,
-      ptr: Cell::new(0),
+    match function_instance {
+      FunctionInstance::LocalFn(ref f) => {
+        let last_ptr = f.get_expressions_count() as u32;
+        Frame {
+          local_variables: Frame::derive_local_variables(arguments, f.local_variables()),
+          function_instance: function_instance.clone(),
+          last_ptr,
+          return_ptr,
+          prev_return_ptr,
+          ptr: Cell::new(0),
+        }
+      }
+      FunctionInstance::HostFn(_) => Frame {
+        local_variables: Frame::derive_local_variables(arguments, vec![]),
+        function_instance: function_instance,
+        last_ptr: 0,
+        return_ptr,
+        prev_return_ptr,
+        ptr: Cell::new(0),
+      },
     }
   }
 
@@ -91,9 +103,12 @@ impl Frame {
     self.ptr.get().sub(1)
   }
 
-  pub fn peek(&self) -> Option<&u8> {
+  fn peek(&self) -> Option<&u8> {
     let ptr = self.ptr.get();
-    self.function_instance.get(ptr as usize)
+    match self.function_instance {
+      FunctionInstance::LocalFn(ref f) => f.get(ptr as usize),
+      _ => unreachable!(),
+    }
   }
 
   pub fn pop_ref(&self) -> Option<&u8> {

@@ -1,4 +1,4 @@
-SRC := $(wildcard *.rs)
+SRC := $(wildcard **/*.rs)
 TRIPLE := wasm32-unknown-unknown
 CSRCS=$(wildcard ./fixtures/*.c)
 WASTS=$(filter-out "./testsuite/binary.json", $(wildcard ./testsuite/*.wast))
@@ -34,11 +34,16 @@ discovery/target/$(TARGET)/release/$(DISCOVERY): $(SRC)
 openocd:
 	openocd -f discovery/openocd.cfg
 
-gdb/debug:
+gdb/debug: discovery/target/$(TARGET)/debug/$(DISCOVERY)
 	$(ARM_GDB) -x discovery/openocd.gdb discovery/target/$(TARGET)/debug/$(DISCOVERY)
 
-gdb/release:
+gdb/release: discovery/target/$(TARGET)/release/$(DISCOVERY)
 	$(ARM_GDB) -x discovery/openocd.gdb discovery/target/$(TARGET)/release/$(DISCOVERY)
+
+discovery/src/discovery_wasm_bg.wasm: $(SRC)
+	cd discovery-wasm && \
+	wasm-pack build
+	cp discovery-wasm/pkg/discovery_wasm_bg.wasm discovery/src/discovery_wasm_bg.wasm 
 
 target/release/main: $(SRC) Makefile
 	RUSTFLAGS='-g' cargo build --release
@@ -85,6 +90,13 @@ tmp/snappy_compress.wasm:
 install:
 	packer -S wabt --noconfirm
 	cargo install wasm-gc cargo-binutils cargo-bloat
+	rustup target add \
+		thumbv6m-none-eabi\
+		thumbv7m-none-eabi\
+		thumbv7em-none-eabi\
+		thumbv7em-none-eabihf\
+		wasm32-unknown-emscripten
+	stup component add llvm-tools-preview
 	sudo pacman -S \
 		arm-none-eabi-gdb \
 		qemu-arch-extra

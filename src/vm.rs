@@ -289,6 +289,19 @@ impl ModuleInstance {
 
     fn evaluate_instructions(&mut self, frame: &Frame) -> Result<()> {
         use self::Isa::*;
+        if let FunctionInstance::HostFn(ref f) = &frame.function_instance {
+            let arity = frame.function_instance.get_arity();
+            let mut arguments = vec![];
+            for i in 0..arity {
+                self.get_local(&Indice::from(i))?;
+                arguments.push(self.stack.pop_value_ext());
+            }
+            let results = f.call(arguments.as_slice());
+            for r in results.into_iter() {
+                self.stack.push(StackEntry::new_value(r))?;
+            }
+            return Ok(());
+        }
         let source_of_frame = frame.function_instance.get_source_module_name();
         while let Some(expression) = frame.pop_ref() {
             match Isa::from(*expression) {

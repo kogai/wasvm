@@ -14,14 +14,22 @@ extern crate panic_halt;
 extern crate wasvm;
 
 use alloc::alloc::Layout;
+use alloc::prelude::*;
 use alloc_cortex_m::CortexMHeap;
 use cortex_m::asm;
 use cortex_m_rt::{entry, heap_start};
 use cortex_m_semihosting::hprintln;
-use wasvm::{decode_module, init_store, instantiate_module, ExternalModules, Values};
+use wasvm::{
+    decode_module, init_store, instantiate_module, ExternalModule, ExternalModules,
+    FunctionInstance, FunctionType, ValueTypes, Values,
+};
 
 #[global_allocator]
 static ALLOCATOR: CortexMHeap = CortexMHeap::empty();
+
+fn my_hal_function(_arguments: &[Values]) -> alloc::vec::Vec<Values> {
+    [Values::I32(3 * 5)].to_vec()
+}
 
 #[entry]
 fn main() -> ! {
@@ -31,13 +39,33 @@ fn main() -> ! {
 
     hprintln!("Start...").unwrap();
 
-    let bytes = include_bytes!("add.wasm");
+    let bytes = include_bytes!("discovery_wasm_bg.wasm");
     let store = init_store();
     let section = decode_module(bytes);
-    let external_modules = ExternalModules::default();
+    let mut external_modules = ExternalModules::default();
+    let external_module = ExternalModule::new(
+        [FunctionInstance::new_host_fn(
+            Some("__wbg_myhalfunction_59a89d8df8955cf7".to_owned()),
+            FunctionType::new(
+                [ValueTypes::I32, ValueTypes::I32].to_vec(),
+                [ValueTypes::I32].to_vec(),
+            ),
+            &my_hal_function,
+        )]
+        .to_vec(),
+        [].to_vec(),
+        [].to_vec(),
+        [].to_vec(),
+        [].to_vec(),
+    );
+    external_modules.register_module(Some("./discovery_wasm".to_owned()), external_module);
+    // FIXME: Causes OOM.
     let instance = instantiate_module(store, section, external_modules, 128);
     let mut vm = instance.unwrap();
-    let result = vm.run("_subject", [Values::I32(10), Values::I32(20)].to_vec());
+    let result = vm.run(
+        "use_hal_function",
+        [Values::I32(3), Values::I32(5)].to_vec(),
+    );
 
     // Need to enable semihosting of gdb
     hprintln!("Result={:?}", result).unwrap();

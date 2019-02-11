@@ -205,8 +205,7 @@ pub struct ExternalModule {
 }
 
 impl ExternalModule {
-  // NOTE: Only for spectest
-  pub(crate) fn new(
+  pub fn new(
     function_instances: Vec<FunctionInstance>,
     function_types: Vec<FunctionType>,
     memory_instances: Vec<MemoryInstance>,

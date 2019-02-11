@@ -1,4 +1,3 @@
-use alloc::vec::Vec;
 use core::convert::From;
 use core::convert::Into;
 
@@ -544,13 +543,14 @@ impl Into<u8> for Isa {
   }
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub enum ComposedCode {
   Code(Isa),
   Byte(u8),
 }
 
-pub fn into_vec_u8(this: &[ComposedCode]) -> Vec<u8> {
+#[cfg(test)]
+pub fn into_vec_u8(this: &[ComposedCode]) -> alloc::vec::Vec<u8> {
   this
     .iter()
     .map(|x| match x {
