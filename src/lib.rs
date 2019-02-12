@@ -19,7 +19,6 @@ extern crate alloc;
 #[macro_use]
 extern crate core;
 
-extern crate hashbrown;
 extern crate heapless;
 extern crate libm;
 
