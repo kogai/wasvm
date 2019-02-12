@@ -168,16 +168,16 @@ impl ExternalInterfaces {
     }
     buf
       .insert(ModuleDescriptorKind::Function, buf_function)
-      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+      .map_err(|_| Trap::LinearMapOverflowed)?;
     buf
       .insert(ModuleDescriptorKind::Table, buf_table)
-      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+      .map_err(|_| Trap::LinearMapOverflowed)?;
     buf
       .insert(ModuleDescriptorKind::Memory, buf_memory)
-      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+      .map_err(|_| Trap::LinearMapOverflowed)?;
     buf
       .insert(ModuleDescriptorKind::Global, buf_global)
-      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+      .map_err(|_| Trap::LinearMapOverflowed)?;
     Ok(buf)
   }
 }
@@ -338,7 +338,7 @@ impl ExternalModules {
       .0
       .borrow_mut()
       .insert(key, value)
-      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+      .map_err(|_| Trap::LinearMapOverflowed)?;
     Ok(())
   }
 
