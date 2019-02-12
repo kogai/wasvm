@@ -4,12 +4,15 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::convert::From;
 use core::default::Default;
+use core::fmt;
 use core::iter::Iterator;
 use core::slice::Iter;
 use decode::TableType;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
 use hashbrown::HashMap;
+use heapless::consts::U32;
+use heapless::LinearMap;
 use indice::Indice;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
@@ -299,12 +302,20 @@ impl From<&Store> for ExternalModule {
   }
 }
 
-#[derive(Debug, Clone)]
-pub struct ExternalModules(Rc<RefCell<HashMap<ModuleName, ExternalModule>>>);
+#[derive(Clone)]
+pub struct ExternalModules(Rc<RefCell<LinearMap<ModuleName, ExternalModule, U32>>>);
+
+impl fmt::Debug for ExternalModules {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    f.debug_map()
+      .entries(self.0.borrow().iter().map(|(k, v)| (k, v)))
+      .finish()
+  }
+}
 
 impl Default for ExternalModules {
   fn default() -> Self {
-    ExternalModules(Rc::new(RefCell::new(HashMap::new())))
+    ExternalModules(Rc::new(RefCell::new(LinearMap::new())))
   }
 }
 
@@ -313,8 +324,13 @@ impl ExternalModules {
     self.0.borrow().get(module_name).cloned()
   }
 
-  pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) {
-    self.0.borrow_mut().insert(key, value);
+  pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) -> Result<()> {
+    self
+      .0
+      .borrow_mut()
+      .insert(key, value)
+      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+    Ok(())
   }
 
   pub fn get_table_instance(

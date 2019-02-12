@@ -37,6 +37,7 @@ pub enum Trap {
   IntegerRepresentationTooLong,
   FunctionAndCodeInconsitent,
   InvalidUTF8Encoding,
+  ExternalModulesOverflowed,
 }
 
 impl From<Trap> for NoneError {
@@ -85,6 +86,7 @@ impl From<Trap> for String {
       IntegerRepresentationTooLong => "integer representation too long",
       FunctionAndCodeInconsitent => "function and code section have inconsistent lengths",
       InvalidUTF8Encoding => "invalid UTF-8 encoding",
+      ExternalModulesOverflowed => "external modules overflowed, wasvm assumes at most 32 modules.",
     }
     .to_owned()
   }

@@ -20,6 +20,7 @@ extern crate alloc;
 extern crate core;
 
 extern crate hashbrown;
+extern crate heapless;
 extern crate libm;
 
 #[macro_use]
@@ -109,7 +110,9 @@ mod tests {
             [].to_vec(),
             [].to_vec(),
         );
-        external_modules.register_module(Some("./discovery_wasm".to_owned()), external_module);
+        external_modules
+            .register_module(Some("./discovery_wasm".to_owned()), external_module)
+            .unwrap();
         let mut vm = instantiate_module(store, section, external_modules, 65536).unwrap();
 
         let actual = vm.run(
