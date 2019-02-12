@@ -10,8 +10,7 @@ use core::slice::Iter;
 use decode::TableType;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
-use hashbrown::HashMap;
-use heapless::consts::U32;
+use heapless::consts::{U32, U4};
 use heapless::LinearMap;
 use indice::Indice;
 use memory::{Limit, MemoryInstance, MemoryInstances};
@@ -141,12 +140,14 @@ impl ExternalInterfaces {
     self.0.iter()
   }
 
-  pub fn group_by_kind(&self) -> HashMap<ModuleDescriptorKind, Vec<ExternalInterface>> {
+  pub fn group_by_kind(
+    &self,
+  ) -> Result<LinearMap<ModuleDescriptorKind, Vec<ExternalInterface>, U4>> {
     let mut buf_function = vec![];
     let mut buf_table = vec![];
     let mut buf_memory = vec![];
     let mut buf_global = vec![];
-    let mut buf = HashMap::new();
+    let mut buf = LinearMap::new();
 
     for x in self.iter() {
       match &x.descriptor {
@@ -165,11 +166,19 @@ impl ExternalInterfaces {
         y => unimplemented!("{:?}", y),
       };
     }
-    buf.insert(ModuleDescriptorKind::Function, buf_function);
-    buf.insert(ModuleDescriptorKind::Table, buf_table);
-    buf.insert(ModuleDescriptorKind::Memory, buf_memory);
-    buf.insert(ModuleDescriptorKind::Global, buf_global);
     buf
+      .insert(ModuleDescriptorKind::Function, buf_function)
+      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+    buf
+      .insert(ModuleDescriptorKind::Table, buf_table)
+      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+    buf
+      .insert(ModuleDescriptorKind::Memory, buf_memory)
+      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+    buf
+      .insert(ModuleDescriptorKind::Global, buf_global)
+      .map_err(|_| Trap::ExternalModulesOverflowed)?;
+    Ok(buf)
   }
 }
 
