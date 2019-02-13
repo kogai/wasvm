@@ -4,7 +4,7 @@ use super::decodable::{
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use core::convert::From;
-use trap::Result;
+use error::runtime::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);

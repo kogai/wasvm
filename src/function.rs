@@ -5,9 +5,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
+use error::runtime::{Result, Trap};
 use module::ModuleName;
 use stack::StackEntry;
-use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
 

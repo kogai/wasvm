@@ -3,8 +3,8 @@ use super::decodable::{
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
+use error::runtime::Result;
 use global::GlobalType;
-use trap::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);

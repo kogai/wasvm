@@ -1,7 +1,7 @@
 use super::decodable::{Decodable, Leb128Decodable, NameDecodable, U32Decodable, U8Iterator};
 use alloc::vec::Vec;
+use error::runtime::Result;
 use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
-use trap::Result;
 
 impl_decodable!(Section);
 impl Leb128Decodable for Section {}

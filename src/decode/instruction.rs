@@ -1,11 +1,11 @@
 use super::decodable::{Peekable, SignedIntegerDecodable, U32Decodable};
 use alloc::vec::Vec;
+use error::runtime::{Result, Trap};
 use isa::Isa;
-use trap::{Result, Trap};
 
 macro_rules! impl_decode_float {
   ($buf_ty: ty, $fn_name: ident, $bitwidth: expr) => {
-    fn $fn_name(&mut self) -> $crate::trap::Result<$buf_ty> {
+    fn $fn_name(&mut self) -> $crate::error::runtime::Result<$buf_ty> {
       let mut buf = [0u8; $bitwidth];
       for i in 0..$bitwidth {
         buf[i] = self.next()?;

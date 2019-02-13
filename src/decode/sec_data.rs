@@ -3,7 +3,7 @@ use super::decodable::{
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
-use trap::Result;
+use error::runtime::Result;
 
 #[derive(Debug)]
 pub struct Data {

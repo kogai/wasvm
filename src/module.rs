@@ -8,6 +8,7 @@ use core::fmt;
 use core::iter::Iterator;
 use core::slice::Iter;
 use decode::TableType;
+use error::runtime::{Result, Trap};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
 use heapless::consts::{U32, U4};
@@ -16,7 +17,6 @@ use indice::Indice;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
 use table::{TableInstance, TableInstances};
-use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
 pub enum ImportDescriptor {

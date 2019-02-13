@@ -4,10 +4,10 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use core::fmt;
+use error::runtime::{Result, Trap};
 use frame::Frame;
 use indice::Indice;
 use label::{Label, LabelKind};
-use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
 

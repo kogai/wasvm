@@ -1,12 +1,12 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
 use decode::{Byte, Module};
+use error::runtime::Result;
+use error::validate_time;
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
 use store::Store;
-use trap::Result;
-use validate;
 use validate::Context;
 use vm::ModuleInstance;
 
@@ -18,10 +18,10 @@ pub fn decode_module(bytes: &[u8]) -> Result<Module> {
   Byte::new_with_drop(&bytes)?.decode()
 }
 
-pub fn validate_module(module: &Result<Module>) -> validate::Result<()> {
+pub fn validate_module(module: &Result<Module>) -> validate_time::Result<()> {
   match module {
     Ok(module) => Context::new(module)?.validate(),
-    Err(err) => Err(validate::TypeError::Trap(err.to_owned())),
+    Err(err) => Err(validate_time::TypeError::Trap(err.to_owned())),
   }
 }
 

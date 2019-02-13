@@ -2,6 +2,7 @@
 use alloc::prelude::*;
 use alloc::string::String;
 use alloc::vec::Vec;
+use error::runtime::{Result, Trap};
 use frame::Frame;
 use function::FunctionInstance;
 use indice::Indice;
@@ -14,7 +15,6 @@ use module::{
 };
 use stack::{Stack, StackEntry};
 use store::Store;
-use trap::{Result, Trap};
 use value::Values;
 use value_type::TYPE_UNIT;
 

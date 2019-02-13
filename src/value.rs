@@ -8,7 +8,7 @@ use core::ops::{BitAnd, BitOr, BitXor, Neg};
 use core::{f32, f64, fmt};
 #[cfg(not(test))]
 use libm::{F32Ext, F64Ext};
-use trap::{Result, Trap};
+use error::runtime::{Result, Trap};
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]

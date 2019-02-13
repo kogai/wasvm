@@ -3,9 +3,9 @@ use super::decodable::{
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
+use error::runtime::Result;
 use function::FunctionInstance;
 use indice::Indice;
-use trap::Result;
 
 #[derive(Debug, Clone)]
 pub struct Element {

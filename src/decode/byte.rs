@@ -4,7 +4,7 @@ use super::*;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
-use trap::{Result, Trap};
+use error::runtime::{Result, Trap};
 
 impl_decodable!(Byte);
 impl Leb128Decodable for Byte {}

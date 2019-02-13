@@ -25,6 +25,7 @@ extern crate libm;
 #[macro_use]
 mod decode;
 mod embedder;
+mod error;
 mod frame;
 mod function;
 mod global;
@@ -37,17 +38,16 @@ mod spectest;
 mod stack;
 mod store;
 mod table;
-mod trap;
 mod validate;
 mod value;
 mod value_type;
 mod vm;
 
 pub use self::embedder::{decode_module, init_store, instantiate_module, validate_module};
+pub use self::error::runtime::Trap;
 pub use self::function::{FunctionInstance, FunctionType};
 pub use self::module::{ExternalModule, ExternalModules};
 pub use self::spectest::create_spectest;
-pub use self::trap::Trap;
 pub use self::value::Values;
 pub use self::value_type::ValueTypes;
 pub use self::vm::ModuleInstance;

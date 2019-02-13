@@ -2,10 +2,10 @@ use alloc::vec::Vec;
 use core::cell::{Cell, RefCell, RefMut};
 use core::fmt;
 use core::ops::Sub;
+use error::runtime::Result;
 use function::FunctionInstance;
 use indice::Indice;
 use stack::StackEntry;
-use trap::Result;
 use value_type::ValueTypes;
 
 macro_rules! impl_pop_bytes {

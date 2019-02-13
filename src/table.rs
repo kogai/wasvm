@@ -6,12 +6,12 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::clone::Clone;
 use decode::{Element, TableType};
+use error::runtime::{Result, Trap};
 use function::FunctionInstance;
 use global::GlobalInstances;
 use indice::Indice;
 use isa::Isa;
 use memory::Limit;
-use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
 pub struct TableInstance {

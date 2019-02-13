@@ -1,9 +1,9 @@
 use super::decodable::{Decodable, Leb128Decodable, U32Decodable, U8Iterator};
 use alloc::vec::Vec;
 use core::convert::From;
+use error::runtime::Result;
 use function::FunctionType;
 use isa::Isa;
-use trap::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);

@@ -1,10 +1,10 @@
-use super::error::{Result, TypeError};
 use alloc::collections::VecDeque;
 #[cfg(not(test))]
 use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use decode::{Data, Element, Module, TableType};
+use error::validate_time::{Result, TypeError};
 use function::FunctionType;
 use global::GlobalType;
 use indice::Indice;

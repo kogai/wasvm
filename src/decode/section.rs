@@ -7,6 +7,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
+use error::runtime::{Result, Trap};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstances, GlobalType};
 use memory::{Limit, MemoryInstance, MemoryInstances};
@@ -16,7 +17,6 @@ use module::{
 };
 use store::Store;
 use table::{TableInstance, TableInstances};
-use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]

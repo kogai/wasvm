@@ -1,11 +1,11 @@
 use alloc::string::String;
 use alloc::vec::Vec;
+use error::runtime::{Result, Trap};
 use memory::Limit;
-use trap::{Result, Trap};
 
 macro_rules! impl_decode_leb128 {
   ($ty: ty, $conv_fn: path, $fn_name: ident) => {
-    fn $fn_name(&mut self) -> $crate::trap::Result<($ty, u32)> {
+    fn $fn_name(&mut self) -> $crate::error::runtime::Result<($ty, u32)> {
       let mut buf: $ty = 0;
       let mut shift = 0;
 
@@ -28,7 +28,7 @@ macro_rules! impl_decode_leb128 {
         // buf | num  00000000_00000000_10000000_10000000
         let (shifted, is_overflowed) = num.overflowing_shl(shift);
         if is_overflowed {
-          return Err($crate::trap::Trap::IntegerRepresentationTooLong);
+          return Err($crate::error::runtime::Trap::IntegerRepresentationTooLong);
         }
         buf |= shifted;
         shift += 7;

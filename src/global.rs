@@ -4,13 +4,13 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
+use error::runtime::{Result, Trap};
 use indice::Indice;
 use isa::Isa;
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
   GLOBAL_DESCRIPTOR,
 };
-use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
 

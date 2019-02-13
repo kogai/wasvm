@@ -13,7 +13,7 @@ use global::GlobalInstances;
 use indice::Indice;
 use isa::Isa;
 use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
-use trap::{Result, Trap};
+use error::runtime::{Result, Trap};
 use value::Values;
 
 // NOTE: 65536(64KiB) is constant data size per page.
