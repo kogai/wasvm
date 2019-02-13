@@ -58,7 +58,7 @@ fn main() -> ! {
         [].to_vec(),
         [].to_vec(),
     );
-    external_modules.register_module(Some("./discovery_wasm".to_owned()), external_module);
+    external_modules.register_module(Some("./discovery_wasm".to_owned()), external_module).unwrap();
     // FIXME: Causes OOM.
     let instance = instantiate_module(store, section, external_modules, 128);
     let mut vm = instance.unwrap();

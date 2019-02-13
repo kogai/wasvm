@@ -334,7 +334,7 @@ impl Module {
         start,
         ..
       } => {
-        let grouped_imports = imports.group_by_kind();
+        let grouped_imports = imports.group_by_kind()?;
         let imports_function = grouped_imports.get(&FUNCTION_DESCRIPTOR)?;
         let imports_table = grouped_imports.get(&TABLE_DESCRIPTOR)?;
         let imports_memory = grouped_imports.get(&MEMORY_DESCRIPTOR)?;

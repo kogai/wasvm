@@ -57,7 +57,9 @@ impl<'a> E2ETest<'a> {
     let parser = ScriptParser::from_str(&buf).unwrap();
     let modules = HashMap::new();
     let mut external_modules = ExternalModules::default();
-    external_modules.register_module(Some("spectest".to_owned()), create_spectest());
+    external_modules
+      .register_module(Some("spectest".to_owned()), create_spectest())
+      .unwrap();
 
     E2ETest {
       parser,
@@ -95,7 +97,8 @@ impl<'a> E2ETest<'a> {
     let importable_module = vm.export_module();
     self
       .external_modules
-      .register_module(Some(as_name.to_owned()), importable_module);
+      .register_module(Some(as_name.to_owned()), importable_module)
+      .unwrap();
   }
 
   fn assert_return(&self, action: &Action, expected: &[Value], line: u64) {

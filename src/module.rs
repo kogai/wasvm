@@ -4,12 +4,14 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::convert::From;
 use core::default::Default;
+use core::fmt;
 use core::iter::Iterator;
 use core::slice::Iter;
 use decode::TableType;
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
-use hashbrown::HashMap;
+use heapless::consts::{U32, U4};
+use heapless::LinearMap;
 use indice::Indice;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
@@ -138,12 +140,14 @@ impl ExternalInterfaces {
     self.0.iter()
   }
 
-  pub fn group_by_kind(&self) -> HashMap<ModuleDescriptorKind, Vec<ExternalInterface>> {
+  pub fn group_by_kind(
+    &self,
+  ) -> Result<LinearMap<ModuleDescriptorKind, Vec<ExternalInterface>, U4>> {
     let mut buf_function = vec![];
     let mut buf_table = vec![];
     let mut buf_memory = vec![];
     let mut buf_global = vec![];
-    let mut buf = HashMap::new();
+    let mut buf = LinearMap::new();
 
     for x in self.iter() {
       match &x.descriptor {
@@ -162,11 +166,19 @@ impl ExternalInterfaces {
         y => unimplemented!("{:?}", y),
       };
     }
-    buf.insert(ModuleDescriptorKind::Function, buf_function);
-    buf.insert(ModuleDescriptorKind::Table, buf_table);
-    buf.insert(ModuleDescriptorKind::Memory, buf_memory);
-    buf.insert(ModuleDescriptorKind::Global, buf_global);
     buf
+      .insert(ModuleDescriptorKind::Function, buf_function)
+      .map_err(|_| Trap::LinearMapOverflowed)?;
+    buf
+      .insert(ModuleDescriptorKind::Table, buf_table)
+      .map_err(|_| Trap::LinearMapOverflowed)?;
+    buf
+      .insert(ModuleDescriptorKind::Memory, buf_memory)
+      .map_err(|_| Trap::LinearMapOverflowed)?;
+    buf
+      .insert(ModuleDescriptorKind::Global, buf_global)
+      .map_err(|_| Trap::LinearMapOverflowed)?;
+    Ok(buf)
   }
 }
 
@@ -299,12 +311,20 @@ impl From<&Store> for ExternalModule {
   }
 }
 
-#[derive(Debug, Clone)]
-pub struct ExternalModules(Rc<RefCell<HashMap<ModuleName, ExternalModule>>>);
+#[derive(Clone)]
+pub struct ExternalModules(Rc<RefCell<LinearMap<ModuleName, ExternalModule, U32>>>);
+
+impl fmt::Debug for ExternalModules {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    f.debug_map()
+      .entries(self.0.borrow().iter().map(|(k, v)| (k, v)))
+      .finish()
+  }
+}
 
 impl Default for ExternalModules {
   fn default() -> Self {
-    ExternalModules(Rc::new(RefCell::new(HashMap::new())))
+    ExternalModules(Rc::new(RefCell::new(LinearMap::new())))
   }
 }
 
@@ -313,8 +333,13 @@ impl ExternalModules {
     self.0.borrow().get(module_name).cloned()
   }
 
-  pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) {
-    self.0.borrow_mut().insert(key, value);
+  pub fn register_module(&mut self, key: ModuleName, value: ExternalModule) -> Result<()> {
+    self
+      .0
+      .borrow_mut()
+      .insert(key, value)
+      .map_err(|_| Trap::LinearMapOverflowed)?;
+    Ok(())
   }
 
   pub fn get_table_instance(
