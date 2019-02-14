@@ -67,9 +67,11 @@ impl InstructionDecodable for Section {}
 impl Section {
   fn decode_function_idx(&mut self) -> Result<Vec<Indice>> {
     let count = self.decode_leb128_u32()?;
-    (0..count)
-      .map(|_| self.decode_leb128_u32().map(From::from))
-      .collect::<Result<Vec<_>>>()
+    let mut buf = vec![];
+    for _ in 0..count {
+      buf.push(Indice::from(self.decode_leb128_u32()?));
+    }
+    Ok(buf)
   }
 }
 
