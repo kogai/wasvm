@@ -1,5 +1,5 @@
 use super::decodable::{
-  Leb128Decodable, NewDecodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
+  Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
@@ -16,7 +16,7 @@ impl U32Decodable for Section {}
 impl SignedIntegerDecodable for Section {}
 impl InstructionDecodable for Section {}
 
-impl NewDecodable for Section {
+impl Decodable for Section {
   // FIXME:
   type Item = Vec<error::runtime::Result<(Vec<u8>, Vec<ValueTypes>)>>;
   fn decode(&mut self) -> Result<Self::Item> {

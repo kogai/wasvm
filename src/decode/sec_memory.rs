@@ -1,4 +1,4 @@
-use super::decodable::{Leb128Decodable, LimitDecodable, NewDecodable, U32Decodable};
+use super::decodable::{Decodable, Leb128Decodable, LimitDecodable, U32Decodable};
 use alloc::vec::Vec;
 use error::{Result, WasmError};
 use memory::Limit;
@@ -8,7 +8,7 @@ impl Leb128Decodable for Section {}
 impl U32Decodable for Section {}
 impl LimitDecodable for Section {}
 
-impl NewDecodable for Section {
+impl Decodable for Section {
   type Item = Vec<Limit>;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;

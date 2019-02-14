@@ -1,5 +1,5 @@
 use super::decodable::{
-  Leb128Decodable, NewDecodable, Peekable, SignedIntegerDecodable, U32Decodable,
+  Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable,
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
@@ -75,7 +75,7 @@ impl Section {
   }
 }
 
-impl NewDecodable for Section {
+impl Decodable for Section {
   type Item = Vec<Element>;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
