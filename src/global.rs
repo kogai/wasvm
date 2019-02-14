@@ -4,7 +4,8 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
-use error::runtime::{Result, Trap};
+use error::runtime::Result;
+use error::runtime::Trap;
 use indice::Indice;
 use isa::Isa;
 use module::{
