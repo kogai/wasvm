@@ -1,6 +1,6 @@
-use super::decodable::{Decodable, Leb128Decodable, NameDecodable, U32Decodable, U8Iterator};
+use super::decodable::{Leb128Decodable, NameDecodable, NewDecodable, U32Decodable, U8Iterator};
 use alloc::vec::Vec;
-use error::runtime::Result;
+use error::Result;
 use module::{ExportDescriptor, ExternalInterface, ExternalInterfaces, ModuleDescriptor};
 
 impl_decodable!(Section);
@@ -8,7 +8,7 @@ impl Leb128Decodable for Section {}
 impl U32Decodable for Section {}
 impl NameDecodable for Section {}
 
-impl Decodable for Section {
+impl NewDecodable for Section {
   type Item = ExternalInterfaces;
 
   fn decode(&mut self) -> Result<Self::Item> {

@@ -1,10 +1,10 @@
 use super::decodable::{
-  Decodable, Leb128Decodable, LimitDecodable, NameDecodable, U32Decodable, U8Iterator,
+  Leb128Decodable, LimitDecodable, NameDecodable, NewDecodable, U32Decodable, U8Iterator,
 };
 use super::sec_element::ElementType;
 use super::sec_table::TableType;
 use alloc::vec::Vec;
-use error::runtime::Result;
+use error::Result;
 use global::GlobalType;
 use module::{
   ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, FUNCTION_DESCRIPTOR,
@@ -18,7 +18,7 @@ impl U32Decodable for Section {}
 impl LimitDecodable for Section {}
 impl NameDecodable for Section {}
 
-impl Decodable for Section {
+impl NewDecodable for Section {
   type Item = ExternalInterfaces;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
