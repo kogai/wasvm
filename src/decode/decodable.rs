@@ -1,5 +1,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
+use error;
 use error::runtime::{Result, Trap};
 use memory::Limit;
 
@@ -159,6 +160,11 @@ macro_rules! impl_decodable {
 pub trait Decodable {
   type Item;
   fn decode(&mut self) -> Result<Self::Item>;
+}
+
+pub trait NewDecodable {
+  type Item;
+  fn decode(&mut self) -> error::Result<Self::Item>;
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
-use super::decodable::{Decodable, Leb128Decodable, U32Decodable, U8Iterator};
+use super::decodable::{Leb128Decodable, NewDecodable, U32Decodable, U8Iterator};
 use alloc::vec::Vec;
 use core::convert::From;
-use error::runtime::Result;
+use error::Result;
 use function::FunctionType;
 use isa::Isa;
 use value_type::ValueTypes;
@@ -10,7 +10,7 @@ impl_decodable!(Section);
 impl Leb128Decodable for Section {}
 impl U32Decodable for Section {}
 
-impl Decodable for Section {
+impl NewDecodable for Section {
   type Item = Vec<FunctionType>;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_type = self.decode_leb128_u32()?;

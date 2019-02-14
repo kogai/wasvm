@@ -1,4 +1,4 @@
-use super::decodable::{Decodable, Leb128Decodable, U32Decodable};
+use super::decodable::{Decodable, Leb128Decodable, NewDecodable, U32Decodable};
 use super::section::{Module, SectionCode};
 use super::*;
 use alloc::vec::Vec;

@@ -1,3 +1,6 @@
+use core::convert::From;
+use core::option::NoneError;
+
 pub mod runtime {
   #[cfg(not(test))]
   use alloc::prelude::*;
@@ -177,6 +180,33 @@ pub mod validate_time {
 pub enum WasmError {
   Trap(self::runtime::Trap),
   TypeError(self::validate_time::TypeError),
+}
+
+impl From<WasmError> for NoneError {
+  fn from(_: WasmError) -> Self {
+    NoneError
+  }
+}
+
+impl From<NoneError> for WasmError {
+  fn from(_: NoneError) -> Self {
+    WasmError::Trap(self::runtime::Trap::Notfound)
+  }
+}
+
+impl From<WasmError> for self::runtime::Trap {
+  fn from(wasm_error: WasmError) -> Self {
+    match wasm_error {
+      WasmError::Trap(e) => e,
+      _ => unreachable!()
+    }
+  }
+}
+
+impl From<self::runtime::Trap> for WasmError {
+  fn from(trap: self::runtime::Trap) -> Self {
+    WasmError::Trap(trap)
+  }
 }
 
 pub type Result<T> = core::result::Result<T, WasmError>;
