@@ -172,4 +172,9 @@ pub mod validate_time {
   }
 
   pub type Result<T> = core::result::Result<T, TypeError>;
+pub enum WasmError {
+  Trap(runtime::Trap),
+  TypeError(validate_time::TypeError),
 }
+
+pub type Result<T> = core::result::Result<T, WasmError>;
