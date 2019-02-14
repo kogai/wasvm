@@ -1,33 +1,34 @@
-use super::decodable::{Decodable, Leb128Decodable, NewDecodable, U32Decodable};
+use super::decodable::{Leb128Decodable, NewDecodable, U32Decodable};
 use super::section::{Module, SectionCode};
 use super::*;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
 use error::runtime::{Result, Trap};
+use error::{self, WasmError};
 
 impl_decodable!(Byte);
 impl Leb128Decodable for Byte {}
 impl U32Decodable for Byte {}
 
 impl Byte {
-  pub fn new_with_drop(bytes: &[u8]) -> Result<Self> {
+  pub fn new_with_drop(bytes: &[u8]) -> error::Result<Self> {
     if 4 > bytes.len() {
-      return Err(Trap::UnexpectedEnd);
+      return Err(WasmError::Trap(Trap::UnexpectedEnd));
     }
     let (magic_words, bytes) = bytes.split_at(4);
     if magic_words.starts_with(&[40]) {
-      return Err(Trap::UnsupportedTextform);
+      return Err(WasmError::Trap(Trap::UnsupportedTextform));
     }
     if magic_words != [0, 97, 115, 109] {
-      return Err(Trap::MagicHeaderNotDetected);
+      return Err(WasmError::Trap(Trap::MagicHeaderNotDetected));
     }
     if 4 > bytes.len() {
-      return Err(Trap::UnexpectedEnd);
+      return Err(WasmError::Trap(Trap::UnexpectedEnd));
     }
     let (wasm_versions, bytes) = bytes.split_at(4);
     if wasm_versions != [1, 0, 0, 0] {
-      return Err(Trap::UnsupportedTextform);
+      return Err(WasmError::Trap(Trap::UnsupportedTextform));
     }
     Ok(Byte::new(bytes.to_vec()))
   }
@@ -37,12 +38,12 @@ impl Byte {
   }
 
   // FIXME: It isn't guranteed whether bin_size_of_section actually can trusted or not.
-  fn decode_section(&mut self) -> Result<Vec<u8>> {
+  fn decode_section(&mut self) -> error::Result<Vec<u8>> {
     let bin_size_of_section = self.decode_leb128_u32()?;
     let start = self.byte_ptr;
     let end = start + bin_size_of_section as usize;
     if end > self.bytes.len() {
-      return Err(Trap::LengthOutofBounds);
+      return Err(WasmError::Trap(Trap::LengthOutofBounds));
     }
     let bytes = self.bytes.drain(start..end).collect::<Vec<_>>();
     Ok(bytes)

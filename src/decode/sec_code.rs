@@ -1,10 +1,11 @@
 use super::decodable::{
-  Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
+  Leb128Decodable, NewDecodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use core::convert::From;
-use error::runtime::Result;
+use error;
+use error::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);
@@ -15,8 +16,9 @@ impl U32Decodable for Section {}
 impl SignedIntegerDecodable for Section {}
 impl InstructionDecodable for Section {}
 
-impl Decodable for Section {
-  type Item = Vec<Result<(Vec<u8>, Vec<ValueTypes>)>>;
+impl NewDecodable for Section {
+  // FIXME:
+  type Item = Vec<error::runtime::Result<(Vec<u8>, Vec<ValueTypes>)>>;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;
     (0..count_of_section)
