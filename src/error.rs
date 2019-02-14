@@ -198,7 +198,22 @@ impl From<WasmError> for self::runtime::Trap {
   fn from(wasm_error: WasmError) -> Self {
     match wasm_error {
       WasmError::Trap(e) => e,
-      _ => unreachable!()
+      _ => unreachable!(),
+    }
+  }
+}
+
+impl From<self::validate_time::TypeError> for WasmError {
+  fn from(type_error: self::validate_time::TypeError) -> Self {
+    WasmError::TypeError(type_error)
+  }
+}
+
+impl From<WasmError> for self::validate_time::TypeError {
+  fn from(wasm_error: WasmError) -> Self {
+    match wasm_error {
+      WasmError::TypeError(e) => e,
+      _ => unreachable!(),
     }
   }
 }
