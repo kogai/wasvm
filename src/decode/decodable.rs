@@ -1,7 +1,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
-use error;
 use error::runtime::{Result, Trap};
+use error::{self, WasmError};
 use memory::Limit;
 
 macro_rules! impl_decode_leb128 {
@@ -115,13 +115,13 @@ pub trait LimitDecodable: U32Decodable {
 }
 
 pub trait NameDecodable: U32Decodable {
-  fn decode_name(&mut self) -> Result<String> {
+  fn decode_name(&mut self) -> error::Result<String> {
     let size_of_name = self.decode_leb128_u32()?;
     let mut buf = vec![];
     for _ in 0..size_of_name {
       buf.push(self.next()?);
     }
-    String::from_utf8(buf).map_err(|_| Trap::InvalidUTF8Encoding)
+    String::from_utf8(buf).map_err(|_| WasmError::Trap(Trap::InvalidUTF8Encoding))
   }
 }
 

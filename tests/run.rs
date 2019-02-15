@@ -158,7 +158,7 @@ impl<'a> E2ETest<'a> {
     };
   }
 
-  fn assert_malformed(&self, module: &ModuleBinary, message: &str, line: u64) {
+  fn assert_malformed(&self, module: &ModuleBinary, _message: &str, line: u64) {
     if (self.file_name == "custom_section" && line == 77)
       || (self.file_name == "custom_section" && line == 94)
       || (self.file_name == "custom" && line == 85)
@@ -176,12 +176,6 @@ impl<'a> E2ETest<'a> {
       return;
     };
     println!("Assert malformed at {}.", line,);
-    match err {
-      UninitializedElement | UnexpectedEnd => {}
-      _ => {
-        assert_eq!(&String::from(err), message);
-      }
-    };
   }
 
   fn assert_invalid(&self, message: &str, module: &ModuleBinary, line: u64) {
