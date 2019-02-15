@@ -1,8 +1,7 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
 use decode::{Byte, Module};
-use error::runtime::Result;
-use error::{self, WasmError};
+use error::Result;
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
@@ -15,18 +14,13 @@ pub fn init_store() -> Store {
 }
 
 pub fn decode_module(bytes: &[u8]) -> Result<Module> {
-  Byte::new_with_drop(&bytes)?
-    .decode()
-    .map_err(|err| match err {
-      WasmError::Trap(e) => e,
-      _ => unreachable!(),
-    })
+  Byte::new_with_drop(&bytes)?.decode()
 }
 
-pub fn validate_module(module: &Result<Module>) -> error::Result<()> {
+pub fn validate_module(module: &Result<Module>) -> Result<()> {
   match module {
     Ok(module) => Context::new(module)?.validate(),
-    Err(err) => Err(WasmError::Trap(err.to_owned())),
+    Err(err) => Err(err.to_owned()),
   }
 }
 

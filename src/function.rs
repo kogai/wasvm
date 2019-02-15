@@ -5,7 +5,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::fmt;
-use error::runtime::{Result, Trap};
+use error::validate_time::TypeError;
+use error::{Result, WasmError};
 use module::ModuleName;
 use stack::StackEntry;
 use value::Values;
@@ -211,7 +212,7 @@ impl FunctionInstance {
       FunctionInstance::HostFn(f) => &f.function_type,
     };
     if my != other {
-      Err(Trap::TypeMismatch)
+      Err(WasmError::TypeError(TypeError::TypeMismatch))
     } else {
       Ok(())
     }

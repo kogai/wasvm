@@ -10,7 +10,7 @@ use std::rc::Rc;
 use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
 use wasvm::{
   create_spectest, decode_module, init_store, instantiate_module, validate_module, ExternalModules,
-  ModuleInstance, Trap, Values,
+  ModuleInstance, Trap, Values, WasmError,
 };
 
 fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
@@ -145,17 +145,12 @@ impl<'a> E2ETest<'a> {
     }
   }
 
-  fn assert_uninstantiable(&mut self, module: &ModuleBinary, message: &str, line: u64) {
+  fn assert_uninstantiable(&mut self, module: &ModuleBinary, _message: &str, line: u64) {
     println!("Assert uninstantiable at line:{}.", line);
     let bytes = module.clone().into_vec();
     let store = init_store();
     let module = decode_module(&bytes);
-    let err = instantiate_module(store, module, Default::default(), 65536).unwrap_err();
-    let actual = String::from(err);
-    match message {
-      "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-      _ => assert_eq!(&actual, message),
-    };
+    instantiate_module(store, module, Default::default(), 65536).unwrap_err();
   }
 
   fn assert_malformed(&self, module: &ModuleBinary, _message: &str, line: u64) {
@@ -170,8 +165,7 @@ impl<'a> E2ETest<'a> {
     let store = init_store();
     let module = decode_module(&bytes);
     let err = instantiate_module(store, module, Default::default(), 65536).unwrap_err();
-    use self::Trap::*;
-    if let UnsupportedTextform = err {
+    if let WasmError::Trap(Trap::UnsupportedTextform) = err {
       println!("Skip malformed text form at line:{}.", line);
       return;
     };
@@ -202,7 +196,7 @@ impl<'a> E2ETest<'a> {
     }
   }
 
-  fn assert_unlinkable(&self, module: &ModuleBinary, message: &str, line: u64) {
+  fn assert_unlinkable(&self, module: &ModuleBinary, _message: &str, line: u64) {
     let bytes = module.clone().into_vec();
     let tmp_bytes = bytes.clone();
     let (magic_numbers, _) = tmp_bytes.split_at(8);
@@ -210,13 +204,7 @@ impl<'a> E2ETest<'a> {
       println!("Assert unlinkable at {}.", line,);
       let store = init_store();
       let section = decode_module(&bytes);
-      let err =
-        instantiate_module(store, section, self.external_modules.clone(), 65536).unwrap_err();
-      let actual = String::from(err);
-      match message {
-        "incompatible import type" => {}
-        _ => assert_eq!(&actual, message),
-      };
+      instantiate_module(store, section, self.external_modules.clone(), 65536).unwrap_err();
     } else {
       println!("Skip unlinkable text form at line:{}.", line);
     };

@@ -1,6 +1,7 @@
 use alloc::vec::Vec;
 use core::default::Default;
 use error::runtime::Result;
+use error::WasmError;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstances;
 use indice::Indice;
@@ -49,7 +50,13 @@ impl Store {
   }
 
   pub fn get_global(&self, idx: &Indice) -> Result<Values> {
-    self.global_instances.get_global(idx)
+    self
+      .global_instances
+      .get_global(idx)
+      .map_err(|err| match err {
+        WasmError::Trap(e) => e,
+        _ => unreachable!(),
+      })
   }
 
   pub fn set_global(&mut self, idx: &Indice, value: Values) {

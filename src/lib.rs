@@ -45,6 +45,7 @@ mod vm;
 
 pub use self::embedder::{decode_module, init_store, instantiate_module, validate_module};
 pub use self::error::runtime::Trap;
+pub use self::error::WasmError;
 pub use self::function::{FunctionInstance, FunctionType};
 pub use self::module::{ExternalModule, ExternalModules};
 pub use self::spectest::create_spectest;

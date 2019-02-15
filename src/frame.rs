@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::cell::{Cell, RefCell, RefMut};
 use core::fmt;
 use core::ops::Sub;
-use error::runtime::Result;
+use error::Result;
 use function::FunctionInstance;
 use indice::Indice;
 use stack::StackEntry;
