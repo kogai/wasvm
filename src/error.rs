@@ -1,3 +1,4 @@
+use alloc::string::String;
 use core::convert::From;
 use core::option::NoneError;
 
@@ -213,6 +214,15 @@ impl From<WasmError> for self::validate_time::TypeError {
 impl From<self::runtime::Trap> for WasmError {
   fn from(trap: self::runtime::Trap) -> Self {
     WasmError::Trap(trap)
+  }
+}
+
+impl From<WasmError> for String {
+  fn from(x: WasmError) -> Self {
+    match x {
+      WasmError::Trap(e) => String::from(e),
+      WasmError::TypeError(e) => String::from(e),
+    }
   }
 }
 
