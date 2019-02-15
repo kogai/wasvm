@@ -94,8 +94,6 @@ pub mod runtime {
       .to_owned()
     }
   }
-
-  pub type Result<T> = core::result::Result<T, Trap>;
 }
 
 pub mod validate_time {

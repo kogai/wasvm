@@ -6,9 +6,10 @@ use core::mem::transmute;
 use core::ops::Rem;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
 use core::{f32, f64, fmt};
+use error::runtime::Trap;
+use error::{Result, WasmError};
 #[cfg(not(test))]
 use libm::{F32Ext, F64Ext};
-use error::runtime::{Result, Trap};
 use value_type::ValueTypes;
 
 #[derive(PartialEq, Clone)]
@@ -260,7 +261,7 @@ macro_rules! impl_integer_traits {
 
       fn rem_s(&self, other: Self) -> Result<Self> {
         if other == 0 {
-          return Err(Trap::DivisionByZero);
+          return Err(WasmError::Trap(Trap::DivisionByZero));
         }
         let (divined, _) = self.overflowing_rem(other);
         Ok(divined)
@@ -268,33 +269,33 @@ macro_rules! impl_integer_traits {
 
       fn rem_u(&self, other: Self) -> Result<Self> {
         if other == 0 {
-          return Err(Trap::DivisionByZero);
+          return Err(WasmError::Trap(Trap::DivisionByZero));
         }
         let (divined, overflowed) = (*self as $unsign).overflowing_rem(other as $unsign);
         if overflowed {
-          Err(Trap::DivisionOverflow)
+          Err(WasmError::Trap(Trap::DivisionOverflow))
         } else {
           Ok(divined as $ty)
         }
       }
       fn div_u(&self, other: Self) -> Result<Self> {
         if other == 0 {
-          return Err(Trap::DivisionByZero);
+          return Err(WasmError::Trap(Trap::DivisionByZero));
         }
         let (divined, overflowed) = (*self as $unsign).overflowing_div(other as $unsign);
         if overflowed {
-          Err(Trap::DivisionOverflow)
+          Err(WasmError::Trap(Trap::DivisionOverflow))
         } else {
           Ok(divined as $ty)
         }
       }
       fn div_s(&self, other: Self) -> Result<Self> {
         if other == 0 {
-          return Err(Trap::DivisionByZero);
+          return Err(WasmError::Trap(Trap::DivisionByZero));
         }
         let (divined, overflowed) = self.overflowing_div(other);
         if overflowed {
-          Err(Trap::DivisionOverflow)
+          Err(WasmError::Trap(Trap::DivisionOverflow))
         } else {
           Ok(divined)
         }
@@ -487,14 +488,14 @@ macro_rules! impl_try_trunc {
       #![allow(clippy::cast_lossless)]
       fn try_trunc_to(&self) -> Result<$to> {
         if self.is_nan() {
-          return Err(Trap::InvalidConversionToInt);
+          return Err(WasmError::Trap(Trap::InvalidConversionToInt));
         }
         if self.is_infinite() {
-          return Err(Trap::IntegerOverflow);
+          return Err(WasmError::Trap(Trap::IntegerOverflow));
         }
         let result = *self as $to;
         if (result as $from).ne(&self.trunc()) {
-          return Err(Trap::IntegerOverflow);
+          return Err(WasmError::Trap(Trap::IntegerOverflow));
         }
         Ok(result as $to)
       }

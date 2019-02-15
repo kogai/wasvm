@@ -153,7 +153,6 @@ impl Module {
         datas,
         global_instances,
       )
-      .map_err(WasmError::Trap)
     } else {
       Ok(())
     }
@@ -172,7 +171,6 @@ impl Module {
         .iter()
         .map(|table_type| {
           TableInstance::validate(elements, table_type, global_instances, function_instances)
-            .map_err(WasmError::Trap)
         })
         .collect::<Result<Vec<_>>>()
         .and_then(|_| Ok(()))
@@ -182,8 +180,7 @@ impl Module {
           .find_table_instances(import)
           .and_then(|table_instances| {
             table_instances.validate(elements, global_instances, function_instances)
-          })
-          .map_err(WasmError::Trap),
+          }),
         None => Ok(()),
       }
     }
@@ -226,7 +223,6 @@ impl Module {
         datas,
         global_instances,
       )
-      .map_err(WasmError::Trap)
     } else {
       Ok(MemoryInstances::empty())
     }
@@ -255,7 +251,6 @@ impl Module {
             global_instances,
             function_instances,
           )
-          .map_err(WasmError::Trap)
         })
         .collect::<Result<Vec<_>>>()
         .map(TableInstances::new)
@@ -316,11 +311,7 @@ impl Module {
   ) -> Result<Vec<FunctionInstance>> {
     imports
       .iter()
-      .map(|value| {
-        external_modules
-          .find_function_instances(value, function_types)
-          .map_err(WasmError::Trap)
-      })
+      .map(|value| external_modules.find_function_instances(value, function_types))
       .collect::<Result<Vec<_>>>()
   }
 

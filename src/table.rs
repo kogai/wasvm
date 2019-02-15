@@ -6,7 +6,8 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::clone::Clone;
 use decode::{Element, TableType};
-use error::runtime::{Result, Trap};
+use error::runtime::Trap;
+use error::{Result, WasmError};
 use function::FunctionInstance;
 use global::GlobalInstances;
 use indice::Indice;
@@ -39,7 +40,7 @@ impl TableInstance {
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
-            return Err(Trap::ElementSegmentDoesNotFit);
+            return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
           }
           offset
         }
@@ -54,7 +55,7 @@ impl TableInstance {
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > function_elements.len() {
-        return Err(Trap::ElementSegmentDoesNotFit);
+        return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
       }
       function_addresses.swap_with_slice(&mut function_elements[offset..end]);
     }
@@ -81,7 +82,7 @@ impl TableInstance {
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
-            return Err(Trap::ElementSegmentDoesNotFit);
+            return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
           }
           offset
         }
@@ -96,7 +97,7 @@ impl TableInstance {
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > table_size {
-        return Err(Trap::ElementSegmentDoesNotFit);
+        return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
       }
     }
     Ok(())
@@ -109,8 +110,8 @@ impl TableInstance {
   pub fn get_function_instance(&self, idx: u32) -> Result<FunctionInstance> {
     match self.function_elements.get(idx as usize) {
       Some(Some(x)) => Ok(x.clone()),
-      Some(None) => Err(Trap::UninitializedElement),
-      None => Err(Trap::UndefinedElement),
+      Some(None) => Err(WasmError::Trap(Trap::UninitializedElement)),
+      None => Err(WasmError::Trap(Trap::UndefinedElement)),
     }
   }
 }
@@ -196,7 +197,7 @@ impl TableInstances {
           buf.clone_from_slice(&el.offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
-            return Err(Trap::ElementSegmentDoesNotFit);
+            return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
           }
           offset
         }
@@ -211,7 +212,7 @@ impl TableInstances {
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > function_elements.len() {
-        return Err(Trap::ElementSegmentDoesNotFit);
+        return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
       }
     }
     Ok(())

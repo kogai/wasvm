@@ -9,11 +9,12 @@ use core::fmt;
 use core::mem::transmute;
 use core::u32;
 use decode::Data;
+use error::runtime::Trap;
+use error::{Result, WasmError};
 use global::GlobalInstances;
 use indice::Indice;
 use isa::Isa;
 use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
-use error::runtime::{Result, Trap};
 use value::Values;
 
 // NOTE: 65536(64KiB) is constant data size per page.
@@ -155,7 +156,7 @@ impl MemoryInstance {
           buf.clone_from_slice(&offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
-            return Err(Trap::DataSegmentDoesNotFit);
+            return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
           }
           offset
         }
@@ -169,7 +170,7 @@ impl MemoryInstance {
       } as usize;
       let size = offset + init.len();
       if size > initial_size {
-        return Err(Trap::DataSegmentDoesNotFit);
+        return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
       }
       for (i, d) in init.into_iter().enumerate() {
         data[i + offset] = d;
@@ -232,7 +233,7 @@ impl MemoryInstance {
           buf.clone_from_slice(&offset[1..5]);
           let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
           if offset < 0 {
-            return Err(Trap::DataSegmentDoesNotFit);
+            return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
           }
           offset
         }
@@ -246,7 +247,7 @@ impl MemoryInstance {
       } as usize;
       let size = offset + init.len();
       if size > initial_size {
-        return Err(Trap::DataSegmentDoesNotFit);
+        return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
       }
     }
     Ok(())
@@ -267,7 +268,7 @@ impl MemoryInstance {
   pub fn memory_grow(&mut self, increase_page: u32) -> Result<()> {
     match self.limit {
       Limit::HasUpperLimit(_, max) if self.size_by_pages() + increase_page > max => {
-        Err(Trap::FailToGrow)
+        Err(WasmError::Trap(Trap::FailToGrow))
       }
       _ => {
         let current_size = self.data.len() as u32;
@@ -277,9 +278,9 @@ impl MemoryInstance {
               self.data.resize(next_size as usize, 0);
               Ok(())
             }
-            None => Err(Trap::FailToGrow),
+            None => Err(WasmError::Trap(Trap::FailToGrow)),
           },
-          None => Err(Trap::FailToGrow),
+          None => Err(WasmError::Trap(Trap::FailToGrow)),
         }
       }
     }
