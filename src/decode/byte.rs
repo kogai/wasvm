@@ -1,18 +1,18 @@
-use super::decodable::{Leb128Decodable, Decodable, U32Decodable};
+use super::decodable::{Decodable, Leb128Decodable, U32Decodable};
 use super::section::{Module, SectionCode};
 use super::*;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
-use error::runtime::{Result, Trap};
-use error::{self, WasmError};
+use error::runtime::Trap;
+use error::{Result, WasmError};
 
 impl_decodable!(Byte);
 impl Leb128Decodable for Byte {}
 impl U32Decodable for Byte {}
 
 impl Byte {
-  pub fn new_with_drop(bytes: &[u8]) -> error::Result<Self> {
+  pub fn new_with_drop(bytes: &[u8]) -> Result<Self> {
     if 4 > bytes.len() {
       return Err(WasmError::Trap(Trap::UnexpectedEnd));
     }
@@ -38,7 +38,7 @@ impl Byte {
   }
 
   // FIXME: It isn't guranteed whether bin_size_of_section actually can trusted or not.
-  fn decode_section(&mut self) -> error::Result<Vec<u8>> {
+  fn decode_section(&mut self) -> Result<Vec<u8>> {
     let bin_size_of_section = self.decode_leb128_u32()?;
     let start = self.byte_ptr;
     let end = start + bin_size_of_section as usize;

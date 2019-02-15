@@ -3,6 +3,7 @@ use alloc::prelude::*;
 use decode::{Byte, Module};
 use error::runtime::Result;
 use error::validate_time;
+use error::WasmError;
 use frame::Frame;
 use module::ExternalModules;
 use stack::Stack;
@@ -15,7 +16,12 @@ pub fn init_store() -> Store {
 }
 
 pub fn decode_module(bytes: &[u8]) -> Result<Module> {
-  Byte::new_with_drop(&bytes)?.decode()
+  Byte::new_with_drop(&bytes)?
+    .decode()
+    .map_err(|err| match err {
+      WasmError::Trap(e) => e,
+      _ => unreachable!(),
+    })
 }
 
 pub fn validate_module(module: &Result<Module>) -> validate_time::Result<()> {

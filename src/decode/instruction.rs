@@ -1,11 +1,12 @@
 use super::decodable::{Peekable, SignedIntegerDecodable, U32Decodable};
 use alloc::vec::Vec;
-use error::runtime::{Result, Trap};
+use error::runtime::Trap;
+use error::{Result, WasmError};
 use isa::Isa;
 
 macro_rules! impl_decode_float {
   ($buf_ty: ty, $fn_name: ident, $bitwidth: expr) => {
-    fn $fn_name(&mut self) -> $crate::error::runtime::Result<$buf_ty> {
+    fn $fn_name(&mut self) -> $crate::error::Result<$buf_ty> {
       let mut buf = [0u8; $bitwidth];
       for i in 0..$bitwidth {
         buf[i] = self.next()?;
@@ -37,10 +38,11 @@ pub trait InstructionDecodable: U32Decodable + Peekable + SignedIntegerDecodable
     let offset = self.decode_leb128_u32();
     match (align, offset) {
       (Ok(align), Ok(offset)) => Ok((align as u32, offset as u32)),
-      (Err(Trap::BitshiftOverflow), _) | (_, Err(Trap::BitshiftOverflow)) => {
-        Err(Trap::MemoryAccessOutOfBounds)
+      (Err(WasmError::Trap(Trap::BitshiftOverflow)), _)
+      | (_, Err(WasmError::Trap(Trap::BitshiftOverflow))) => {
+        Err(WasmError::Trap(Trap::MemoryAccessOutOfBounds))
       }
-      _ => Err(Trap::Unknown),
+      _ => Err(WasmError::Trap(Trap::Unknown)),
     }
   }
 

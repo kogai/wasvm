@@ -107,7 +107,7 @@ pub mod validate_time {
   use core::convert::From;
   use core::option::NoneError;
 
-  #[derive(Debug, PartialEq)]
+  #[derive(Debug, Clone, PartialEq)]
   pub enum TypeError {
     NotFound,
     MultipleTables,
@@ -177,6 +177,7 @@ pub mod validate_time {
   pub type Result<T> = core::result::Result<T, TypeError>;
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum WasmError {
   Trap(self::runtime::Trap),
   TypeError(self::validate_time::TypeError),

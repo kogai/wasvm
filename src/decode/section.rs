@@ -7,7 +7,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
-use error::runtime::{Result, Trap};
+use error::runtime::Trap;
+use error::{Result, WasmError};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstances, GlobalType};
 use memory::{Limit, MemoryInstance, MemoryInstances};
@@ -152,6 +153,7 @@ impl Module {
         datas,
         global_instances,
       )
+      .map_err(WasmError::Trap)
     } else {
       Ok(())
     }
@@ -170,6 +172,7 @@ impl Module {
         .iter()
         .map(|table_type| {
           TableInstance::validate(elements, table_type, global_instances, function_instances)
+            .map_err(WasmError::Trap)
         })
         .collect::<Result<Vec<_>>>()
         .and_then(|_| Ok(()))
@@ -179,7 +182,8 @@ impl Module {
           .find_table_instances(import)
           .and_then(|table_instances| {
             table_instances.validate(elements, global_instances, function_instances)
-          }),
+          })
+          .map_err(WasmError::Trap),
         None => Ok(()),
       }
     }
@@ -222,6 +226,7 @@ impl Module {
         datas,
         global_instances,
       )
+      .map_err(WasmError::Trap)
     } else {
       Ok(MemoryInstances::empty())
     }
@@ -250,6 +255,7 @@ impl Module {
             global_instances,
             function_instances,
           )
+          .map_err(WasmError::Trap)
         })
         .collect::<Result<Vec<_>>>()
         .map(TableInstances::new)
@@ -289,7 +295,7 @@ impl Module {
           .map(|x| x.name.to_owned());
         let index_of_type = match functions.get(idx) {
           Some(n) => *n,
-          None => return Err(Trap::FunctionAndCodeInconsitent),
+          None => return Err(WasmError::Trap(Trap::FunctionAndCodeInconsitent)),
         };
         let function_type = Module::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;
@@ -310,7 +316,11 @@ impl Module {
   ) -> Result<Vec<FunctionInstance>> {
     imports
       .iter()
-      .map(|value| external_modules.find_function_instances(value, function_types))
+      .map(|value| {
+        external_modules
+          .find_function_instances(value, function_types)
+          .map_err(WasmError::Trap)
+      })
       .collect::<Result<Vec<_>>>()
   }
 

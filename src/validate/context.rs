@@ -177,7 +177,7 @@ impl<'a> Context<'a> {
           let function_type = module.function_types.get(idx.to_usize())?;
           let (body, locals) = match code {
             Ok((body, locals)) => Ok((body, locals)),
-            Err(ref err) => Err(TypeError::Trap(err.to_owned())),
+            Err(ref err) => Err(err.to_owned()),
           }?;
           Ok(Function::new(function_type, locals, body))
         })

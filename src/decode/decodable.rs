@@ -1,12 +1,12 @@
 use alloc::string::String;
 use alloc::vec::Vec;
-use error::runtime::{Result, Trap};
-use error::{self, WasmError};
+use error::runtime::Trap;
+use error::{Result, WasmError};
 use memory::Limit;
 
 macro_rules! impl_decode_leb128 {
   ($ty: ty, $conv_fn: path, $fn_name: ident) => {
-    fn $fn_name(&mut self) -> $crate::error::runtime::Result<($ty, u32)> {
+    fn $fn_name(&mut self) -> $crate::error::Result<($ty, u32)> {
       let mut buf: $ty = 0;
       let mut shift = 0;
 
@@ -29,7 +29,7 @@ macro_rules! impl_decode_leb128 {
         // buf | num  00000000_00000000_10000000_10000000
         let (shifted, is_overflowed) = num.overflowing_shl(shift);
         if is_overflowed {
-          return Err($crate::error::runtime::Trap::IntegerRepresentationTooLong);
+          return Err($crate::error::WasmError::Trap($crate::error::runtime::Trap::IntegerRepresentationTooLong));
         }
         buf |= shifted;
         shift += 7;
@@ -115,7 +115,7 @@ pub trait LimitDecodable: U32Decodable {
 }
 
 pub trait NameDecodable: U32Decodable {
-  fn decode_name(&mut self) -> error::Result<String> {
+  fn decode_name(&mut self) -> Result<String> {
     let size_of_name = self.decode_leb128_u32()?;
     let mut buf = vec![];
     for _ in 0..size_of_name {
@@ -159,7 +159,7 @@ macro_rules! impl_decodable {
 
 pub trait Decodable {
   type Item;
-  fn decode(&mut self) -> error::Result<Self::Item>;
+  fn decode(&mut self) -> Result<Self::Item>;
 }
 
 #[cfg(test)]
