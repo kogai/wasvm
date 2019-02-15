@@ -99,8 +99,6 @@ pub mod runtime {
 }
 
 pub mod validate_time {
-  use super::runtime::Trap;
-
   #[cfg(not(test))]
   use alloc::prelude::*;
   use alloc::string::String;
@@ -129,8 +127,6 @@ pub mod validate_time {
     ConstantExpressionRequired,
     DuplicateExportName,
     GlobalIsImmutable,
-    // FIXME: Separate TypeError and RuntimeError(Trap) completely.
-    Trap(Trap),
   }
 
   impl From<TypeError> for NoneError {
@@ -169,12 +165,9 @@ pub mod validate_time {
         UnknownGlobal(idx) => format!("unknown global {}", idx),
         DuplicateExportName => "duplicate export name".to_string(),
         GlobalIsImmutable => "global is immutable".to_string(),
-        Trap(err) => String::from(err),
       }
     }
   }
-
-  pub type Result<T> = core::result::Result<T, TypeError>;
 }
 
 #[derive(Debug, Clone, PartialEq)]

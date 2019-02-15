@@ -4,7 +4,8 @@ use alloc::prelude::*;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use decode::{Data, Element, Module, TableType};
-use error::validate_time::{Result, TypeError};
+use error::validate_time::TypeError;
+use error::{Result, WasmError};
 use function::FunctionType;
 use global::GlobalType;
 use indice::Indice;
@@ -50,7 +51,7 @@ impl TypeStack {
   fn pop_type(&self) -> Result<ValueTypes> {
     match self.pop() {
       Some(Entry::Type(ty)) => Ok(ty),
-      _ => Err(TypeError::TypeMismatch),
+      _ => Err(WasmError::TypeError(TypeError::TypeMismatch)),
     }
   }
 
@@ -65,7 +66,7 @@ impl TypeStack {
   fn pop_i32(&self) -> Result<ValueTypes> {
     match self.0.borrow_mut().pop() {
       Some(Entry::Type(ValueTypes::I32)) => Ok(ValueTypes::I32),
-      _ => Err(TypeError::TypeMismatch),
+      _ => Err(WasmError::TypeError(TypeError::TypeMismatch)),
     }
   }
 }
@@ -147,7 +148,7 @@ macro_rules! bin_op {
     let l = $stack.pop_type()?;
     let r = $stack.pop_type()?;
     if l != r {
-      return Err(TypeError::TypeMismatch);
+      return Err(WasmError::TypeError(TypeError::TypeMismatch));
     }
     $stack.push(l);
   }};
@@ -158,7 +159,7 @@ macro_rules! rel_op {
     let l = $stack.pop_type()?;
     let r = $stack.pop_type()?;
     if l != r {
-      return Err(TypeError::TypeMismatch);
+      return Err(WasmError::TypeError(TypeError::TypeMismatch));
     }
     $stack.push(ValueTypes::I32);
   }};
@@ -231,17 +232,17 @@ impl<'a> Context<'a> {
             Some((GlobalType::Const(ty), _)) | Some((GlobalType::Var(ty), _)) => {
               type_stack.push(ty.clone())
             }
-            _ => return Err(TypeError::ConstantExpressionRequired),
+            _ => return Err(WasmError::TypeError(TypeError::ConstantExpressionRequired)),
           }
         }
         Isa::End => {
           break;
         }
-        _ => return Err(TypeError::ConstantExpressionRequired),
+        _ => return Err(WasmError::TypeError(TypeError::ConstantExpressionRequired)),
       }
     }
     if type_stack.len() > 1 {
-      return Err(TypeError::TypeMismatch);
+      return Err(WasmError::TypeError(TypeError::TypeMismatch));
     }
     type_stack.pop_type()
   }
@@ -253,7 +254,7 @@ impl<'a> Context<'a> {
         .get(*memidx as usize)
         .ok_or(TypeError::UnknownMemory)?;
       if ValueTypes::I32 != self.validate_constant(offset)? {
-        return Err(TypeError::TypeMismatch);
+        return Err(WasmError::TypeError(TypeError::TypeMismatch));
       }
     }
     Ok(())
@@ -267,10 +268,12 @@ impl<'a> Context<'a> {
     } in self.elements.iter()
     {
       if self.tables.get(table_idx.to_usize()).is_none() {
-        return Err(TypeError::UnknownTable(table_idx.to_u32()));
+        return Err(WasmError::TypeError(TypeError::UnknownTable(
+          table_idx.to_u32(),
+        )));
       }
       if ValueTypes::I32 != self.validate_constant(offset)? {
-        return Err(TypeError::TypeMismatch);
+        return Err(WasmError::TypeError(TypeError::TypeMismatch));
       }
       for i in init.iter() {
         self
@@ -307,17 +310,17 @@ impl<'a> Context<'a> {
             type_stack.push(ValueTypes::F64);
           }
           Isa::GetGlobal => {
-            return Err(TypeError::ConstantExpressionRequired);
+            return Err(WasmError::TypeError(TypeError::ConstantExpressionRequired));
           }
           Isa::End => {
             break;
           }
-          _ => return Err(TypeError::ConstantExpressionRequired),
+          _ => return Err(WasmError::TypeError(TypeError::ConstantExpressionRequired)),
         }
       }
 
       if type_stack.len() > 1 {
-        return Err(TypeError::TypeMismatch);
+        return Err(WasmError::TypeError(TypeError::TypeMismatch));
       }
       let ty = type_stack.pop_type()?;
       if &ty
@@ -325,7 +328,7 @@ impl<'a> Context<'a> {
           GlobalType::Const(expect) | GlobalType::Var(expect) => expect,
         }
       {
-        return Err(TypeError::TypeMismatch);
+        return Err(WasmError::TypeError(TypeError::TypeMismatch));
       }
     }
     Ok(())
@@ -368,7 +371,7 @@ impl<'a> Context<'a> {
     }
     names.dedup();
     if names.len() != self.exports.len() {
-      return Err(TypeError::DuplicateExportName);
+      return Err(WasmError::TypeError(TypeError::DuplicateExportName));
     }
     Ok(())
   }
@@ -386,13 +389,13 @@ impl<'a> Context<'a> {
         }
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Table(ty)) => {
           if !self.tables.is_empty() {
-            return Err(TypeError::MultipleTables);
+            return Err(WasmError::TypeError(TypeError::MultipleTables));
           }
           tables.push(ty);
         }
         ModuleDescriptor::ImportDescriptor(ImportDescriptor::Memory(limit)) => {
           if !self.limits.is_empty() {
-            return Err(TypeError::MultipleMemories);
+            return Err(WasmError::TypeError(TypeError::MultipleMemories));
           }
           memories.push(limit);
         }
@@ -401,17 +404,17 @@ impl<'a> Context<'a> {
       };
     }
     if tables.len() > 1 {
-      return Err(TypeError::MultipleTables);
+      return Err(WasmError::TypeError(TypeError::MultipleTables));
     }
     if memories.len() > 1 {
-      return Err(TypeError::MultipleMemories);
+      return Err(WasmError::TypeError(TypeError::MultipleMemories));
     }
     Ok(())
   }
 
   fn validate_tables(&self) -> Result<()> {
     if self.tables.len() > 1 {
-      return Err(TypeError::MultipleTables);
+      return Err(WasmError::TypeError(TypeError::MultipleTables));
     }
     Ok(())
   }
@@ -421,18 +424,18 @@ impl<'a> Context<'a> {
       match limit {
         Limit::NoUpperLimit(min) => {
           if *min > 65536 {
-            return Err(TypeError::InvalidMemorySize);
+            return Err(WasmError::TypeError(TypeError::InvalidMemorySize));
           }
         }
         Limit::HasUpperLimit(min, max) => {
           if min > max || *min > 65536 || *max > 65536 {
-            return Err(TypeError::InvalidMemorySize);
+            return Err(WasmError::TypeError(TypeError::InvalidMemorySize));
           }
         }
       }
     }
     if self.limits.len() > 1 {
-      return Err(TypeError::MultipleMemories);
+      return Err(WasmError::TypeError(TypeError::MultipleMemories));
     }
     Ok(())
   }
@@ -445,7 +448,7 @@ impl<'a> Context<'a> {
         .ok_or_else(|| TypeError::UnknownFunction(*idx))?;
       let ty = func.function_type;
       if !ty.parameters().is_empty() || !ty.returns().is_empty() {
-        return Err(TypeError::InvalidStartFunction);
+        return Err(WasmError::TypeError(TypeError::InvalidStartFunction));
       }
     }
     Ok(())
@@ -454,7 +457,7 @@ impl<'a> Context<'a> {
   fn validate_function_types(&self) -> Result<()> {
     for fy in self.function_types.iter() {
       if fy.returns().len() > 1 {
-        return Err(TypeError::InvalidResultArity);
+        return Err(WasmError::TypeError(TypeError::InvalidResultArity));
       }
     }
     Ok(())
@@ -478,7 +481,7 @@ impl<'a> Context<'a> {
     let _offset = function.pop_raw_u32()?;
     self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
-      return Err(TypeError::InvalidAlignment);
+      return Err(WasmError::TypeError(TypeError::InvalidAlignment));
     };
     cxt.pop_i32()?;
     cxt.push(ty);
@@ -496,12 +499,12 @@ impl<'a> Context<'a> {
     let _offset = function.pop_raw_u32()?;
     self.limits.first().ok_or(TypeError::UnknownMemory)?;
     if 2u32.pow(align) > bit_width / 8 {
-      return Err(TypeError::InvalidAlignment);
+      return Err(WasmError::TypeError(TypeError::InvalidAlignment));
     };
     let actual = cxt.pop_type()?;
     cxt.pop_i32()?;
     if &actual != expect {
-      return Err(TypeError::TypeMismatch);
+      return Err(WasmError::TypeError(TypeError::TypeMismatch));
     }
     Ok(())
   }
@@ -515,7 +518,7 @@ impl<'a> Context<'a> {
   fn validate_test_inst(&self, cxt: &TypeStack, expect: &ValueTypes) -> Result<()> {
     let actual = cxt.pop_type()?;
     if &actual != expect {
-      return Err(TypeError::TypeMismatch);
+      return Err(WasmError::TypeError(TypeError::TypeMismatch));
     }
     cxt.push(ValueTypes::I32);
     Ok(())
@@ -524,7 +527,7 @@ impl<'a> Context<'a> {
   fn validate_convert(&self, cxt: &TypeStack, from: &ValueTypes, to: ValueTypes) -> Result<()> {
     let from_ty = cxt.pop_type()?;
     if &from_ty != from {
-      return Err(TypeError::TypeMismatch);
+      return Err(WasmError::TypeError(TypeError::TypeMismatch));
     }
     cxt.push(to);
     Ok(())
@@ -581,7 +584,7 @@ impl<'a> Context<'a> {
           let expect = labels.pop_front().ok_or(TypeError::TypeMismatch)?[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
           cxt.pop_until_label()?;
           labels.push_front([expect; 1]);
@@ -591,13 +594,13 @@ impl<'a> Context<'a> {
           match cxt.pop() {
             Some(Entry::Type(actual)) => {
               if expect != actual {
-                return Err(TypeError::TypeMismatch);
+                return Err(WasmError::TypeError(TypeError::TypeMismatch));
               };
               cxt.pop_until_label()?;
             }
             _ => {
               if expect != ValueTypes::Unit {
-                return Err(TypeError::TypeMismatch);
+                return Err(WasmError::TypeError(TypeError::TypeMismatch));
               }
             }
           };
@@ -608,7 +611,7 @@ impl<'a> Context<'a> {
           let expect = labels.get(idx.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
         }
         BrIf => {
@@ -617,7 +620,7 @@ impl<'a> Context<'a> {
           let actual = cxt.pop_type()?;
           cxt.pop_i32()?;
           if expect != actual {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
         }
         BrTable => {
@@ -632,20 +635,20 @@ impl<'a> Context<'a> {
           for i in indices.iter() {
             let actual = labels.get(i.to_usize()).ok_or(TypeError::UnknownLabel)?[0].clone();
             if expect != actual {
-              return Err(TypeError::TypeMismatch);
+              return Err(WasmError::TypeError(TypeError::TypeMismatch));
             }
           }
           let actual = cxt.pop_type()?;
           cxt.pop_i32()?;
           if expect != actual {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
         }
         Return => {
           let expect = return_type[0].clone();
           let actual = cxt.pop_type()?;
           if expect != actual {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
           cxt.push(actual);
         }
@@ -659,7 +662,7 @@ impl<'a> Context<'a> {
           let mut parameters = function_type.parameters().clone();
           while let Some(ty) = parameters.pop() {
             if ty != cxt.pop_type()? {
-              return Err(TypeError::TypeMismatch);
+              return Err(WasmError::TypeError(TypeError::TypeMismatch));
             };
           }
           for ty in function_type.returns().iter() {
@@ -677,7 +680,7 @@ impl<'a> Context<'a> {
           cxt.pop_i32()?;
           while let Some(ty) = parameters.pop() {
             if ty != cxt.pop_type()? {
-              return Err(TypeError::TypeMismatch);
+              return Err(WasmError::TypeError(TypeError::TypeMismatch));
             };
           }
           for ty in function_type.returns().iter() {
@@ -712,7 +715,7 @@ impl<'a> Context<'a> {
           let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
         }
         TeeLocal => {
@@ -720,7 +723,7 @@ impl<'a> Context<'a> {
           let idx = Indice::from(function.pop_raw_u32()?);
           let actual = locals.get(idx.to_usize()).ok_or(TypeError::UnknownLocal)?;
           if &expect != actual {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
           cxt.push(actual.clone());
         }
@@ -749,7 +752,7 @@ impl<'a> Context<'a> {
               GlobalType::Const(_) => Err(TypeError::GlobalIsImmutable),
             })?;
           if &expect != ty {
-            return Err(TypeError::TypeMismatch);
+            return Err(WasmError::TypeError(TypeError::TypeMismatch));
           }
         }
 

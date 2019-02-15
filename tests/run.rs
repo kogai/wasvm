@@ -182,19 +182,7 @@ impl<'a> E2ETest<'a> {
     println!("Assert invalid at {}:{}.", message, line);
     let bytes = module.clone().into_vec();
     let section = decode_module(&bytes);
-    let err = validate_module(&section).unwrap_err();
-    match message {
-      "alignment"
-      | "unknown function"
-      | "unknown global"
-      | "unknown memory"
-      | "unknown table"
-      | "start function"
-      | "size minimum must not be greater than maximum"
-      | "memory size must be at most 65536 pages (4GiB)"
-      | "unknown type" => {}
-      _ => assert_eq!(&String::from(err), message),
-    };
+    validate_module(&section).unwrap_err();
   }
 
   fn assert_nan(&self, action: &Action, line: u64) {
