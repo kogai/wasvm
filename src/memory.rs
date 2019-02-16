@@ -139,6 +139,14 @@ impl MemoryInstance {
   impl_load_data!(load_data_32, u32, u32::from);
   impl_load_data!(load_data_64, u64, u64::from);
 
+  fn allocate(data: &mut Vec<u8>, allocatable: &[u8], offset: usize) {
+    let end = offset + allocatable.len();
+    if end > data.len() {
+      data.resize(end, 0);
+    }
+    data[offset..end].copy_from_slice(allocatable);
+  }
+
   pub fn new(
     datas: Vec<Data>,
     limit: Limit,
@@ -153,15 +161,15 @@ impl MemoryInstance {
       if size > initial_size {
         return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
       }
-      for (i, d) in init.into_iter().enumerate() {
-        data[i + offset] = d;
-      }
+      MemoryInstance::allocate(&mut data, &init, offset);
     }
 
     Ok(MemoryInstance {
       data,
       limit,
       export_name,
+      // TODO:
+      actual_length: 0,
     })
   }
 
@@ -177,9 +185,7 @@ impl MemoryInstance {
     let data: &mut Vec<u8> = self.data.as_mut();
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = Isa::constant_expression(&offset, global_instances)?;
-      for (i, d) in init.into_iter().enumerate() {
-        data[i + offset] = d;
-      }
+      MemoryInstance::allocate(data, &init, offset);
     }
     Ok(())
   }

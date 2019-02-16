@@ -1,5 +1,8 @@
 use core::convert::From;
 use core::convert::Into;
+use error::{Result, Trap, WasmError};
+use global::GlobalInstances;
+use indice::Indice;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Isa {
