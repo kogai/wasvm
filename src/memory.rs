@@ -127,10 +127,8 @@ macro_rules! impl_store_data {
   ($name: ident, $length: expr, $ty: ty) => {
     fn $name (&mut self, v: $ty, from: u32, to: u32) {
         let bytes: [u8; $length] = unsafe { transmute(v) };
-        for address in from..to {
-          let idx = address - from;
-          self.data[address as usize] = bytes[idx as usize];
-        }
+        let data: &mut Vec<u8> = self.data.as_mut();
+        MemoryInstance::allocate(data, &bytes[0..(to - from) as usize], from as usize);
     }
   };
 }
@@ -168,8 +166,6 @@ impl MemoryInstance {
       data,
       limit,
       export_name,
-      // TODO:
-      actual_length: 0,
     })
   }
 
