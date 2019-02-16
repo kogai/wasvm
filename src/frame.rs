@@ -60,7 +60,7 @@ impl Frame {
       }
       FunctionInstance::HostFn(_) => Frame {
         local_variables: Frame::derive_local_variables(arguments, vec![]),
-        function_instance: function_instance,
+        function_instance,
         last_ptr: 0,
         return_ptr,
         prev_return_ptr,

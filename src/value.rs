@@ -5,14 +5,14 @@ use core::intrinsics::{fabsf32, fabsf64};
 use core::mem::transmute;
 use core::ops::Rem;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
-use core::{f32, f64, fmt};
+use core::{f32, f64};
 use error::runtime::Trap;
 use error::{Result, WasmError};
 #[cfg(not(test))]
 use libm::{F32Ext, F64Ext};
 use value_type::ValueTypes;
 
-#[derive(PartialEq, Clone)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum Values {
   I32(i32),
   I64(i64),
@@ -856,9 +856,3 @@ macro_rules! impl_from_valuetypes {
 
 impl_from_valuetypes!(ValueTypes);
 impl_from_valuetypes!(&ValueTypes);
-
-impl fmt::Debug for Values {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", String::from(self.to_owned()))
-  }
-}

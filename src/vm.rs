@@ -1,6 +1,5 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
-use alloc::string::String;
 use alloc::vec::Vec;
 use error::runtime::Trap;
 use error::{Result, WasmError};
@@ -792,7 +791,7 @@ impl ModuleInstance {
         Ok(())
     }
 
-    fn run_internal(&mut self, invoke: &str, mut arguments: Vec<Values>) -> String {
+    fn run_internal(&mut self, invoke: &str, mut arguments: Vec<Values>) -> Result<Values> {
         match self
             .internal_module
             .get_export_by_key(invoke)
@@ -817,31 +816,29 @@ impl ModuleInstance {
                 let _ = self.stack.push_frame(frame);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
-                        Ok(v) => String::from(v),
-                        Err(_) => "".to_owned(),
+                        Ok(v) => Ok(v),
+                        Err(_) => Ok(Values::I32(0)),
                     },
-                    Err(err) => String::from(err),
+                    // Err(WasmError::Trap(Trap::StackUnderflow)) => Ok(Values::I32(0)),
+                    Err(err) => Err(err),
                 }
             }
             Some(ExternalInterface {
                 descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(idx)),
                 ..
-            }) => match self.store.get_global(&idx) {
-                Ok(v) => String::from(v),
-                Err(_) => "".to_owned(),
-            },
-            None => format!("Invoke or Get key [{}] not found.", invoke),
+            }) => self.store.get_global(&idx),
+            None => Err(WasmError::Trap(Trap::Notfound)),
             x => unimplemented!("{:?}", x),
         }
     }
 
     #[cfg(not(debug_assertions))]
-    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> Result<Values> {
         self.run_internal(invoke, arguments)
     }
 
     #[cfg(debug_assertions)]
-    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> Result<Values> {
         self.stack = Stack::new(self.stack.stack_size);
         self.run_internal(invoke, arguments)
     }

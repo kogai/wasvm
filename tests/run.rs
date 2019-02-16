@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
+use std::{f32, f64};
 use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
 use wasvm::{
   create_spectest, decode_module, init_store, instantiate_module, validate_module, ExternalModules,
@@ -25,19 +26,13 @@ fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
     .collect()
 }
 
-fn get_expectation(expected: &[Value]) -> String {
+fn get_expectation(expected: &[Value]) -> Values {
   match expected.get(0) {
-    Some(Value::I32(v)) => format!("i32:{}", v),
-    Some(Value::I64(v)) => format!("i64:{}", v),
-    Some(Value::F32(v)) => {
-      let prefix = if v.is_nan() { "" } else { "f32:" };
-      format!("{}{}", prefix, v)
-    }
-    Some(Value::F64(v)) => {
-      let prefix = if v.is_nan() { "" } else { "f64:" };
-      format!("{}{}", prefix, v)
-    }
-    None => "".to_owned(),
+    Some(Value::I32(v)) => Values::I32(*v),
+    Some(Value::I64(v)) => Values::I64(*v),
+    Some(Value::F32(v)) => Values::F32(*v),
+    Some(Value::F64(v)) => Values::F64(*v),
+    None => Values::I32(0),
   }
 }
 
@@ -84,7 +79,7 @@ impl<'a> E2ETest<'a> {
     println!("Perform action at {}:{}.", field, line);
     let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
     let mut vm = vm_ref.borrow_mut();
-    vm.run(field, get_args(args));
+    vm.run(field, get_args(args)).unwrap();
   }
 
   fn do_register(&mut self, name: &Option<String>, as_name: &str) {
@@ -116,11 +111,21 @@ impl<'a> E2ETest<'a> {
     println!("Assert return at {}:{}.", field, line);
     let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
     let mut vm = vm_ref.borrow_mut();
-    let actual = vm.run(field.as_ref(), args);
+    let actual = vm.run(field.as_ref(), args).unwrap();
     let expectation = get_expectation(expected);
-    assert_eq!(actual, expectation);
+    match actual {
+      Values::F32(n) if n.is_nan() => match expectation {
+        Values::F32(m) => assert!(m.is_nan()),
+        _ => unreachable!(),
+      },
+      Values::F64(n) if n.is_nan() => match expectation {
+        Values::F64(m) => assert!(m.is_nan()),
+        _ => unreachable!(),
+      },
+      _ => assert_eq!(actual, expectation),
+    };
   }
-  fn assert_trap(&mut self, action: &Action, message: &str, line: u64) {
+  fn assert_trap(&mut self, action: &Action, _message: &str, line: u64) {
     match action {
       Action::Invoke {
         ref field,
@@ -130,16 +135,7 @@ impl<'a> E2ETest<'a> {
         println!("Assert trap at {}:{}.", field, line,);
         let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
         let mut vm = vm_ref.borrow_mut();
-        let actual = vm.run(field, get_args(args));
-        match message {
-          "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-          "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
-          "undefined" => assert_eq!(actual, "undefined element"),
-          "uninitialized element 7" | "uninitialized" => {
-            assert_eq!(actual, "uninitialized element")
-          }
-          _ => assert_eq!(&actual, message),
-        }
+        vm.run(field, get_args(args)).unwrap_err();
       }
       x => unreachable!("{:?}", x),
     }
@@ -189,8 +185,12 @@ impl<'a> E2ETest<'a> {
         println!("Assert NaN at '{}:{}'.", field, line);
         let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
         let mut vm = vm_ref.borrow_mut();
-        let actual = vm.run(field.as_ref(), get_args(args));
-        assert_eq!(&actual, "NaN");
+        let actual = vm.run(field.as_ref(), get_args(args)).unwrap();
+        match actual {
+          Values::F32(n) => assert!(n.is_nan()),
+          Values::F64(n) => assert!(n.is_nan()),
+          _ => unreachable!(),
+        };
       }
       x => unreachable!("{:?}", x),
     }
