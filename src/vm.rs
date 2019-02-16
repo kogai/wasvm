@@ -1,8 +1,7 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
 use alloc::vec::Vec;
-use error::runtime::Trap;
-use error::{Result, WasmError};
+use error::{Result, Trap, WasmError};
 use frame::Frame;
 use function::FunctionInstance;
 use indice::Indice;

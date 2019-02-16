@@ -6,8 +6,7 @@ use core::mem::transmute;
 use core::ops::Rem;
 use core::ops::{BitAnd, BitOr, BitXor, Neg};
 use core::{f32, f64};
-use error::runtime::Trap;
-use error::{Result, WasmError};
+use error::{Result, Trap, WasmError};
 #[cfg(not(test))]
 use libm::{F32Ext, F64Ext};
 use value_type::ValueTypes;

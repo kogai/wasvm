@@ -1,7 +1,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
-use error::runtime::Trap;
-use error::{Result, WasmError};
+use error::{Result, Trap, WasmError};
 use memory::Limit;
 
 macro_rules! impl_decode_leb128 {
@@ -29,7 +28,7 @@ macro_rules! impl_decode_leb128 {
         // buf | num  00000000_00000000_10000000_10000000
         let (shifted, is_overflowed) = num.overflowing_shl(shift);
         if is_overflowed {
-          return Err($crate::error::WasmError::Trap($crate::error::runtime::Trap::IntegerRepresentationTooLong));
+          return Err($crate::error::WasmError::Trap($crate::error::Trap::IntegerRepresentationTooLong));
         }
         buf |= shifted;
         shift += 7;

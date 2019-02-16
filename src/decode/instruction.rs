@@ -1,7 +1,6 @@
 use super::decodable::{Peekable, SignedIntegerDecodable, U32Decodable};
 use alloc::vec::Vec;
-use error::runtime::Trap;
-use error::{Result, WasmError};
+use error::{Result, WasmError, Trap};
 use isa::Isa;
 
 macro_rules! impl_decode_float {
