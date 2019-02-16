@@ -568,3 +568,13 @@ impl Isa {
     }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn instruction_size() {
+    assert_eq!(core::mem::size_of::<Isa>(), 1);
+  }
+}
