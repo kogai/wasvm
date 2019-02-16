@@ -33,24 +33,7 @@ impl TableInstance {
     } as usize;
     let mut function_elements = vec![None; table_size];
     for el in elements.into_iter() {
-      let offset = match Isa::from(*el.offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
-          if offset < 0 {
-            return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
-          }
-          offset
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&el.offset, global_instances)?;
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > function_elements.len() {
@@ -75,24 +58,7 @@ impl TableInstance {
       Limit::NoUpperLimit(min) | Limit::HasUpperLimit(min, _) => min,
     } as usize;
     for el in elements.iter() {
-      let offset = match Isa::from(*el.offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
-          if offset < 0 {
-            return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
-          }
-          offset
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&el.offset, global_instances)?;
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > table_size {
@@ -158,20 +124,7 @@ impl TableInstances {
     let function_elements = &mut table_instance.function_elements;
 
     for el in elements.iter() {
-      let offset = match Isa::from(*el.offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          unsafe { core::mem::transmute::<_, i32>(buf) }
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&el.offset, global_instances)?;
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       function_addresses.swap_with_slice(&mut function_elements[offset..end]);
@@ -190,24 +143,7 @@ impl TableInstances {
     let function_elements = &mut table_instance.function_elements;
 
     for el in elements.iter() {
-      let offset = match Isa::from(*el.offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
-          if offset < 0 {
-            return Err(WasmError::Trap(Trap::ElementSegmentDoesNotFit));
-          }
-          offset
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&el.offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of table, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&el.offset, global_instances)?;
       let mut function_addresses = el.wrap_by_option(function_instances);
       let end = offset + function_addresses.len();
       if end > function_elements.len() {
