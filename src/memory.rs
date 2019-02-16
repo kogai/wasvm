@@ -11,7 +11,6 @@ use core::u32;
 use decode::Data;
 use error::{Result, Trap, WasmError};
 use global::GlobalInstances;
-use indice::Indice;
 use isa::Isa;
 use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
 use value::Values;
@@ -149,24 +148,7 @@ impl MemoryInstance {
     let initial_size = limit.initial_min_size();
     let mut data = vec![0; initial_size];
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match Isa::from(*offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
-          if offset < 0 {
-            return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
-          }
-          offset
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&offset, global_instances)?;
       let size = offset + init.len();
       if size > initial_size {
         return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
@@ -194,20 +176,7 @@ impl MemoryInstance {
     };
     let data: &mut Vec<u8> = self.data.as_mut();
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match Isa::from(*offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          unsafe { core::mem::transmute::<_, i32>(buf) }
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&offset, global_instances)?;
       for (i, d) in init.into_iter().enumerate() {
         data[i + offset] = d;
       }
@@ -226,24 +195,7 @@ impl MemoryInstance {
       None => self.limit.initial_min_size(),
     };
     for Data { offset, init, .. } in datas.iter() {
-      let offset = match Isa::from(*offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
-          if offset < 0 {
-            return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
-          }
-          offset
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&offset, global_instances)?;
       let size = offset + init.len();
       if size > initial_size {
         return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));

@@ -178,6 +178,34 @@ pub enum Isa {
   F64ReinterpretI64,
 }
 
+impl Isa {
+  pub(crate) fn constant_expression(
+    source: &[u8],
+    global_instances: &GlobalInstances,
+  ) -> Result<usize> {
+    use self::Isa::*;
+    let constant_instruction = Isa::from(*source.first()?);
+    match constant_instruction {
+      I32Const => {
+        let mut buf = [0; 4];
+        buf.clone_from_slice(&source[1..5]);
+        let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
+        if offset < 0 {
+          return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
+        }
+        Ok(offset as usize)
+      }
+      GetGlobal => {
+        let mut buf = [0; 4];
+        buf.clone_from_slice(&source[1..5]);
+        let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+        Ok(global_instances.get_global_ext(&idx) as usize)
+      }
+      _ => unreachable!("Expected offset value of memory"),
+    }
+  }
+}
+
 impl From<u8> for Isa {
   fn from(code: u8) -> Self {
     use self::Isa::*;
