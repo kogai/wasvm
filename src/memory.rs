@@ -107,11 +107,15 @@ pub struct MemoryInstance {
   data: Vec<u8>,
   limit: Limit,
   export_name: Option<String>,
+  surface_size: u32,
 }
 
 macro_rules! impl_load_data {
   ($name: ident, $ty: ty, $conv_fn: path) => {
-    pub fn $name(&self, from: u32, to: u32) -> $ty {
+    pub fn $name(&mut self, from: u32, to: u32) -> $ty {
+      if (to as usize) > self.data.len() {
+        self.data.resize(to as usize, 0);
+      };
       let data = &self.data[(from as usize)..(to as usize)];
       let mut bit_buf: $ty = 0;
       for (idx, d) in data.iter().enumerate() {
@@ -152,7 +156,7 @@ impl MemoryInstance {
     global_instances: &GlobalInstances,
   ) -> Result<Self> {
     let initial_size = limit.initial_min_size();
-    let mut data = vec![0; initial_size];
+    let mut data = Vec::new();
     for Data { offset, init, .. } in datas.into_iter() {
       let offset = Isa::constant_expression(&offset, global_instances)?;
       let size = offset + init.len();
@@ -166,6 +170,7 @@ impl MemoryInstance {
       data,
       limit,
       export_name,
+      surface_size: initial_size as u32,
     })
   }
 
@@ -207,7 +212,7 @@ impl MemoryInstance {
   }
 
   fn data_size(&self) -> u32 {
-    self.data.len() as u32
+    self.surface_size
   }
 
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
@@ -224,11 +229,11 @@ impl MemoryInstance {
         Err(WasmError::Trap(Trap::FailToGrow))
       }
       _ => {
-        let current_size = self.data.len() as u32;
+        let current_size = self.data_size();
         match increase_page.checked_mul(PAGE_SIZE) {
           Some(growing_size) => match current_size.checked_add(growing_size) {
             Some(next_size) => {
-              self.data.resize(next_size as usize, 0);
+              self.surface_size = next_size;
               Ok(())
             }
             None => Err(WasmError::Trap(Trap::FailToGrow)),
@@ -239,11 +244,11 @@ impl MemoryInstance {
     }
   }
 
-  pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
+  pub fn load_data_f32(&mut self, from: u32, to: u32) -> f32 {
     f32::from_bits(self.load_data_32(from, to))
   }
 
-  pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
+  pub fn load_data_f64(&mut self, from: u32, to: u32) -> f64 {
     f64::from_bits(self.load_data_64(from, to))
   }
 
@@ -360,8 +365,8 @@ impl MemoryInstances {
   pub fn load_data_32(&self, from: u32, to: u32) -> u32 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_32(from, to)
   }
@@ -369,8 +374,8 @@ impl MemoryInstances {
   pub fn load_data_64(&self, from: u32, to: u32) -> u64 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_64(from, to)
   }
@@ -378,8 +383,8 @@ impl MemoryInstances {
   pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_f32(from, to)
   }
@@ -387,8 +392,8 @@ impl MemoryInstances {
   pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_f64(from, to)
   }
