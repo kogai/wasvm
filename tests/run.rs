@@ -7,10 +7,11 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::rc::Rc;
+use std::{f32, f64};
 use wabt::script::{Action, Command, CommandKind, ModuleBinary, ScriptParser, Value};
 use wasvm::{
   create_spectest, decode_module, init_store, instantiate_module, validate_module, ExternalModules,
-  ModuleInstance, Trap, Values,
+  ModuleInstance, Trap, Values, WasmError,
 };
 
 fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
@@ -25,19 +26,13 @@ fn get_args(args: &[Value<f32, f64>]) -> Vec<Values> {
     .collect()
 }
 
-fn get_expectation(expected: &[Value]) -> String {
+fn get_expectation(expected: &[Value]) -> Values {
   match expected.get(0) {
-    Some(Value::I32(v)) => format!("i32:{}", v),
-    Some(Value::I64(v)) => format!("i64:{}", v),
-    Some(Value::F32(v)) => {
-      let prefix = if v.is_nan() { "" } else { "f32:" };
-      format!("{}{}", prefix, v)
-    }
-    Some(Value::F64(v)) => {
-      let prefix = if v.is_nan() { "" } else { "f64:" };
-      format!("{}{}", prefix, v)
-    }
-    None => "".to_owned(),
+    Some(Value::I32(v)) => Values::I32(*v),
+    Some(Value::I64(v)) => Values::I64(*v),
+    Some(Value::F32(v)) => Values::F32(*v),
+    Some(Value::F64(v)) => Values::F64(*v),
+    None => Values::I32(0),
   }
 }
 
@@ -84,7 +79,7 @@ impl<'a> E2ETest<'a> {
     println!("Perform action at {}:{}.", field, line);
     let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
     let mut vm = vm_ref.borrow_mut();
-    vm.run(field, get_args(args));
+    vm.run(field, get_args(args)).unwrap();
   }
 
   fn do_register(&mut self, name: &Option<String>, as_name: &str) {
@@ -116,11 +111,21 @@ impl<'a> E2ETest<'a> {
     println!("Assert return at {}:{}.", field, line);
     let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
     let mut vm = vm_ref.borrow_mut();
-    let actual = vm.run(field.as_ref(), args);
+    let actual = vm.run(field.as_ref(), args).unwrap();
     let expectation = get_expectation(expected);
-    assert_eq!(actual, expectation);
+    match actual {
+      Values::F32(n) if n.is_nan() => match expectation {
+        Values::F32(m) => assert!(m.is_nan()),
+        _ => unreachable!(),
+      },
+      Values::F64(n) if n.is_nan() => match expectation {
+        Values::F64(m) => assert!(m.is_nan()),
+        _ => unreachable!(),
+      },
+      _ => assert_eq!(actual, expectation),
+    };
   }
-  fn assert_trap(&mut self, action: &Action, message: &str, line: u64) {
+  fn assert_trap(&mut self, action: &Action, _message: &str, line: u64) {
     match action {
       Action::Invoke {
         ref field,
@@ -130,35 +135,21 @@ impl<'a> E2ETest<'a> {
         println!("Assert trap at {}:{}.", field, line,);
         let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
         let mut vm = vm_ref.borrow_mut();
-        let actual = vm.run(field, get_args(args));
-        match message {
-          "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-          "indirect call" => assert_eq!(actual, "indirect call type mismatch"),
-          "undefined" => assert_eq!(actual, "undefined element"),
-          "uninitialized element 7" | "uninitialized" => {
-            assert_eq!(actual, "uninitialized element")
-          }
-          _ => assert_eq!(&actual, message),
-        }
+        vm.run(field, get_args(args)).unwrap_err();
       }
       x => unreachable!("{:?}", x),
     }
   }
 
-  fn assert_uninstantiable(&mut self, module: &ModuleBinary, message: &str, line: u64) {
+  fn assert_uninstantiable(&mut self, module: &ModuleBinary, _message: &str, line: u64) {
     println!("Assert uninstantiable at line:{}.", line);
     let bytes = module.clone().into_vec();
     let store = init_store();
     let module = decode_module(&bytes);
-    let err = instantiate_module(store, module, Default::default(), 65536).unwrap_err();
-    let actual = String::from(err);
-    match message {
-      "unreachable" => assert_eq!(actual, format!("{} executed", message)),
-      _ => assert_eq!(&actual, message),
-    };
+    instantiate_module(store, module, Default::default(), 65536).unwrap_err();
   }
 
-  fn assert_malformed(&self, module: &ModuleBinary, message: &str, line: u64) {
+  fn assert_malformed(&self, module: &ModuleBinary, _message: &str, line: u64) {
     if (self.file_name == "custom_section" && line == 77)
       || (self.file_name == "custom_section" && line == 94)
       || (self.file_name == "custom" && line == 85)
@@ -170,37 +161,18 @@ impl<'a> E2ETest<'a> {
     let store = init_store();
     let module = decode_module(&bytes);
     let err = instantiate_module(store, module, Default::default(), 65536).unwrap_err();
-    use self::Trap::*;
-    if let UnsupportedTextform = err {
+    if let WasmError::Trap(Trap::UnsupportedTextform) = err {
       println!("Skip malformed text form at line:{}.", line);
       return;
     };
     println!("Assert malformed at {}.", line,);
-    match err {
-      UninitializedElement | UnexpectedEnd => {}
-      _ => {
-        assert_eq!(&String::from(err), message);
-      }
-    };
   }
 
   fn assert_invalid(&self, message: &str, module: &ModuleBinary, line: u64) {
     println!("Assert invalid at {}:{}.", message, line);
     let bytes = module.clone().into_vec();
     let section = decode_module(&bytes);
-    let err = validate_module(&section).unwrap_err();
-    match message {
-      "alignment"
-      | "unknown function"
-      | "unknown global"
-      | "unknown memory"
-      | "unknown table"
-      | "start function"
-      | "size minimum must not be greater than maximum"
-      | "memory size must be at most 65536 pages (4GiB)"
-      | "unknown type" => {}
-      _ => assert_eq!(&String::from(err), message),
-    };
+    validate_module(&section).unwrap_err();
   }
 
   fn assert_nan(&self, action: &Action, line: u64) {
@@ -213,14 +185,18 @@ impl<'a> E2ETest<'a> {
         println!("Assert NaN at '{}:{}'.", field, line);
         let vm_ref: Rc<RefCell<ModuleInstance>> = self.modules[module].clone();
         let mut vm = vm_ref.borrow_mut();
-        let actual = vm.run(field.as_ref(), get_args(args));
-        assert_eq!(&actual, "NaN");
+        let actual = vm.run(field.as_ref(), get_args(args)).unwrap();
+        match actual {
+          Values::F32(n) => assert!(n.is_nan()),
+          Values::F64(n) => assert!(n.is_nan()),
+          _ => unreachable!(),
+        };
       }
       x => unreachable!("{:?}", x),
     }
   }
 
-  fn assert_unlinkable(&self, module: &ModuleBinary, message: &str, line: u64) {
+  fn assert_unlinkable(&self, module: &ModuleBinary, _message: &str, line: u64) {
     let bytes = module.clone().into_vec();
     let tmp_bytes = bytes.clone();
     let (magic_numbers, _) = tmp_bytes.split_at(8);
@@ -228,13 +204,7 @@ impl<'a> E2ETest<'a> {
       println!("Assert unlinkable at {}.", line,);
       let store = init_store();
       let section = decode_module(&bytes);
-      let err =
-        instantiate_module(store, section, self.external_modules.clone(), 65536).unwrap_err();
-      let actual = String::from(err);
-      match message {
-        "incompatible import type" => {}
-        _ => assert_eq!(&actual, message),
-      };
+      instantiate_module(store, section, self.external_modules.clone(), 65536).unwrap_err();
     } else {
       println!("Skip unlinkable text form at line:{}.", line);
     };

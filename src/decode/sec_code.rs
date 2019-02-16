@@ -4,7 +4,7 @@ use super::decodable::{
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
 use core::convert::From;
-use trap::Result;
+use error::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);
@@ -16,6 +16,7 @@ impl SignedIntegerDecodable for Section {}
 impl InstructionDecodable for Section {}
 
 impl Decodable for Section {
+  // FIXME:
   type Item = Vec<Result<(Vec<u8>, Vec<ValueTypes>)>>;
   fn decode(&mut self) -> Result<Self::Item> {
     let count_of_section = self.decode_leb128_u32()?;

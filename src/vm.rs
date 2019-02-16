@@ -1,7 +1,7 @@
 #[cfg(not(test))]
 use alloc::prelude::*;
-use alloc::string::String;
 use alloc::vec::Vec;
+use error::{Result, Trap, WasmError};
 use frame::Frame;
 use function::FunctionInstance;
 use indice::Indice;
@@ -14,7 +14,6 @@ use module::{
 };
 use stack::{Stack, StackEntry};
 use store::Store;
-use trap::{Result, Trap};
 use value::Values;
 use value_type::TYPE_UNIT;
 
@@ -26,11 +25,11 @@ macro_rules! impl_load_inst {
             let i = self.stack.pop_value_ext_i32() as u32;
             let (effective_address, overflowed) = i.overflowing_add(offset);
             if overflowed {
-                return Err(Trap::MemoryAccessOutOfBounds);
+                return Err(WasmError::Trap(Trap::MemoryAccessOutOfBounds));
             };
             let (ptr, overflowed) = effective_address.overflowing_add(width);
             if overflowed || memory_instances.data_size_small_than(ptr) {
-                return Err(Trap::MemoryAccessOutOfBounds);
+                return Err(WasmError::Trap(Trap::MemoryAccessOutOfBounds));
             };
             let data = memory_instances
                 .$load_fn(effective_address, ptr);
@@ -205,11 +204,11 @@ impl ModuleInstance {
         let i = self.stack.pop_value_ext_i32() as u32;
         let (effective_address, overflowed) = i.overflowing_add(offset);
         if overflowed {
-            return Err(Trap::MemoryAccessOutOfBounds);
+            return Err(WasmError::Trap(Trap::MemoryAccessOutOfBounds));
         };
         let (ptr, overflowed) = effective_address.overflowing_add(width);
         if overflowed || memory_instances.data_size_small_than(ptr) {
-            return Err(Trap::MemoryAccessOutOfBounds);
+            return Err(WasmError::Trap(Trap::MemoryAccessOutOfBounds));
         };
         memory_instances.store_data(effective_address, ptr, &c);
         Ok(())
@@ -306,7 +305,7 @@ impl ModuleInstance {
         while let Some(expression) = frame.pop_ref() {
             match Isa::from(*expression) {
                 Reserved => unreachable!(),
-                Unreachable => return Err(Trap::Unreachable),
+                Unreachable => return Err(WasmError::Trap(Trap::Unreachable)),
                 Return => {
                     frame.jump_to_last();
                     break;
@@ -442,7 +441,7 @@ impl ModuleInstance {
                     };
                     let i = self.stack.pop_value_ext_i32();
                     if i > table.len() as i32 {
-                        return Err(Trap::UndefinedElement);
+                        return Err(WasmError::Trap(Trap::UndefinedElement));
                     }
                     let function_instance = table.get_function_instance(i as u32)?;
                     let mut arguments = {
@@ -454,7 +453,7 @@ impl ModuleInstance {
                             None => self.store.get_function_type(&idx)?.clone(),
                         };
                         if actual_fn_ty != expect_fn_ty {
-                            return Err(Trap::IndirectCallTypeMismatch);
+                            return Err(WasmError::Trap(Trap::IndirectCallTypeMismatch));
                         }
                         let mut arg = vec![];
                         for _ in 0..actual_fn_ty.get_arity() {
@@ -726,7 +725,7 @@ impl ModuleInstance {
                     let n = self.stack.pop_value_ext_i32() as u32;
                     let result = match memory_instances.memory_grow(n) {
                         Ok(()) => (page_size as i32),
-                        Err(Trap::FailToGrow) => -1,
+                        Err(WasmError::Trap(Trap::FailToGrow)) => -1,
                         _ => unreachable!(),
                     };
                     self.stack
@@ -791,7 +790,7 @@ impl ModuleInstance {
         Ok(())
     }
 
-    fn run_internal(&mut self, invoke: &str, mut arguments: Vec<Values>) -> String {
+    fn run_internal(&mut self, invoke: &str, mut arguments: Vec<Values>) -> Result<Values> {
         match self
             .internal_module
             .get_export_by_key(invoke)
@@ -816,31 +815,29 @@ impl ModuleInstance {
                 let _ = self.stack.push_frame(frame);
                 match self.evaluate() {
                     Ok(_) => match self.stack.pop_value() {
-                        Ok(v) => String::from(v),
-                        Err(_) => "".to_owned(),
+                        Ok(v) => Ok(v),
+                        Err(_) => Ok(Values::I32(0)),
                     },
-                    Err(err) => String::from(err),
+                    // Err(WasmError::Trap(Trap::StackUnderflow)) => Ok(Values::I32(0)),
+                    Err(err) => Err(err),
                 }
             }
             Some(ExternalInterface {
                 descriptor: ModuleDescriptor::ExportDescriptor(ExportDescriptor::Global(idx)),
                 ..
-            }) => match self.store.get_global(&idx) {
-                Ok(v) => String::from(v),
-                Err(_) => "".to_owned(),
-            },
-            None => format!("Invoke or Get key [{}] not found.", invoke),
+            }) => self.store.get_global(&idx),
+            None => Err(WasmError::Trap(Trap::Notfound)),
             x => unimplemented!("{:?}", x),
         }
     }
 
     #[cfg(not(debug_assertions))]
-    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> Result<Values> {
         self.run_internal(invoke, arguments)
     }
 
     #[cfg(debug_assertions)]
-    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> String {
+    pub fn run(&mut self, invoke: &str, arguments: Vec<Values>) -> Result<Values> {
         self.stack = Stack::new(self.stack.stack_size);
         self.run_internal(invoke, arguments)
     }

@@ -8,6 +8,7 @@ use core::fmt;
 use core::iter::Iterator;
 use core::slice::Iter;
 use decode::TableType;
+use error::{Result, Trap, WasmError};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstance, GlobalInstances, GlobalType};
 use heapless::consts::{U32, U4};
@@ -16,7 +17,6 @@ use indice::Indice;
 use memory::{Limit, MemoryInstance, MemoryInstances};
 use store::Store;
 use table::{TableInstance, TableInstances};
-use trap::{Result, Trap};
 
 #[derive(Debug, Clone)]
 pub enum ImportDescriptor {
@@ -275,10 +275,10 @@ impl ExternalModule {
         ..
       } => {
         if !self.table_instances.find_by_name(name) {
-          return Err(Trap::UnknownImport);
+          return Err(WasmError::Trap(Trap::UnknownImport));
         }
         if self.table_instances.gt_table_type(table_type) {
-          return Err(Trap::IncompatibleImportType);
+          return Err(WasmError::Trap(Trap::IncompatibleImportType));
         }
         Ok(self.table_instances.clone())
       }
@@ -354,7 +354,7 @@ impl ExternalModules {
       .ok_or(Trap::UnknownImport)?
       .table_instances
       .get_table_at(idx)
-      .ok_or(Trap::Notfound)
+      .ok_or(WasmError::Trap(Trap::Notfound))
   }
 
   pub fn get_function_type(&self, module_name: &ModuleName, idx: u32) -> Result<FunctionType> {
@@ -362,10 +362,10 @@ impl ExternalModules {
       .0
       .borrow()
       .get(module_name)
-      .ok_or(Trap::UnknownImport)?
+      .ok_or(WasmError::Trap(Trap::UnknownImport))?
       .function_types
       .get(idx as usize)
-      .ok_or(Trap::Notfound)
+      .ok_or(WasmError::Trap(Trap::Notfound))
       .map(|x| x.clone())
   }
 
@@ -382,7 +382,7 @@ impl ExternalModules {
       .function_instances
       .get(idx)
       .cloned()
-      .ok_or(Trap::Notfound)
+      .ok_or(WasmError::Trap(Trap::Notfound))
   }
 
   pub fn find_function_instances(
@@ -403,7 +403,7 @@ impl ExternalModules {
       .0
       .borrow()
       .get(&import.module_name)
-      .ok_or(Trap::UnknownImport)
+      .ok_or(WasmError::Trap(Trap::UnknownImport))
       .map(|x| x.memory_instances.clone())
   }
 
@@ -421,7 +421,7 @@ impl ExternalModules {
       .0
       .borrow()
       .get(module_name)
-      .ok_or(Trap::UnknownImport)
+      .ok_or(WasmError::Trap(Trap::UnknownImport))
       .map(|x| x.global_instances.clone())
   }
 }

@@ -1,11 +1,11 @@
 use alloc::vec::Vec;
 use core::default::Default;
+use error::Result;
 use function::{FunctionInstance, FunctionType};
 use global::GlobalInstances;
 use indice::Indice;
 use memory::MemoryInstances;
 use table::{TableInstance, TableInstances};
-use trap::Result;
 use value::Values;
 
 #[derive(Debug)]

@@ -4,10 +4,10 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cell::{Cell, RefCell};
 use core::fmt;
+use error::{Result, Trap, WasmError};
 use frame::Frame;
 use indice::Indice;
 use label::{Label, LabelKind};
-use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
 
@@ -75,7 +75,7 @@ macro_rules! impl_pop {
         $path(ref v) => Ok(v.to_owned()),
         _ => {
           self.push(value.to_owned())?;
-          Err(Trap::Notfound)
+          Err(WasmError::Trap(Trap::Notfound))
         }
       }
     }
@@ -155,7 +155,7 @@ impl Stack {
 
   pub fn set(&self, ptr: usize, entry: StackEntry) -> Result<()> {
     if ptr >= self.stack_size {
-      return Err(Trap::StackOverflow);
+      return Err(WasmError::Trap(Trap::StackOverflow));
     }
     self.operand_stack.borrow_mut()[ptr] = entry;
     Ok(())
@@ -163,7 +163,7 @@ impl Stack {
 
   pub fn push(&self, entry: StackEntry) -> Result<()> {
     if self.stack_ptr() >= self.stack_size {
-      return Err(Trap::StackOverflow);
+      return Err(WasmError::Trap(Trap::StackOverflow));
     }
     self.operand_stack.borrow_mut()[self.stack_ptr()] = entry;
     self.stack_ptr.set(self.stack_ptr() + 1);
@@ -186,7 +186,7 @@ impl Stack {
     let stack_ptr = self.stack_ptr();
     let stack_ptr_end = stack_ptr + len;
     if stack_ptr_end >= self.stack_size {
-      Err(Trap::StackOverflow)
+      Err(WasmError::Trap(Trap::StackOverflow))
     } else {
       entries.reverse();
       entries.swap_with_slice(&mut self.operand_stack.borrow_mut()[stack_ptr..stack_ptr_end]);
@@ -233,12 +233,12 @@ impl Stack {
 
   pub fn pop(&self) -> Result<StackEntry> {
     if self.stack_ptr() == 0 {
-      return Err(Trap::StackUnderflow);
+      return Err(WasmError::Trap(Trap::StackUnderflow));
     }
     self.stack_ptr.set(self.stack_ptr() - 1);
     match self.operand_stack.borrow_mut().get(self.stack_ptr()) {
       Some(entry) => Ok(entry.clone()),
-      None => Err(Trap::Unknown),
+      None => Err(WasmError::Trap(Trap::Unknown)),
     }
   }
 

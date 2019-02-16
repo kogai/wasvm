@@ -1,8 +1,8 @@
-use super::decodable::{Decodable, Leb128Decodable, LimitDecodable, U32Decodable, U8Iterator};
+use super::decodable::{Leb128Decodable, LimitDecodable, Decodable, U32Decodable, U8Iterator};
 use super::sec_element::ElementType;
 use alloc::vec::Vec;
+use error::Result;
 use memory::Limit;
-use trap::Result;
 
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct TableType {

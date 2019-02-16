@@ -4,7 +4,7 @@ use super::*;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
-use trap::{Result, Trap};
+use error::{Result, WasmError, Trap};
 
 impl_decodable!(Byte);
 impl Leb128Decodable for Byte {}
@@ -13,21 +13,21 @@ impl U32Decodable for Byte {}
 impl Byte {
   pub fn new_with_drop(bytes: &[u8]) -> Result<Self> {
     if 4 > bytes.len() {
-      return Err(Trap::UnexpectedEnd);
+      return Err(WasmError::Trap(Trap::UnexpectedEnd));
     }
     let (magic_words, bytes) = bytes.split_at(4);
     if magic_words.starts_with(&[40]) {
-      return Err(Trap::UnsupportedTextform);
+      return Err(WasmError::Trap(Trap::UnsupportedTextform));
     }
     if magic_words != [0, 97, 115, 109] {
-      return Err(Trap::MagicHeaderNotDetected);
+      return Err(WasmError::Trap(Trap::MagicHeaderNotDetected));
     }
     if 4 > bytes.len() {
-      return Err(Trap::UnexpectedEnd);
+      return Err(WasmError::Trap(Trap::UnexpectedEnd));
     }
     let (wasm_versions, bytes) = bytes.split_at(4);
     if wasm_versions != [1, 0, 0, 0] {
-      return Err(Trap::UnsupportedTextform);
+      return Err(WasmError::Trap(Trap::UnsupportedTextform));
     }
     Ok(Byte::new(bytes.to_vec()))
   }
@@ -42,7 +42,7 @@ impl Byte {
     let start = self.byte_ptr;
     let end = start + bin_size_of_section as usize;
     if end > self.bytes.len() {
-      return Err(Trap::LengthOutofBounds);
+      return Err(WasmError::Trap(Trap::LengthOutofBounds));
     }
     let bytes = self.bytes.drain(start..end).collect::<Vec<_>>();
     Ok(bytes)

@@ -7,6 +7,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::convert::TryFrom;
 use core::default::Default;
+use error::{Result, Trap, WasmError};
 use function::{FunctionInstance, FunctionType};
 use global::{GlobalInstances, GlobalType};
 use memory::{Limit, MemoryInstance, MemoryInstances};
@@ -16,7 +17,6 @@ use module::{
 };
 use store::Store;
 use table::{TableInstance, TableInstances};
-use trap::{Result, Trap};
 use value_type::ValueTypes;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -289,7 +289,7 @@ impl Module {
           .map(|x| x.name.to_owned());
         let index_of_type = match functions.get(idx) {
           Some(n) => *n,
-          None => return Err(Trap::FunctionAndCodeInconsitent),
+          None => return Err(WasmError::Trap(Trap::FunctionAndCodeInconsitent)),
         };
         let function_type = Module::function_type(index_of_type as usize, function_types);
         let (expressions, locals) = code?;

@@ -4,13 +4,13 @@ use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
+use error::{Result, Trap, WasmError};
 use indice::Indice;
 use isa::Isa;
 use module::{
   ExternalInterface, ExternalInterfaces, ExternalModules, ImportDescriptor, ModuleDescriptor,
   GLOBAL_DESCRIPTOR,
 };
-use trap::{Result, Trap};
 use value::Values;
 use value_type::ValueTypes;
 
@@ -25,7 +25,7 @@ impl GlobalType {
     match code {
       Some(0x00) => Ok(GlobalType::Const(v)),
       Some(0x01) => Ok(GlobalType::Var(v)),
-      _ => Err(Trap::InvalidMutability),
+      _ => Err(WasmError::Trap(Trap::InvalidMutability)),
     }
   }
 }
@@ -97,7 +97,7 @@ impl GlobalInstances {
             .find(name)
             .ok_or(Trap::UnknownImport)?;
           if !global_instance.is_same_type(ty) {
-            return Err(Trap::IncompatibleImportType);
+            return Err(WasmError::Trap(Trap::IncompatibleImportType));
           }
           global_instances.push(global_instance);
         }
@@ -162,7 +162,7 @@ impl GlobalInstances {
       .borrow()
       .get(idx.to_usize())
       .map(|g| g.get_value().to_owned())
-      .ok_or(Trap::Notfound)
+      .ok_or(WasmError::Trap(Trap::Notfound))
   }
 
   pub fn get_global_ext(&self, idx: &Indice) -> i32 {

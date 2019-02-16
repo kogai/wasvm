@@ -6,7 +6,7 @@ extern crate wasvm;
 
 use std::fs;
 use std::io::Read;
-use wasvm::{decode_module, init_store, instantiate_module};
+use wasvm::{decode_module, init_store, instantiate_module, Values};
 
 #[derive(Clone)]
 struct Sample(usize, usize);
@@ -48,7 +48,7 @@ macro_rules! impl_benches {
       let store = init_store();
       let module = decode_module(&bytes);
       let mut vm = instantiate_module(store, module, Default::default(), 65536).unwrap();
-      assert_eq!(vm.run("app_main", vec![]), $expect);
+      assert_eq!(vm.run("app_main", vec![]).unwrap(), $expect);
       // });
       flame::end($bench_name);
       flame::dump_stdout();
@@ -56,10 +56,14 @@ macro_rules! impl_benches {
   };
 }
 
-impl_benches!(bench_fib_recursive, "fib_recursive", "i32:9227465");
+impl_benches!(bench_fib_recursive, "fib_recursive", Values::I32(922_7465));
 impl_benches!(
   bench_pollard_rho_128,
   "pollard_rho_128",
-  "i64:2635722126511989555"
+  Values::I64(263_5722_1265_1198_9555)
 );
-impl_benches!(bench_snappy_compress, "snappy_compress", "i32:393476");
+impl_benches!(
+  bench_snappy_compress,
+  "snappy_compress",
+  Values::I32(39_3476)
+);

@@ -1,15 +1,15 @@
 use super::decodable::{
-  Decodable, Leb128Decodable, LimitDecodable, NameDecodable, U32Decodable, U8Iterator,
+  Leb128Decodable, LimitDecodable, NameDecodable, Decodable, U32Decodable, U8Iterator,
 };
 use super::sec_element::ElementType;
 use super::sec_table::TableType;
 use alloc::vec::Vec;
+use error::Result;
 use global::GlobalType;
 use module::{
   ExternalInterface, ExternalInterfaces, ImportDescriptor, ModuleDescriptor, FUNCTION_DESCRIPTOR,
   GLOBAL_DESCRIPTOR, MEMORY_DESCRIPTOR, TABLE_DESCRIPTOR,
 };
-use trap::Result;
 use value_type::ValueTypes;
 
 impl_decodable!(Section);

@@ -25,6 +25,7 @@ extern crate libm;
 #[macro_use]
 mod decode;
 mod embedder;
+mod error;
 mod frame;
 mod function;
 mod global;
@@ -37,17 +38,16 @@ mod spectest;
 mod stack;
 mod store;
 mod table;
-mod trap;
 mod validate;
 mod value;
 mod value_type;
 mod vm;
 
 pub use self::embedder::{decode_module, init_store, instantiate_module, validate_module};
+pub use self::error::{Trap, WasmError};
 pub use self::function::{FunctionInstance, FunctionType};
 pub use self::module::{ExternalModule, ExternalModules};
 pub use self::spectest::create_spectest;
-pub use self::trap::Trap;
 pub use self::value::Values;
 pub use self::value_type::ValueTypes;
 pub use self::vm::ModuleInstance;
@@ -74,8 +74,8 @@ mod tests {
                 let store = init_store();
                 let section = decode_module(&bytes);
                 let mut vm = instantiate_module(store, section, Default::default(), 65536).unwrap();
-                let actual = vm.run("_subject", $call_arguments);
-                assert_eq!(actual, format!("i32:{}", $expect_value));
+                let actual = vm.run("_subject", $call_arguments).unwrap();
+                assert_eq!(actual, Values::I32($expect_value));
             }
         };
     }
@@ -114,11 +114,13 @@ mod tests {
             .unwrap();
         let mut vm = instantiate_module(store, section, external_modules, 65536).unwrap();
 
-        let actual = vm.run(
-            "use_hal_function",
-            [Values::I32(3), Values::I32(5)].to_vec(),
-        );
-        assert_eq!(actual, format!("i32:{}", 25));
+        let actual = vm
+            .run(
+                "use_hal_function",
+                [Values::I32(3), Values::I32(5)].to_vec(),
+            )
+            .unwrap();
+        assert_eq!(actual, Values::I32(25));
     }
 
     test_eval!(evaluate_cons8, "cons8", vec![], 42);

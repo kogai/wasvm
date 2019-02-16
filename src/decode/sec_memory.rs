@@ -1,7 +1,7 @@
 use super::decodable::{Decodable, Leb128Decodable, LimitDecodable, U32Decodable};
 use alloc::vec::Vec;
+use error::Result;
 use memory::Limit;
-use trap::Result;
 
 impl_decodable!(Section);
 impl Leb128Decodable for Section {}

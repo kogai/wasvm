@@ -1,9 +1,9 @@
 use super::decodable::{
-  Decodable, Leb128Decodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
+  Leb128Decodable, Decodable, Peekable, SignedIntegerDecodable, U32Decodable, U8Iterator,
 };
 use super::instruction::InstructionDecodable;
 use alloc::vec::Vec;
-use trap::Result;
+use error::Result;
 
 #[derive(Debug)]
 pub struct Data {

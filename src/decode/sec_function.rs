@@ -1,6 +1,6 @@
 use super::decodable::{Decodable, Leb128Decodable, U32Decodable};
 use alloc::vec::Vec;
-use trap::Result;
+use error::Result;
 
 impl_decodable!(Section);
 impl Leb128Decodable for Section {}
