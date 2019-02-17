@@ -334,6 +334,11 @@ mod tests {
   use super::*;
 
   #[test]
+  fn stack_entry_size() {
+    assert_eq!(core::mem::size_of::<StackEntry>(), 8);
+  }
+
+  #[test]
   fn stack_push() {
     let stack = Stack::new(4);
     let value = StackEntry::new_value(Values::I32(1));

@@ -11,7 +11,6 @@ use core::u32;
 use decode::Data;
 use error::{Result, Trap, WasmError};
 use global::GlobalInstances;
-use indice::Indice;
 use isa::Isa;
 use module::{ExternalInterface, ImportDescriptor, ModuleDescriptor};
 use value::Values;
@@ -108,11 +107,15 @@ pub struct MemoryInstance {
   data: Vec<u8>,
   limit: Limit,
   export_name: Option<String>,
+  surface_size: u32,
 }
 
 macro_rules! impl_load_data {
   ($name: ident, $ty: ty, $conv_fn: path) => {
-    pub fn $name(&self, from: u32, to: u32) -> $ty {
+    pub fn $name(&mut self, from: u32, to: u32) -> $ty {
+      if (to as usize) > self.data.len() {
+        self.data.resize(to as usize, 0);
+      };
       let data = &self.data[(from as usize)..(to as usize)];
       let mut bit_buf: $ty = 0;
       for (idx, d) in data.iter().enumerate() {
@@ -128,10 +131,8 @@ macro_rules! impl_store_data {
   ($name: ident, $length: expr, $ty: ty) => {
     fn $name (&mut self, v: $ty, from: u32, to: u32) {
         let bytes: [u8; $length] = unsafe { transmute(v) };
-        for address in from..to {
-          let idx = address - from;
-          self.data[address as usize] = bytes[idx as usize];
-        }
+        let data: &mut Vec<u8> = self.data.as_mut();
+        MemoryInstance::allocate(data, &bytes[0..(to - from) as usize], from as usize);
     }
   };
 }
@@ -140,6 +141,14 @@ impl MemoryInstance {
   impl_load_data!(load_data_32, u32, u32::from);
   impl_load_data!(load_data_64, u64, u64::from);
 
+  fn allocate(data: &mut Vec<u8>, allocatable: &[u8], offset: usize) {
+    let end = offset + allocatable.len();
+    if end > data.len() {
+      data.resize(end, 0);
+    }
+    data[offset..end].copy_from_slice(allocatable);
+  }
+
   pub fn new(
     datas: Vec<Data>,
     limit: Limit,
@@ -147,39 +156,21 @@ impl MemoryInstance {
     global_instances: &GlobalInstances,
   ) -> Result<Self> {
     let initial_size = limit.initial_min_size();
-    let mut data = vec![0; initial_size];
+    let mut data = Vec::new();
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match Isa::from(*offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
-          if offset < 0 {
-            return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
-          }
-          offset
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&offset, global_instances)?;
       let size = offset + init.len();
       if size > initial_size {
         return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
       }
-      for (i, d) in init.into_iter().enumerate() {
-        data[i + offset] = d;
-      }
+      MemoryInstance::allocate(&mut data, &init, offset);
     }
 
     Ok(MemoryInstance {
       data,
       limit,
       export_name,
+      surface_size: initial_size as u32,
     })
   }
 
@@ -194,23 +185,8 @@ impl MemoryInstance {
     };
     let data: &mut Vec<u8> = self.data.as_mut();
     for Data { offset, init, .. } in datas.into_iter() {
-      let offset = match Isa::from(*offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          unsafe { core::mem::transmute::<_, i32>(buf) }
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
-      for (i, d) in init.into_iter().enumerate() {
-        data[i + offset] = d;
-      }
+      let offset = Isa::constant_expression(&offset, global_instances)?;
+      MemoryInstance::allocate(data, &init, offset);
     }
     Ok(())
   }
@@ -226,24 +202,7 @@ impl MemoryInstance {
       None => self.limit.initial_min_size(),
     };
     for Data { offset, init, .. } in datas.iter() {
-      let offset = match Isa::from(*offset.first()?) {
-        Isa::I32Const => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
-          if offset < 0 {
-            return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
-          }
-          offset
-        }
-        Isa::GetGlobal => {
-          let mut buf = [0; 4];
-          buf.clone_from_slice(&offset[1..5]);
-          let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
-          global_instances.get_global_ext(&idx)
-        }
-        x => unreachable!("Expected offset value of memory, got {:?}", x),
-      } as usize;
+      let offset = Isa::constant_expression(&offset, global_instances)?;
       let size = offset + init.len();
       if size > initial_size {
         return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
@@ -253,7 +212,7 @@ impl MemoryInstance {
   }
 
   fn data_size(&self) -> u32 {
-    self.data.len() as u32
+    self.surface_size
   }
 
   pub fn data_size_smaller_than(&self, ptr: u32) -> bool {
@@ -270,11 +229,11 @@ impl MemoryInstance {
         Err(WasmError::Trap(Trap::FailToGrow))
       }
       _ => {
-        let current_size = self.data.len() as u32;
+        let current_size = self.data_size();
         match increase_page.checked_mul(PAGE_SIZE) {
           Some(growing_size) => match current_size.checked_add(growing_size) {
             Some(next_size) => {
-              self.data.resize(next_size as usize, 0);
+              self.surface_size = next_size;
               Ok(())
             }
             None => Err(WasmError::Trap(Trap::FailToGrow)),
@@ -285,11 +244,11 @@ impl MemoryInstance {
     }
   }
 
-  pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
+  pub fn load_data_f32(&mut self, from: u32, to: u32) -> f32 {
     f32::from_bits(self.load_data_32(from, to))
   }
 
-  pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
+  pub fn load_data_f64(&mut self, from: u32, to: u32) -> f64 {
     f64::from_bits(self.load_data_64(from, to))
   }
 
@@ -406,8 +365,8 @@ impl MemoryInstances {
   pub fn load_data_32(&self, from: u32, to: u32) -> u32 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_32(from, to)
   }
@@ -415,8 +374,8 @@ impl MemoryInstances {
   pub fn load_data_64(&self, from: u32, to: u32) -> u64 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_64(from, to)
   }
@@ -424,8 +383,8 @@ impl MemoryInstances {
   pub fn load_data_f32(&self, from: u32, to: u32) -> f32 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_f32(from, to)
   }
@@ -433,8 +392,8 @@ impl MemoryInstances {
   pub fn load_data_f64(&self, from: u32, to: u32) -> f64 {
     self
       .0
-      .borrow()
-      .get(0)
+      .borrow_mut()
+      .get_mut(0)
       .expect("At least one memory instance expected")
       .load_data_f64(from, to)
   }

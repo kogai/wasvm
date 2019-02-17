@@ -1,5 +1,8 @@
 use core::convert::From;
 use core::convert::Into;
+use error::{Result, Trap, WasmError};
+use global::GlobalInstances;
+use indice::Indice;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Isa {
@@ -176,6 +179,34 @@ pub enum Isa {
   I64ReinterpretF64,
   F32ReinterpretI32,
   F64ReinterpretI64,
+}
+
+impl Isa {
+  pub(crate) fn constant_expression(
+    source: &[u8],
+    global_instances: &GlobalInstances,
+  ) -> Result<usize> {
+    use self::Isa::*;
+    let constant_instruction = Isa::from(*source.first()?);
+    match constant_instruction {
+      I32Const => {
+        let mut buf = [0; 4];
+        buf.clone_from_slice(&source[1..5]);
+        let offset = unsafe { core::mem::transmute::<_, u32>(buf) } as i32;
+        if offset < 0 {
+          return Err(WasmError::Trap(Trap::DataSegmentDoesNotFit));
+        }
+        Ok(offset as usize)
+      }
+      GetGlobal => {
+        let mut buf = [0; 4];
+        buf.clone_from_slice(&source[1..5]);
+        let idx = Indice::from(unsafe { core::mem::transmute::<_, u32>(buf) });
+        Ok(global_instances.get_global_ext(&idx) as usize)
+      }
+      _ => unreachable!("Expected offset value of memory"),
+    }
+  }
 }
 
 impl From<u8> for Isa {
@@ -566,5 +597,15 @@ impl Isa {
       Some(0x5) | Some(0x0b) => true,
       _ => false,
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn instruction_size() {
+    assert_eq!(core::mem::size_of::<Isa>(), 1);
   }
 }

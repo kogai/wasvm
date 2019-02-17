@@ -60,7 +60,11 @@ mod tests {
 
     #[test]
     fn test_repl() {
-        assert_eq!(core::mem::size_of::<stack::StackEntry>(), 8);
+        let mut buf: Vec<u8> = Vec::with_capacity(10);
+        let source = vec![1, 2, 3];
+        buf.resize(6, 0);
+        buf[3..6].copy_from_slice(&source);
+        assert_eq!(buf, vec![0, 0, 0, 1, 2, 3]);
     }
 
     macro_rules! test_eval {

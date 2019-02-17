@@ -28,11 +28,12 @@ pub fn instantiate_module(
   mut store: Store,
   section: Result<Module>, // module: Module(PreVm)
   external_modules: ExternalModules,
-  stack_size: usize,
+  max_stack_height: usize,
 ) -> Result<ModuleInstance> {
   // TODO: Return pair of (Store, Vm) by using Rc<Store> type.
   let internal_module = section?.complete(&external_modules, &mut store)?;
-  let mut vm = ModuleInstance::new_from(store, internal_module, external_modules, stack_size)?;
+  let mut vm =
+    ModuleInstance::new_from(store, internal_module, external_modules, max_stack_height)?;
   if let Some(idx) = vm.start_index().clone() {
     let function_instance = vm.get_function_instance(&idx)?;
     let frame = Frame::new(
@@ -43,7 +44,7 @@ pub fn instantiate_module(
     );
     vm.stack.push_frame(frame)?;
     vm.evaluate()?;
-    vm.stack = Stack::new(65536);
+    vm.stack = Stack::new(max_stack_height);
   };
   Ok(vm)
 }
