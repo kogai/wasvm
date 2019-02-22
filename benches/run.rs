@@ -6,10 +6,17 @@ extern crate wasvm;
 
 use std::fs;
 use std::io::Read;
-use wasvm::{decode_module, init_store, instantiate_module, Values};
+use wasvm::{
+  decode_module, init_store, instantiate_module, ExternalModule, ExternalModules, FunctionInstance,
+  FunctionType, ValueTypes, Values,
+};
 
 #[derive(Clone)]
 struct Sample(usize, usize);
+
+fn my_hal_function(_arguments: &[Values]) -> Vec<Values> {
+  [Values::I32(3 * 5)].to_vec()
+}
 
 // NOTE: Compare which one is fast vec.push(el) or vec[idx] = el;
 // And below is the result.
@@ -33,6 +40,42 @@ fn bench_push(b: &mut test::Bencher) {
     for i in 0..100 {
       buf.push(Sample(i, i));
     }
+  });
+}
+
+#[bench]
+fn memory_alloc(b: &mut test::Bencher) {
+  let mut file = fs::File::open("./discovery/src/discovery_wasm_bg.wasm").unwrap();
+  let mut bytes = vec![];
+  file.read_to_end(&mut bytes).unwrap();
+  b.iter(|| {
+    let store = init_store();
+    let module = decode_module(&bytes);
+    let mut external_modules = ExternalModules::default();
+    let external_module = ExternalModule::new(
+      [FunctionInstance::new_host_fn(
+        Some("__wbg_myhalfunction_59a89d8df8955cf7".to_owned()),
+        FunctionType::new(
+          [ValueTypes::I32, ValueTypes::I32].to_vec(),
+          [ValueTypes::I32].to_vec(),
+        ),
+        &my_hal_function,
+      )]
+      .to_vec(),
+      [].to_vec(),
+      [].to_vec(),
+      [].to_vec(),
+      [].to_vec(),
+    );
+    external_modules
+      .register_module(Some("./discovery_wasm".to_owned()), external_module)
+      .unwrap();
+    let mut vm = instantiate_module(store, module, external_modules, 65536).unwrap();
+    let result = vm.run(
+      "use_hal_function",
+      [Values::I32(3), Values::I32(5)].to_vec(),
+    );
+    assert_eq!(result, Ok(Values::I32(25)));
   });
 }
 
