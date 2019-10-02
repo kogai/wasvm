@@ -5,5 +5,6 @@
 ## Current status
 
 - [x] Almost testsuit has been [passed](https://travis-ci.org/kogai/wasvm)
+- [x] no_std
 - [x] Run on STM32F3DISCOVERY
 - [ ] Run wasm binary build with LLVM on STM32F3DISCOVERY
